@@ -24,9 +24,10 @@ class MonthDisplay extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
       decoration: BoxDecoration(
-        color: effectiveColor.withOpacity(0.1),
+        color: effectiveColor.withAlpha((255 * 0.1).toInt()),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: effectiveColor.withOpacity(0.3)),
+        border:
+            Border.all(color: effectiveColor.withAlpha((255 * 0.3).toInt())),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

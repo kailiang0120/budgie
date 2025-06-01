@@ -11,7 +11,7 @@ import 'package:flutter/services.dart';
 import 'settings_service.dart';
 import 'notification_detection_api_service.dart';
 import 'api_models.dart' as api_models;
-import 'expense_card_manager.dart';
+import 'expense_card_managing_service.dart';
 import 'local_notification_service.dart';
 import '../router/app_router.dart';
 
@@ -133,11 +133,11 @@ class NotificationService {
     if (Platform.isAndroid) {
       try {
         // Configure the background service to process notifications even when app is in background
-        final androidConfig = FlutterBackgroundAndroidConfig(
+        const androidConfig = FlutterBackgroundAndroidConfig(
           notificationTitle: "Budgie Expense Detector",
           notificationText: "Monitoring notifications for expenses",
           notificationImportance: AndroidNotificationImportance.normal,
-          notificationIcon: const AndroidResource(
+          notificationIcon: AndroidResource(
             name: 'ic_launcher',
             defType: 'mipmap',
           ),
@@ -265,11 +265,11 @@ class NotificationService {
         }
 
         // First ensure background service is initialized properly
-        final androidConfig = FlutterBackgroundAndroidConfig(
+        const androidConfig = FlutterBackgroundAndroidConfig(
           notificationTitle: "Budgie Expense Detector",
           notificationText: "Monitoring notifications for expenses",
           notificationImportance: AndroidNotificationImportance.normal,
-          notificationIcon: const AndroidResource(
+          notificationIcon: AndroidResource(
             name: 'ic_launcher',
             defType: 'mipmap',
           ),
@@ -311,6 +311,14 @@ class NotificationService {
           // Continue anyway as we might still be able to listen while in foreground
         } else {
           debugPrint('Background execution enabled successfully');
+        }
+
+        // Disable background execution if it was enabled
+        if (Platform.isAndroid) {
+          if (await FlutterBackground.isBackgroundExecutionEnabled) {
+            await FlutterBackground.disableBackgroundExecution();
+            debugPrint('Background execution disabled');
+          }
         }
       }
 
@@ -438,7 +446,7 @@ class NotificationService {
       String text) async {
     try {
       // Call the actual API service
-      final response = await _apiService.predictNotification(text);
+      final response = await _apiService.classifyNotification(text);
 
       debugPrint(
           'API Response - Is Expense: ${response.isExpense}, Confidence: ${response.confidence}');
@@ -448,7 +456,6 @@ class NotificationService {
         // Parse the extracted amount to get numeric value and currency
         double? amount;
         String currency = 'MYR'; // Default currency
-        String? merchant;
 
         if (response.extractedAmount != null) {
           // Try to extract amount and currency from the response
@@ -473,14 +480,12 @@ class NotificationService {
           }
         }
 
-        // Try to extract merchant from original text as fallback
-        if (merchant == null) {
-          final merchantPattern = RegExp(
-              r'(?:at|from|to)\s+([A-Za-z\s]+?)(?:\s|$)',
-              caseSensitive: false);
-          final merchantMatch = merchantPattern.firstMatch(text);
-          merchant = merchantMatch?.group(1)?.trim();
-        }
+        // Extract merchant from original text as fallback
+        final merchantPattern = RegExp(
+            r'(?:at|from|to)\s+([A-Za-z\s]+?)(?:\s|$)',
+            caseSensitive: false);
+        final merchantMatch = merchantPattern.firstMatch(text);
+        final merchant = merchantMatch?.group(1)?.trim();
 
         return {
           'amount': amount ?? 0.0,

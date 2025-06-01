@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+
 import '../../presentation/screens/splash_screen.dart';
 import '../../presentation/screens/login_screen.dart';
 import '../../presentation/screens/home_screen.dart';
 import '../../presentation/screens/add_expense_screen.dart';
-import '../../presentation/screens/profile_screen.dart';
-import '../../presentation/screens/setting_screen.dart';
-import '../../presentation/viewmodels/expenses_viewmodel.dart';
 import '../../presentation/screens/analytic_screen.dart';
+import '../../presentation/screens/setting_screen.dart';
+import '../../presentation/screens/profile_screen.dart';
 import '../constants/routes.dart';
-import '../../di/injection_container.dart' as di;
 import 'page_transition.dart';
 
 class AppRouter {
@@ -50,34 +48,6 @@ class AppRouter {
     }
   }
 
-  /// Get appropriate transition type based on screen context
-  static TransitionType _getTransitionForScreen(
-      String? routeName, NavDirection direction) {
-    switch (routeName) {
-      case Routes.splash:
-        return TransitionType.smoothFadeSlide;
-      case Routes.login:
-        return TransitionType.materialPageRoute;
-      case Routes.expenses:
-        return TransitionType.slideAndFadeVertical;
-      case Routes.home:
-        // Use different transitions based on direction
-        return direction == NavDirection.forward
-            ? TransitionType.smoothSlideRight
-            : TransitionType.smoothSlideLeft;
-      case Routes.analytic:
-        return TransitionType.smoothFadeSlide;
-      case Routes.profile:
-        return TransitionType.smoothScale;
-      case Routes.settings:
-        return TransitionType.materialPageRoute;
-      default:
-        return direction == NavDirection.forward
-            ? TransitionType.smoothSlideRight
-            : TransitionType.smoothSlideLeft;
-    }
-  }
-
   static Route<dynamic> generateRoute(RouteSettings settings) {
     // Get current route for direction calculation
     final fromRoute = navigatorKey.currentContext != null
@@ -85,7 +55,6 @@ class AppRouter {
         : null;
 
     final direction = _getNavigationDirection(fromRoute, settings.name ?? '');
-    final transitionType = _getTransitionForScreen(settings.name, direction);
 
     // Special handling for expense screen (modal behavior)
     if (settings.name == Routes.expenses) {

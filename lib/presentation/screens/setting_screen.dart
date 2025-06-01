@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:io';
 import 'package:flutter_background/flutter_background.dart';
-import '../viewmodels/auth_viewmodel.dart';
+
 import '../viewmodels/theme_viewmodel.dart';
 import '../../core/constants/routes.dart';
 import '../../core/router/page_transition.dart';
@@ -13,17 +12,12 @@ import '../../core/services/settings_service.dart';
 import '../../di/injection_container.dart' as di;
 import '../widgets/switch_tile.dart';
 import '../widgets/dropdown_tile.dart';
-import '../widgets/auth_button.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/animated_float_button.dart';
-import '../widgets/notification_permission_guide.dart';
 import '../utils/app_constants.dart';
-import '../utils/app_theme.dart';
 import '../utils/currency_formatter.dart';
 import 'add_expense_screen.dart';
 import 'notification_test_screen.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import '../viewmodels/budget_viewmodel.dart';
 
 class SettingScreen extends StatefulWidget {
@@ -497,7 +491,10 @@ class _SettingScreenState extends State<SettingScreen> {
             leading: Container(
               padding: const EdgeInsets.all(8.0),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withAlpha((255 * 0.1).toInt()),
                 borderRadius: BorderRadius.circular(8.0),
               ),
               child: Icon(

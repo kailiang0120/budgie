@@ -117,13 +117,6 @@ class BudgetCalculationService {
       currency: budgetCurrency,
     );
   }
-
-  /// Internal calculation function, runs in background thread
-  static Budget _calculateBudgetInternal(_CalculationParams params) {
-    // This is needed for compute, but we're not using it directly anymore
-    // We keep it for backwards compatibility
-    return params.budget;
-  }
 }
 
 /// Calculation parameters class for compute function

@@ -33,7 +33,6 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
   final TextEditingController _remarkController = TextEditingController();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  bool _isLoading = false;
 
   @override
   void initState() {
@@ -98,10 +97,6 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
   }
 
   Future<void> _saveExpense() async {
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
       final amount =
           double.tryParse(widget.expenseData['amount'].toString()) ?? 0.0;
@@ -176,7 +171,7 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
           debugPrint('Firestore connectivity test failed: $connectivityError');
         }
 
-        throw firestoreError; // Re-throw the original error
+        rethrow; // Re-throw the original error
       }
 
       // Remove from auto-detected collection if it exists
@@ -204,11 +199,6 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
     } catch (e, stackTrace) {
       debugPrint('Error saving expense: $e');
       debugPrint('Stack trace: $stackTrace');
-
-      setState(() {
-        _isLoading = false;
-        _currentStep = ExpenseCardStep.remark;
-      });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -240,7 +230,7 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withAlpha((255 * 0.15).toInt()),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -253,7 +243,10 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
             Container(
               padding: const EdgeInsets.all(16.0),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withAlpha((255 * 0.1).toInt()),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
                   topRight: Radius.circular(16),
@@ -340,7 +333,10 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            color: Theme.of(context)
+                .colorScheme
+                .primary
+                .withAlpha((255 * 0.1).toInt()),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -471,7 +467,7 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? categoryColor.withOpacity(0.2)
+                        ? categoryColor.withAlpha((255 * 0.2).toInt())
                         : Theme.of(context).colorScheme.surface,
                     border: Border.all(
                       color: isSelected
@@ -490,7 +486,7 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
                             : Theme.of(context)
                                 .colorScheme
                                 .onSurface
-                                .withOpacity(0.7),
+                                .withAlpha((255 * 0.7).toInt()),
                         size: 20,
                       ),
                       const SizedBox(width: 8),
@@ -605,7 +601,7 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
                     .textTheme
                     .bodySmall
                     ?.color
-                    ?.withOpacity(0.7),
+                    ?.withAlpha((255 * 0.7).toInt()),
               ),
         ),
         const SizedBox(height: 24),
@@ -669,8 +665,11 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
           Icon(
             icon,
             size: 16,
-            color:
-                Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+            color: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.color
+                ?.withAlpha((255 * 0.7).toInt()),
           ),
           const SizedBox(width: 8),
           Text(

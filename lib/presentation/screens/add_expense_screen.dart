@@ -18,7 +18,7 @@ class AddExpenseScreen extends StatefulWidget {
   const AddExpenseScreen({Key? key}) : super(key: key);
 
   @override
-  _AddExpenseScreenState createState() => _AddExpenseScreenState();
+  State<AddExpenseScreen> createState() => _AddExpenseScreenState();
 }
 
 class _AddExpenseScreenState extends State<AddExpenseScreen> {
@@ -157,10 +157,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
+        title: const Text(
           AppConstants.newExpenseTitle,
         ),
         centerTitle: true,
@@ -181,6 +181,15 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                const Text(
+                  'Add Expense',
+                  style: TextStyle(
+                    fontFamily: 'Lexend',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
+                  ),
+                ),
+                const SizedBox(height: 24),
                 // 类别选择器 - 使用ValueListenableBuilder避免整个屏幕重建
                 Center(
                   child: ValueListenableBuilder<Category>(
@@ -319,10 +328,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ),
                   ),
                   child: _isSubmitting
-                      ? Row(
+                      ? const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const SizedBox(
+                            SizedBox(
                               width: 20,
                               height: 20,
                               child: CircularProgressIndicator(
@@ -330,10 +339,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                 color: Colors.white,
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            SizedBox(width: 12),
                             Text(
                               AppConstants.addingText,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: AppTheme.fontFamily,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,
@@ -342,16 +351,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             ),
                           ],
                         )
-                      : Row(
+                      : const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.add, size: 20),
-                            const SizedBox(width: 8),
+                            Icon(Icons.add, size: 20),
+                            SizedBox(width: 8),
                             Text(
-                              AppConstants.addButtonText +
-                                  " " +
-                                  AppConstants.newExpenseTitle,
-                              style: const TextStyle(
+                              'Add New Expenses',
+                              style: TextStyle(
                                 fontFamily: AppTheme.fontFamily,
                                 fontSize: 16,
                                 fontWeight: FontWeight.w500,

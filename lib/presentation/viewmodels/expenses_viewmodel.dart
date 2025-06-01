@@ -1,21 +1,19 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../../domain/entities/expense.dart';
 import '../../domain/entities/category.dart' as app_category;
-import '../../domain/entities/budget.dart';
 import '../../domain/repositories/expenses_repository.dart';
-import '../../domain/repositories/budget_repository.dart';
 import '../../core/errors/app_error.dart';
+import '../../core/services/settings_service.dart';
 import '../../core/utils/performance_monitor.dart';
+import '../../domain/repositories/budget_repository.dart';
 import '../../core/services/budget_calculation_service.dart';
 import '../../core/network/connectivity_service.dart';
-import '../../core/services/settings_service.dart';
 import '../../core/services/sync_service.dart';
 import '../../di/injection_container.dart' as di;
 import 'dart:async';
-import '../utils/category_manager.dart';
 
 class ExpensesViewModel extends ChangeNotifier {
   final ExpensesRepository _expensesRepository;
@@ -254,14 +252,6 @@ class ExpensesViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Static method for isolated thread filtering
-  static List<Expense> _filterExpenses(_FilterParams params) {
-    return params.expenses.where((expense) {
-      return expense.date.year == params.year &&
-          expense.date.month == params.month;
-    }).toList();
-  }
-
   void _startExpensesStream() {
     _isLoading = true;
     _error = null;
@@ -288,7 +278,7 @@ class ExpensesViewModel extends ChangeNotifier {
         .orderBy('date', descending: true);
 
     // Limit maximum data loading to optimize performance
-    final int pageSize = 50;
+    const int pageSize = 50;
     expensesQuery = expensesQuery.limit(pageSize);
 
     _expensesSubscription = expensesQuery.snapshots().listen(
@@ -584,7 +574,7 @@ class ExpensesViewModel extends ChangeNotifier {
   // Explicitly update budget for a specific month (for use in analytics screen)
   Future<void> updateBudgetForMonth(int year, int month) async {
     try {
-      final monthId = '${year}-${month.toString().padLeft(2, '0')}';
+      final monthId = '$year-${month.toString().padLeft(2, '0')}';
       debugPrint('Explicitly updating budget for month: $monthId');
 
       // Get the current user ID
@@ -642,19 +632,6 @@ class ExpensesViewModel extends ChangeNotifier {
     _expensesSubscription?.cancel(); // Cancel the stream subscription
     super.dispose();
   }
-}
-
-// 过滤参数类，用于compute函数
-class _FilterParams {
-  final List<Expense> expenses;
-  final int year;
-  final int month;
-
-  _FilterParams({
-    required this.expenses,
-    required this.year,
-    required this.month,
-  });
 }
 
 // 处理参数类，用于compute函数

@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'currency_formatter.dart';
 
 /// Application constants management class

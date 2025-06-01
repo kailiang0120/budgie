@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../viewmodels/expenses_viewmodel.dart';
 import '../widgets/expense_pie_chart.dart';
 import '../widgets/legend_card.dart';
@@ -11,11 +9,11 @@ import '../widgets/bottom_nav_bar.dart';
 import '../widgets/date_picker_button.dart';
 import '../widgets/animated_float_button.dart';
 import '../utils/currency_formatter.dart';
+import 'add_expense_screen.dart';
 
 import '../../core/constants/routes.dart';
 import '../../core/router/page_transition.dart';
 import '../../domain/entities/category.dart';
-import 'add_expense_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -132,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       extendBody: true,
       appBar: AppBar(
-        title: Text('Home'),
+        title: const Text('Home'),
         centerTitle: true,
         automaticallyImplyLeading: false,
       ),
@@ -150,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               child: CustomScrollView(
                 slivers: [
                   const SliverPadding(
-                    padding: const EdgeInsets.only(top: 16.0),
+                    padding: EdgeInsets.only(top: 16.0),
                     sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
                   ),
 
@@ -188,13 +186,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   color: Theme.of(context)
                                       .colorScheme
                                       .primary
-                                      .withOpacity(0.1),
+                                      .withAlpha((255 * 0.1).toInt()),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: Theme.of(context)
                                         .colorScheme
                                         .primary
-                                        .withOpacity(0.3),
+                                        .withAlpha((255 * 0.3).toInt()),
                                   ),
                                 ),
                                 child: Center(

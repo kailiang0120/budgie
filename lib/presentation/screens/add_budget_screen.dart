@@ -8,11 +8,10 @@ import '../utils/app_constants.dart';
 import '../utils/category_manager.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/custom_text_field.dart';
-import '../widgets/date_picker_button.dart';
 import '../widgets/submit_button.dart';
-import '../../core/services/budget_calculation_service.dart';
 import '../utils/currency_formatter.dart';
 import '../../core/services/settings_service.dart';
+import '../../core/services/budget_calculation_service.dart';
 
 class AddBudgetScreen extends StatefulWidget {
   final String? monthId;
@@ -23,7 +22,7 @@ class AddBudgetScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _AddBudgetScreenState createState() => _AddBudgetScreenState();
+  State<AddBudgetScreen> createState() => _AddBudgetScreenState();
 }
 
 class _AddBudgetScreenState extends State<AddBudgetScreen> {
@@ -297,20 +296,6 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     }
   }
 
-  void _onDateChanged(DateTime newDate) {
-    setState(() {
-      _selectedDate = newDate;
-      _currentMonthId = _getMonthIdFromDate(newDate);
-    });
-
-    // Use post-frame callback to ensure setState is complete
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _loadBudgetData(_currentMonthId);
-      }
-    });
-  }
-
   void _saveBudget() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -482,16 +467,6 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
 
     // Recalculate total allocated
     _calculateTotalAllocated();
-  }
-
-  // Update all category percentages based on their current amounts
-  void _updateAllCategoryPercentages() {
-    final totalBudget = _totalBudgetNotifier.value ?? 0;
-    if (totalBudget <= 0) return;
-
-    for (final catId in _budgetCategoryIds) {
-      _updatePercentageFromAmount(catId);
-    }
   }
 
   @override
@@ -779,7 +754,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: categoryColor.withOpacity(0.1),
+                                color: categoryColor
+                                    .withAlpha((255 * 0.1).toInt()),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
@@ -871,8 +847,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                       activeTrackColor: categoryColor,
                                       inactiveTrackColor: Colors.grey.shade200,
                                       thumbColor: categoryColor,
-                                      overlayColor:
-                                          categoryColor.withOpacity(0.3),
+                                      overlayColor: categoryColor
+                                          .withAlpha((255 * 0.3).toInt()),
                                     ),
                                     child: Slider(
                                       value: _categoryPercentages[catId] ?? 0.0,
@@ -987,14 +963,14 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
           color: Theme.of(context).cardColor,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withAlpha((255 * 0.05).toInt()),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),
           ],
         ),
         child: SubmitButton(
-          text: AppConstants.saveButtonText + ' ' + AppConstants.setBudgetTitle,
+          text: '${AppConstants.saveButtonText} ${AppConstants.setBudgetTitle}',
           loadingText: AppConstants.savingText,
           isLoading: _isSubmitting,
           onPressed: _saveBudget,

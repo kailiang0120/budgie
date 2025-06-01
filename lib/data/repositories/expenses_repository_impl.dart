@@ -192,7 +192,7 @@ class ExpensesRepositoryImpl implements ExpensesRepository {
 
       if (e is AuthError) {
         debugPrint('Authentication error: ${e.message}');
-        throw e;
+        rethrow;
       }
 
       if (e is NetworkError) {
@@ -270,7 +270,7 @@ class ExpensesRepositoryImpl implements ExpensesRepository {
       await _localDataSource.markExpenseAsSynced(expense.id);
     } catch (e, stackTrace) {
       if (e is AuthError) {
-        throw e;
+        rethrow;
       }
 
       if (e is NetworkError) {
@@ -304,7 +304,7 @@ class ExpensesRepositoryImpl implements ExpensesRepository {
       await collection.doc(id).delete();
     } catch (e, stackTrace) {
       if (e is AuthError) {
-        throw e;
+        rethrow;
       }
 
       if (e is NetworkError) {

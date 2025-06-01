@@ -1,6 +1,7 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'package:flutter/material.dart';
 import 'month_display.dart';
-import 'package:intl/intl.dart';
 
 /// A reusable date picker button that provides a consistent UI across the app
 class DatePickerButton extends StatelessWidget {
@@ -260,7 +261,7 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
                               fontWeight: FontWeight.bold,
                               color: year == _selectedYear
                                   ? widget.themeColor
-                                  : textColor.withOpacity(0.6),
+                                  : textColor.withAlpha((255 * 0.6).toInt()),
                             ),
                           ),
                         );
@@ -338,7 +339,7 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
                                 ? Theme.of(context).dividerColor
                                 : Theme.of(context)
                                     .dividerColor
-                                    .withOpacity(0.3),
+                                    .withAlpha((255 * 0.3).toInt()),
                       ),
                     ),
                     child: Center(

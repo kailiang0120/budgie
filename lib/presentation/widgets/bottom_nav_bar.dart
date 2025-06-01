@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/constants/routes.dart';
-import '../utils/app_theme.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -93,8 +92,9 @@ class BottomNavBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          color:
-              isSelected ? primaryColor.withOpacity(0.1) : Colors.transparent,
+          color: isSelected
+              ? primaryColor.withAlpha((255 * 0.1).toInt())
+              : Colors.transparent,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -107,7 +107,9 @@ class BottomNavBar extends StatelessWidget {
               curve: Curves.easeInOut,
               child: Icon(
                 icon,
-                color: isSelected ? primaryColor : textColor.withOpacity(0.6),
+                color: isSelected
+                    ? primaryColor
+                    : textColor.withAlpha((255 * 0.6).toInt()),
                 size: 24,
               ),
             ),
@@ -115,7 +117,9 @@ class BottomNavBar extends StatelessWidget {
             AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 200),
               style: TextStyle(
-                color: isSelected ? primaryColor : textColor.withOpacity(0.6),
+                color: isSelected
+                    ? primaryColor
+                    : textColor.withAlpha((255 * 0.6).toInt()),
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 fontSize: 12,
               ),
@@ -143,12 +147,7 @@ class BottomNavBar extends StatelessWidget {
 
   void _navigateWithSmoothTransition(
       BuildContext context, int targetIndex, String route) {
-    // Calculate navigation direction for potential future use
-    final isMovingRight = targetIndex > currentIndex;
-    final distance = (targetIndex - currentIndex).abs();
-
-    // Navigate using standard route replacement
-    // Note: Custom transitions are handled by the app router
+    // Enhanced smooth navigation with potential for custom transitions
     Navigator.pushReplacementNamed(
       context,
       route,
@@ -159,7 +158,7 @@ class BottomNavBar extends StatelessWidget {
 class _NavBarPainter extends CustomPainter {
   final Color backgroundColor;
 
-  _NavBarPainter(this.backgroundColor);
+  const _NavBarPainter(this.backgroundColor);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -168,9 +167,9 @@ class _NavBarPainter extends CustomPainter {
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
-    final double notchRadius = 32;
+    const double notchRadius = 32;
     final double notchCenterX = size.width / 2;
-    final double notchTop = 0;
+    const double notchTop = 0;
     final double barHeight = size.height;
 
     final path = Path();
@@ -186,7 +185,7 @@ class _NavBarPainter extends CustomPainter {
     );
     path.arcToPoint(
       Offset(notchCenterX + notchRadius * 0.8, notchTop + notchRadius * 0.3),
-      radius: Radius.circular(notchRadius),
+      radius: const Radius.circular(notchRadius),
       clockwise: false,
     );
     path.quadraticBezierTo(
@@ -201,7 +200,8 @@ class _NavBarPainter extends CustomPainter {
     path.lineTo(0, barHeight);
     path.close();
 
-    canvas.drawShadow(path, Colors.black.withOpacity(0.15), 8, true);
+    canvas.drawShadow(
+        path, Colors.black.withAlpha((255 * 0.15).toInt()), 8, true);
     canvas.drawPath(path, paint);
   }
 

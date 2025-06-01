@@ -1,19 +1,15 @@
 import 'package:flutter/material.dart';
-import '../../core/services/notification_service.dart';
-import '../../core/services/notification_detection_api_service.dart';
-import '../../core/services/api_models.dart';
-import '../utils/app_theme.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter_background/flutter_background.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
+
+import '../../core/services/notification_service.dart';
 import '../../di/injection_container.dart' as di;
 
 class NotificationTestScreen extends StatefulWidget {
   const NotificationTestScreen({Key? key}) : super(key: key);
 
   @override
-  _NotificationTestScreenState createState() => _NotificationTestScreenState();
+  State<NotificationTestScreen> createState() => _NotificationTestScreenState();
 }
 
 class _NotificationTestScreenState extends State<NotificationTestScreen> {
@@ -24,8 +20,8 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
   String _status = 'No test performed yet.';
 
   // Logs for tracking
-  List<String> _logs = [];
-  ScrollController _logScrollController = ScrollController();
+  final List<String> _logs = [];
+  final ScrollController _logScrollController = ScrollController();
 
   @override
   void initState() {
@@ -216,7 +212,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
         if (_logScrollController.hasClients) {
           _logScrollController.animateTo(
             _logScrollController.position.maxScrollExtent,
-            duration: Duration(milliseconds: 300),
+            duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
         }
@@ -235,17 +231,17 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Notification Test'),
+        title: const Text('Notification Test'),
         actions: [
           IconButton(
-            icon: Icon(Icons.delete),
+            icon: const Icon(Icons.delete),
             onPressed: _clearLogs,
             tooltip: 'Clear logs',
           ),
         ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -262,13 +258,13 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                               'Status',
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             Text(_status),
                           ],
                         ),
                       ),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
@@ -279,29 +275,30 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                               'Permissions',
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             ElevatedButton.icon(
                               onPressed: _requestPermission,
-                              icon: Icon(Icons.security),
-                              label: Text('Request Notification Permissions'),
+                              icon: const Icon(Icons.security),
+                              label: const Text(
+                                  'Request Notification Permissions'),
                               style: ElevatedButton.styleFrom(
-                                minimumSize: Size(double.infinity, 48),
+                                minimumSize: const Size(double.infinity, 48),
                               ),
                             ),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             ElevatedButton.icon(
                               onPressed: _checkPermission,
-                              icon: Icon(Icons.check_circle),
-                              label: Text('Check Permissions'),
+                              icon: const Icon(Icons.check_circle),
+                              label: const Text('Check Permissions'),
                               style: ElevatedButton.styleFrom(
-                                minimumSize: Size(double.infinity, 48),
+                                minimumSize: const Size(double.infinity, 48),
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
@@ -312,20 +309,20 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                               'Notification Service',
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             ElevatedButton.icon(
                               onPressed: _startNotificationListener,
-                              icon: Icon(Icons.play_arrow),
-                              label: Text('Start Notification Listener'),
+                              icon: const Icon(Icons.play_arrow),
+                              label: const Text('Start Notification Listener'),
                               style: ElevatedButton.styleFrom(
-                                minimumSize: Size(double.infinity, 48),
+                                minimumSize: const Size(double.infinity, 48),
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
@@ -336,55 +333,56 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                               'Test Notifications',
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             ElevatedButton.icon(
                               onPressed: _sendTestExpenseNotification,
-                              icon: Icon(Icons.notification_important),
-                              label: Text('Send Test Expense Notification'),
+                              icon: const Icon(Icons.notification_important),
+                              label:
+                                  const Text('Send Test Expense Notification'),
                               style: ElevatedButton.styleFrom(
-                                minimumSize: Size(double.infinity, 48),
+                                minimumSize: const Size(double.infinity, 48),
                               ),
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             TextField(
                               controller: _titleController,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'Notification Title',
                                 border: OutlineInputBorder(),
                               ),
                             ),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             TextField(
                               controller: _messageController,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'Notification Message',
                                 border: OutlineInputBorder(),
                               ),
                               maxLines: 3,
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             ElevatedButton.icon(
                               onPressed: _sendCustomNotification,
-                              icon: Icon(Icons.send),
-                              label: Text('Send Custom Notification'),
+                              icon: const Icon(Icons.send),
+                              label: const Text('Send Custom Notification'),
                               style: ElevatedButton.styleFrom(
-                                minimumSize: Size(double.infinity, 48),
+                                minimumSize: const Size(double.infinity, 48),
                               ),
                             ),
-                            SizedBox(height: 16),
+                            const SizedBox(height: 16),
                             ElevatedButton.icon(
                               onPressed: _testExpenseSimulation,
-                              icon: Icon(Icons.run_circle),
-                              label: Text('Simulate Expense Processing'),
+                              icon: const Icon(Icons.run_circle),
+                              label: const Text('Simulate Expense Processing'),
                               style: ElevatedButton.styleFrom(
-                                minimumSize: Size(double.infinity, 48),
+                                minimumSize: const Size(double.infinity, 48),
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    SizedBox(height: 16),
+                    const SizedBox(height: 16),
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
@@ -394,19 +392,18 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
+                                const Text(
                                   'Log',
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium,
+                                  style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 IconButton(
-                                  icon: Icon(Icons.copy),
+                                  icon: const Icon(Icons.copy),
                                   onPressed: () {
                                     final text = _logs.join('\n');
                                     Clipboard.setData(
                                         ClipboardData(text: text));
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
+                                      const SnackBar(
                                           content:
                                               Text('Logs copied to clipboard')),
                                     );
@@ -415,7 +412,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                                 ),
                               ],
                             ),
-                            SizedBox(height: 8),
+                            const SizedBox(height: 8),
                             Container(
                               height: 200,
                               decoration: BoxDecoration(
@@ -430,7 +427,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                                   itemBuilder: (context, index) {
                                     return Text(
                                       _logs[index],
-                                      style: TextStyle(
+                                      style: const TextStyle(
                                         color: Colors.green,
                                         fontFamily: 'monospace',
                                         fontSize: 12,
@@ -444,7 +441,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                         ),
                       ),
                     ),
-                    SizedBox(height: 32),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),

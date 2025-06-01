@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'dart:math';
 import '../../domain/entities/budget.dart';
 import '../../domain/entities/expense.dart';
 import '../../domain/repositories/budget_repository.dart';
@@ -123,36 +122,107 @@ class BudgetViewModel extends ChangeNotifier {
     }
   }
 
-  /// Convert budget to the user's preferred currency
-  Future<void> _convertBudgetCurrency(
-      Budget loadedBudget, String targetCurrency, String monthId) async {
-    try {
+  /// Handle currency changes from settings
+  Future<void> onCurrencyChanged(String newCurrency) async {
+    // Check if we already have a budget to convert
+    if (budget == null) {
+      debugPrint('🔄 No budget to convert, skipping onCurrencyChanged');
+      return; // No budget to convert
+    }
+
+    // Check if the currency is already the same
+    if (budget!.currency == newCurrency) {
       debugPrint(
-          'Converting budget from ${loadedBudget.currency} to $targetCurrency');
+          '🔄 Budget currency already matches new currency: $newCurrency');
+      return; // Already in the right currency
+    }
 
-      // Get exchange rates for the budget's currency
-      final rates = await _currencyConversionService
-          .getExchangeRates(loadedBudget.currency);
+    // Check if a conversion is already in progress
+    if (_isConvertingCurrency) {
+      debugPrint(
+          '🔄 Currency conversion already in progress, skipping duplicate request');
+      return; // Prevent duplicate conversions
+    }
 
-      // Convert budget to the target currency
-      final convertedBudget =
-          loadedBudget.convertCurrency(targetCurrency, rates);
+    try {
+      // Set the conversion flag to prevent duplicate conversions
+      _isConvertingCurrency = true;
+
+      debugPrint(
+          '🔄 Currency changed to $newCurrency - updating budget from ${budget!.currency}');
+      debugPrint('🔄 Before conversion - Budget total: ${budget!.total}');
+      isLoading = true;
+      notifyListeners();
+
+      // Convert the budget using our enhanced CurrencyConversionService
+      final oldCurrency = budget!.currency;
+      final oldBudget = budget!;
+
+      // Create a new Budget object with converted values
+      final newCategories = <String, CategoryBudget>{};
+
+      // Convert each category budget
+      for (final entry in oldBudget.categories.entries) {
+        final categoryId = entry.key;
+        final categoryBudget = entry.value;
+
+        // Convert budget and left amounts
+        final convertedBudget = await _currencyConversionService
+            .convertCurrency(categoryBudget.budget, oldCurrency, newCurrency);
+
+        final convertedLeft = await _currencyConversionService.convertCurrency(
+            categoryBudget.left, oldCurrency, newCurrency);
+
+        newCategories[categoryId] = CategoryBudget(
+          budget: convertedBudget,
+          left: convertedLeft,
+        );
+
+        debugPrint(
+            '🔄 Converted category "$categoryId": Budget ${categoryBudget.budget} $oldCurrency → $convertedBudget $newCurrency');
+      }
+
+      // Convert total and left amounts
+      final convertedTotal = await _currencyConversionService.convertCurrency(
+          oldBudget.total, oldCurrency, newCurrency);
+
+      final convertedLeft = await _currencyConversionService.convertCurrency(
+          oldBudget.left, oldCurrency, newCurrency);
+
+      // Create the new budget with converted values
+      final convertedBudget = Budget(
+        total: convertedTotal,
+        left: convertedLeft,
+        categories: newCategories,
+        currency: newCurrency,
+      );
+
+      debugPrint(
+          '🔄 Converted total budget: ${oldBudget.total} $oldCurrency → ${convertedBudget.total} $newCurrency');
+      debugPrint(
+          '🔄 Converted left budget: ${oldBudget.left} $oldCurrency → ${convertedBudget.left} $newCurrency');
 
       // Update the budget in memory
       budget = convertedBudget;
-      isLoading = false;
-      notifyListeners();
 
-      // Save the converted budget to the repository
-      if (loadedBudget.currency != targetCurrency) {
-        debugPrint(
-            'Saving converted budget to Firebase with currency: $targetCurrency');
-        await saveBudgetWithMonthId(monthId, convertedBudget);
-      }
+      // Get current month ID for saving
+      final now = DateTime.now();
+      final monthId = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+      // Save the converted budget to Firebase
+      debugPrint(
+          '🔄 Saving converted budget to Firebase with currency: $newCurrency');
+      await _budgetRepository.setBudget(monthId, convertedBudget);
+
+      debugPrint(
+          '✅ Budget successfully converted and saved with new currency: $newCurrency');
+      debugPrint('✅ Final budget total: ${convertedBudget.total}');
     } catch (e) {
-      debugPrint('Error converting budget currency: $e');
-      // If conversion fails, just use the original budget
-      budget = loadedBudget;
+      debugPrint('❌ Error handling currency change: $e');
+      errorMessage = 'Failed to update budget with new currency';
+    } finally {
+      // Reset the conversion flag
+      _isConvertingCurrency = false;
       isLoading = false;
       notifyListeners();
     }
@@ -323,112 +393,6 @@ class BudgetViewModel extends ChangeNotifier {
     }
 
     return result;
-  }
-
-  /// Handle currency changes from settings
-  Future<void> onCurrencyChanged(String newCurrency) async {
-    // Check if we already have a budget to convert
-    if (budget == null) {
-      debugPrint('🔄 No budget to convert, skipping onCurrencyChanged');
-      return; // No budget to convert
-    }
-
-    // Check if the currency is already the same
-    if (budget!.currency == newCurrency) {
-      debugPrint(
-          '🔄 Budget currency already matches new currency: $newCurrency');
-      return; // Already in the right currency
-    }
-
-    // Check if a conversion is already in progress
-    if (_isConvertingCurrency) {
-      debugPrint(
-          '🔄 Currency conversion already in progress, skipping duplicate request');
-      return; // Prevent duplicate conversions
-    }
-
-    try {
-      // Set the conversion flag to prevent duplicate conversions
-      _isConvertingCurrency = true;
-
-      debugPrint(
-          '🔄 Currency changed to $newCurrency - updating budget from ${budget!.currency}');
-      debugPrint('🔄 Before conversion - Budget total: ${budget!.total}');
-      isLoading = true;
-      notifyListeners();
-
-      // Convert the budget using our enhanced CurrencyConversionService
-      final oldCurrency = budget!.currency;
-      final oldBudget = budget!;
-
-      // Create a new Budget object with converted values
-      final newCategories = <String, CategoryBudget>{};
-
-      // Convert each category budget
-      for (final entry in oldBudget.categories.entries) {
-        final categoryId = entry.key;
-        final categoryBudget = entry.value;
-
-        // Convert budget and left amounts
-        final convertedBudget = await _currencyConversionService
-            .convertCurrency(categoryBudget.budget, oldCurrency, newCurrency);
-
-        final convertedLeft = await _currencyConversionService.convertCurrency(
-            categoryBudget.left, oldCurrency, newCurrency);
-
-        newCategories[categoryId] = CategoryBudget(
-          budget: convertedBudget,
-          left: convertedLeft,
-        );
-
-        debugPrint(
-            '🔄 Converted category "$categoryId": Budget ${categoryBudget.budget} $oldCurrency → $convertedBudget $newCurrency');
-      }
-
-      // Convert total and left amounts
-      final convertedTotal = await _currencyConversionService.convertCurrency(
-          oldBudget.total, oldCurrency, newCurrency);
-
-      final convertedLeft = await _currencyConversionService.convertCurrency(
-          oldBudget.left, oldCurrency, newCurrency);
-
-      // Create the new budget with converted values
-      final convertedBudget = Budget(
-        total: convertedTotal,
-        left: convertedLeft,
-        categories: newCategories,
-        currency: newCurrency,
-      );
-
-      debugPrint(
-          '🔄 Converted total budget: ${oldBudget.total} $oldCurrency → ${convertedBudget.total} $newCurrency');
-      debugPrint(
-          '🔄 Converted left budget: ${oldBudget.left} $oldCurrency → ${convertedBudget.left} $newCurrency');
-
-      // Update the budget in memory
-      budget = convertedBudget;
-
-      // Get current month ID for saving
-      final now = DateTime.now();
-      final monthId = '${now.year}-${now.month.toString().padLeft(2, '0')}';
-
-      // Save the converted budget to Firebase
-      debugPrint(
-          '🔄 Saving converted budget to Firebase with currency: $newCurrency');
-      await _budgetRepository.setBudget(monthId, convertedBudget);
-
-      debugPrint(
-          '✅ Budget successfully converted and saved with new currency: $newCurrency');
-      debugPrint('✅ Final budget total: ${convertedBudget.total}');
-    } catch (e) {
-      debugPrint('❌ Error handling currency change: $e');
-      errorMessage = 'Failed to update budget with new currency';
-    } finally {
-      // Reset the conversion flag
-      _isConvertingCurrency = false;
-      isLoading = false;
-      notifyListeners();
-    }
   }
 
   @override

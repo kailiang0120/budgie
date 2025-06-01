@@ -44,8 +44,8 @@ class CustomCard extends StatelessWidget {
     final effectiveColor = color ?? Theme.of(context).cardColor;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final shadowColor = isDarkMode
-        ? Colors.black.withOpacity(0.3)
-        : Colors.black.withOpacity(0.1);
+        ? Colors.black.withAlpha((255 * 0.3).toInt())
+        : Colors.black.withAlpha((255 * 0.1).toInt());
 
     final card = Container(
       width: width,

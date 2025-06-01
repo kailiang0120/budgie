@@ -19,7 +19,7 @@ class SettingsService extends ChangeNotifier {
   bool _improveAccuracy = false;
 
   // Flag to prevent notification loops in tests
-  bool _notifyListenersEnabled = true;
+  final bool _notifyListenersEnabled = true;
 
   String get currency => _currency;
   String get theme => _theme;
@@ -177,8 +177,6 @@ class SettingsService extends ChangeNotifier {
       final firebaseData = doc.data();
 
       if (firebaseData != null) {
-        final localSettings = await _localDataSource.getUserSettings(userId);
-
         // Compare timestamps or force sync (simplified approach: always sync from Firebase)
         await _loadUserSettings(firebaseData);
         await _localDataSource.saveUserSettings(userId, firebaseData);

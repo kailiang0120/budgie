@@ -85,7 +85,7 @@ class CurrencyConversionService {
   };
 
   // Cache for exchange rates
-  Map<String, Map<String, double>> _cachedRates = {};
+  final Map<String, Map<String, double>> _cachedRates = {};
   DateTime _lastFetchTime = DateTime(2000); // Initial time in the past
 
   // Special map to track rates used for conversions to ensure consistency

@@ -13,6 +13,7 @@ import 'add_expense_screen.dart';
 import '../../core/constants/routes.dart';
 import '../../core/router/page_transition.dart';
 import '../../core/services/settings_service.dart';
+import '../../core/services/financial_prediction_api_service.dart';
 
 String formatMonthId(DateTime date) {
   return '${date.year}-${date.month.toString().padLeft(2, '0')}';
@@ -32,6 +33,13 @@ class _AnalyticScreenState extends State<AnalyticScreen>
   bool _isLoading = false;
   String? _errorMessage;
   bool _isInitialized = false;
+
+  // Financial prediction related state
+  bool _isPredictionLoading = false;
+  LLMPredictionApiResponse? _predictionResponse;
+
+  // Financial prediction service
+  final _financialPredictionService = FinancialPredictionApiService();
 
   // To track currency changes
   String? _currentCurrency;
@@ -55,30 +63,8 @@ class _AnalyticScreenState extends State<AnalyticScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _initializeFilters();
-
-        // Listen for settings changes
-        final settingsService = SettingsService.instance;
-        if (settingsService != null) {
-          settingsService.addListener(_onSettingsChanged);
-        }
       }
     });
-  }
-
-  void _onSettingsChanged() {
-    // Check if currency has changed
-    final settingsService = SettingsService.instance;
-    if (settingsService != null &&
-        _currentCurrency != settingsService.currency) {
-      debugPrint(
-          'Currency changed from $_currentCurrency to ${settingsService.currency}');
-      _currentCurrency = settingsService.currency;
-
-      // Reload budget data with the new currency
-      if (mounted) {
-        _loadBudgetData();
-      }
-    }
   }
 
   @override
@@ -120,13 +106,6 @@ class _AnalyticScreenState extends State<AnalyticScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // When the app is resumed, refresh the data
     if (state == AppLifecycleState.resumed && mounted) {
-      // Check if currency has changed
-      final settingsService = SettingsService.instance;
-      if (settingsService != null &&
-          _currentCurrency != settingsService.currency) {
-        _currentCurrency = settingsService.currency;
-      }
-
       _loadBudgetData();
       Provider.of<ExpensesViewModel>(context, listen: false).refreshData();
     }
@@ -134,11 +113,8 @@ class _AnalyticScreenState extends State<AnalyticScreen>
 
   @override
   void dispose() {
-    // Remove the settings listener
-    final settingsService = SettingsService.instance;
-    if (settingsService != null) {
-      settingsService.removeListener(_onSettingsChanged);
-    }
+    // Dispose prediction service resources
+    _financialPredictionService.dispose();
 
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -209,11 +185,98 @@ class _AnalyticScreenState extends State<AnalyticScreen>
     }
   }
 
+  Future<void> _performExpensePrediction() async {
+    setState(() {
+      _isPredictionLoading = true;
+      _predictionResponse = null;
+    });
+
+    try {
+      // Step 1: Check API server health
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Checking API server health...'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+
+      final isHealthy = await _financialPredictionService.checkHealth();
+
+      if (!isHealthy) {
+        throw Exception(
+            'API server is not available. Please ensure the backend server is running at http://10.0.2.2:8000');
+      }
+
+      // Step 2: Show success for health check
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('API server is healthy. Getting expense prediction...'),
+            duration: Duration(seconds: 2),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      // Step 3: Build request data and call prediction API
+      final response =
+          await _financialPredictionService.getPredictionForCurrentUser();
+
+      // Step 4: Update UI with successful response
+      if (mounted) {
+        setState(() {
+          _predictionResponse = response;
+        });
+
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Expense prediction completed successfully!'),
+            duration: Duration(seconds: 3),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _predictionResponse = null;
+        });
+
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Prediction failed: ${e.toString()}'),
+            duration: const Duration(seconds: 5),
+            backgroundColor: Colors.red,
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: _performExpensePrediction,
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPredictionLoading = false;
+        });
+      }
+    }
+  }
+
   void _onDateChanged(DateTime newDate) {
     setState(() {
       _selectedDate = newDate;
       _currentMonthId = formatMonthId(_selectedDate);
       _errorMessage = null;
+      // Clear prediction data when date changes
+      _predictionResponse = null;
     });
 
     // Save to screen-specific filter
@@ -272,25 +335,262 @@ class _AnalyticScreenState extends State<AnalyticScreen>
     );
   }
 
+  Widget _buildPredictionResultsCard() {
+    if (_predictionResponse == null) return const SizedBox.shrink();
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.psychology,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'AI Expense Prediction',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Prediction for: ${_predictionResponse!.predictionForDate}',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Predicted expenses
+            if (_predictionResponse!.predictedNextDayExpenses.isNotEmpty) ...[
+              Text(
+                'Predicted Tomorrow Expenses:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ..._predictionResponse!.predictedNextDayExpenses
+                  .map(
+                    (expense) => Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withAlpha((255 * 0.1).toInt()),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                expense.category.toUpperCase(),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                '${expense.currency} ${expense.estimatedAmount.toStringAsFixed(2)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (expense.predictedRemark.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              expense.predictedRemark,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ],
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: expense.likelihood == 'high'
+                                      ? Colors.red
+                                          .withAlpha((255 * 0.2).toInt())
+                                      : expense.likelihood == 'medium'
+                                          ? Colors.orange
+                                              .withAlpha((255 * 0.2).toInt())
+                                          : Colors.green
+                                              .withAlpha((255 * 0.2).toInt()),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '${expense.likelihood.toUpperCase()} likelihood',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w500,
+                                    color: expense.likelihood == 'high'
+                                        ? Colors.red.shade700
+                                        : expense.likelihood == 'medium'
+                                            ? Colors.orange.shade700
+                                            : Colors.green.shade700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (expense.reasoning.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              expense.reasoning,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+              const SizedBox(height: 16),
+            ],
+
+            // Budget advice
+            if (_predictionResponse!
+                .budgetReallocationAdvice.analysisSummary.isNotEmpty) ...[
+              Text(
+                'Budget Analysis:',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withAlpha((255 * 0.1).toInt()),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _predictionResponse!.budgetReallocationAdvice.analysisSummary,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // Overspending alerts
+            if (_predictionResponse!.budgetReallocationAdvice
+                .overspendingAlertsForNextDay.isNotEmpty) ...[
+              Text(
+                'Overspending Alerts:',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.red.shade700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ..._predictionResponse!
+                  .budgetReallocationAdvice.overspendingAlertsForNextDay
+                  .map(
+                    (alert) => Container(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withAlpha((255 * 0.1).toInt()),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                            color: Colors.red.withAlpha((255 * 0.3).toInt())),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            alert.category.toUpperCase(),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: Colors.red.shade700,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            alert.alertMessage,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+              const SizedBox(height: 12),
+            ],
+
+            // Confidence note
+            if (_predictionResponse!.overallConfidenceNote.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withAlpha((255 * 0.1).toInt()),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: Colors.grey.shade600,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _predictionResponse!.overallConfidenceNote,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey.shade600,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Check for currency updates
-    final settingsService = SettingsService.instance;
-    if (settingsService != null &&
-        _currentCurrency != settingsService.currency) {
-      // Update currency tracking
-      _currentCurrency = settingsService.currency;
-      // Reload data if we just detected a change
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _loadBudgetData();
-        }
-      });
-    }
-
     return Scaffold(
       appBar: AppBar(
-        title: Text('Analytic'),
+        title: const Text('Analytic'),
         centerTitle: true,
         automaticallyImplyLeading: false,
       ),
@@ -305,11 +605,14 @@ class _AnalyticScreenState extends State<AnalyticScreen>
               : RefreshIndicator(
                   color: Theme.of(context).colorScheme.primary,
                   onRefresh: () async {
-                    // 刷新预算数据
+                    // Capture ViewModel references before async operations
+                    final expensesViewModel =
+                        Provider.of<ExpensesViewModel>(context, listen: false);
+
+                    // Refresh budget data
                     await _loadBudgetData();
-                    // 同时刷新支出数据
-                    await Provider.of<ExpensesViewModel>(context, listen: false)
-                        .refreshData();
+                    // Refresh expense data
+                    await expensesViewModel.refreshData();
                   },
                   child: CustomScrollView(
                     slivers: [
@@ -319,7 +622,11 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                         sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
                       ),
 
-                      // 日期选择器
+                      // Prediction Results Card
+                      SliverToBoxAdapter(
+                        child: _buildPredictionResultsCard(),
+                      ),
+
                       SliverPadding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         sliver: SliverToBoxAdapter(
@@ -333,9 +640,45 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                         ),
                       ),
 
-                      // 预算卡片
+                      // Financial Prediction Button
                       SliverPadding(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 16.0),
+                        sliver: SliverToBoxAdapter(
+                          child: ElevatedButton.icon(
+                            onPressed: _isPredictionLoading
+                                ? null
+                                : _performExpensePrediction,
+                            icon: _isPredictionLoading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.psychology),
+                            label: Text(
+                              _isPredictionLoading
+                                  ? 'Getting AI Prediction...'
+                                  : 'Get AI Expense Prediction',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(double.infinity, 48),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12.0),
                         sliver: SliverToBoxAdapter(
                           child: Consumer<BudgetViewModel>(
                             builder: (context, vm, _) {
@@ -361,10 +704,6 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                         ),
                       ),
 
-                      // 这里可以添加其他分析内容
-                      // ...
-
-                      // 底部填充
                       const SliverPadding(
                         padding: EdgeInsets.only(bottom: 80.0),
                         sliver: SliverToBoxAdapter(child: SizedBox.shrink()),

@@ -408,7 +408,6 @@ class PageTransition extends PageRouteBuilder {
         );
 
       case TransitionType.none:
-      default:
         return child;
     }
   }
@@ -426,8 +425,8 @@ Route createRoute(Widget page,
     Duration? duration,
     Curve? curve}) {
   // Use new smooth transitions as defaults
-  final defaultForwardTransition = TransitionType.smoothSlideRight;
-  final defaultBackwardTransition = TransitionType.smoothSlideLeft;
+  const defaultForwardTransition = TransitionType.smoothSlideRight;
+  const defaultBackwardTransition = TransitionType.smoothSlideLeft;
 
   TransitionType type = direction == NavDirection.forward
       ? (forwardTransition ?? defaultForwardTransition)

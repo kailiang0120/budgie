@@ -18,13 +18,13 @@ class NotificationDetectionApiService {
   final http.Client _client = http.Client();
 
   /// Predict if a single notification text represents an expense
-  Future<NotificationResponse> predictNotification(String text) async {
+  Future<NotificationResponse> classifyNotification(String text) async {
     if (text.trim().isEmpty) {
       throw ApiException('Text cannot be empty');
     }
 
     try {
-      final uri = Uri.parse('$baseUrl/predict');
+      final uri = Uri.parse('$baseUrl/classify');
 
       debugPrint('Making API request to: $uri');
       debugPrint('Request body: {"text": "$text"}');
@@ -89,7 +89,7 @@ class NotificationDetectionApiService {
     }
 
     try {
-      final uri = Uri.parse('$baseUrl/predict-batch');
+      final uri = Uri.parse('$baseUrl/classify-batch');
 
       debugPrint('Making batch API request to: $uri');
       debugPrint('Request body: {"texts": ${validTexts.length} items}');
@@ -114,7 +114,7 @@ class NotificationDetectionApiService {
         final Map<String, dynamic> jsonData = jsonDecode(response.body);
         return BatchNotificationResponse.fromJson(jsonData);
       } else {
-        String errorMessage = 'Failed to predict batch notifications';
+        String errorMessage = 'Failed to classify batch notifications';
         try {
           final errorData = jsonDecode(response.body);
           errorMessage = errorData['detail'] ?? errorMessage;
@@ -195,7 +195,7 @@ class NotificationDetectionApiService {
   Future<bool> testConnection() async {
     try {
       const testText = "Test payment RM 10.00";
-      final result = await predictNotification(testText);
+      final result = await classifyNotification(testText);
       debugPrint('API test successful: ${result.message}');
       return true;
     } catch (e) {

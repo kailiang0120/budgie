@@ -51,7 +51,7 @@ class CategorySelector extends StatelessWidget {
             width: containerSize,
             height: containerSize,
             decoration: BoxDecoration(
-              color: categoryColor.withOpacity(0.1),
+              color: categoryColor.withAlpha((255 * 0.1).toInt()),
               borderRadius: BorderRadius.circular(AppTheme.largeBorderRadius),
               boxShadow: const [
                 BoxShadow(
@@ -124,7 +124,7 @@ class CategorySelector extends StatelessWidget {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: categoryColor.withOpacity(0.1),
+                          color: categoryColor.withAlpha((255 * 0.1).toInt()),
                           borderRadius: BorderRadius.circular(15),
                         ),
                         child: Icon(

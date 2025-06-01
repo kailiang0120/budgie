@@ -18,7 +18,7 @@ class BudgetCard extends StatelessWidget {
       onTap: onTap,
       child: Card(
         elevation: 4,
-        shadowColor: Colors.black.withOpacity(0.1),
+        shadowColor: Colors.black.withAlpha((255 * 0.1).toInt()),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
           width: double.infinity,
@@ -39,7 +39,7 @@ class BudgetCard extends StatelessWidget {
           Icon(
             Icons.account_balance_wallet_outlined,
             size: 48,
-            color: themeColor.withOpacity(0.5),
+            color: themeColor.withAlpha((255 * 0.5).toInt()),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -86,7 +86,7 @@ class BudgetCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: themeColor.withOpacity(0.1),
+                color: themeColor.withAlpha((255 * 0.1).toInt()),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -108,7 +108,7 @@ class BudgetCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${currencySymbol}${budget!.total.toStringAsFixed(0)}',
+                  '$currencySymbol${budget!.total.toStringAsFixed(0)}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
@@ -131,7 +131,7 @@ class BudgetCard extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                '${currencySymbol}${remaining.toStringAsFixed(2)}',
+                '$currencySymbol${remaining.toStringAsFixed(2)}',
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w600,
@@ -142,7 +142,7 @@ class BudgetCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
+                color: statusColor.withAlpha((255 * 0.1).toInt()),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -248,7 +248,7 @@ class BudgetCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: categoryColor.withOpacity(0.1),
+                  color: categoryColor.withAlpha((255 * 0.1).toInt()),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -273,7 +273,7 @@ class BudgetCard extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${currencySymbol}${catBudget.left.toStringAsFixed(0)}',
+                          '$currencySymbol${catBudget.left.toStringAsFixed(0)}',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,

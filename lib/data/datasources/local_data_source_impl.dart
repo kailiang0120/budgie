@@ -177,6 +177,7 @@ class LocalDataSourceImpl implements LocalDataSource {
   }
 
   /// Save expense that is already synced from Firebase
+  @override
   Future<void> saveSyncedExpense(domain.Expense expense) async {
     final userId = await _getCurrentUserId();
 
@@ -422,6 +423,7 @@ class LocalDataSourceImpl implements LocalDataSource {
   }
 
   /// Clear all budget sync operations for a specific user
+  @override
   Future<void> clearAllBudgetSyncOperations(String userId) async {
     try {
       // Get all sync operations

@@ -141,9 +141,10 @@ class DateTimePickerField extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: onCurrentTimePressed,
             icon: const Icon(Icons.access_time, size: 18),
-            label: Text(AppConstants.currentTimeButtonText),
+            label: const Text(AppConstants.currentTimeButtonText),
             style: ElevatedButton.styleFrom(
-              backgroundColor: effectiveThemeColor.withOpacity(0.1),
+              backgroundColor:
+                  effectiveThemeColor.withAlpha((255 * 0.1).toInt()),
               foregroundColor: effectiveThemeColor,
               elevation: 0,
               padding: const EdgeInsets.symmetric(vertical: 12),

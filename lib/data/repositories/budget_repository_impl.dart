@@ -98,7 +98,7 @@ class BudgetRepositoryImpl implements BudgetRepository {
       return budget;
     } catch (e, stackTrace) {
       if (e is AuthError) {
-        throw e;
+        rethrow;
       }
 
       if (e is NetworkError) {
@@ -171,7 +171,7 @@ class BudgetRepositoryImpl implements BudgetRepository {
       }
     } catch (e, stackTrace) {
       if (e is AuthError) {
-        throw e;
+        rethrow;
       }
 
       if (e is NetworkError) {

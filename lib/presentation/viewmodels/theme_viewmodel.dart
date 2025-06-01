@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -18,32 +17,6 @@ class ThemeViewModel extends ChangeNotifier {
   ThemeViewModel() {
     // Start with dark theme as default to match SettingsService defaults
     debugPrint('🎨 ThemeViewModel created with default dark theme');
-  }
-
-  Future<void> _loadThemeFromUser() async {
-    try {
-      debugPrint('🎨 ThemeViewModel: Loading theme from user...');
-      final user = _auth.currentUser;
-      debugPrint('🎨 Current user: ${user?.uid ?? 'null'}');
-      if (user != null) {
-        debugPrint('🎨 Fetching user document from Firestore...');
-        final doc = await _firestore.collection('users').doc(user.uid).get();
-        final userData = doc.data();
-        debugPrint('🎨 User data: $userData');
-        if (userData != null && userData.containsKey('theme')) {
-          final theme = userData['theme'] as String;
-          debugPrint('🎨 Found user theme: $theme, applying...');
-          await setTheme(theme);
-          debugPrint('🎨 Theme applied successfully');
-        } else {
-          debugPrint('🎨 No theme found in user data, keeping default');
-        }
-      } else {
-        debugPrint('🎨 No authenticated user, keeping default theme');
-      }
-    } catch (e) {
-      debugPrint('🎨 Error loading theme: $e');
-    }
   }
 
   Future<void> setTheme(String theme) async {

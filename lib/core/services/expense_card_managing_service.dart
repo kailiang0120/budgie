@@ -29,7 +29,8 @@ class ExpenseCardManager {
         debugPrint(
             '[ExpenseCardManager] OverlayEntry builder called. Overlay Context: $overlayContext');
         return Material(
-          color: Colors.black.withOpacity(0.5), // Semi-transparent background
+          color: Colors.black
+              .withAlpha((255 * 0.2).toInt()), // Semi-transparent background
           child: SafeArea(
             child: Center(
               child: SingleChildScrollView(

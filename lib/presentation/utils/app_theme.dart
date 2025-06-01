@@ -71,14 +71,14 @@ class AppTheme {
         onSurface: darkTextLight,
         onError: lightTextLight,
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: appBarBackgroundLight,
         foregroundColor: appBarForegroundLight,
         elevation: 0,
-        shadowColor: Colors.black12,
-        iconTheme: IconThemeData(color: appBarForegroundLight),
-        actionsIconTheme: IconThemeData(color: appBarForegroundLight),
-        titleTextStyle: TextStyle(
+        shadowColor: Colors.black.withAlpha((255 * 0.15).toInt()),
+        iconTheme: const IconThemeData(color: appBarForegroundLight),
+        actionsIconTheme: const IconThemeData(color: appBarForegroundLight),
+        titleTextStyle: const TextStyle(
           color: appBarForegroundLight,
           fontFamily: fontFamily,
           fontSize: 20,
@@ -117,8 +117,9 @@ class AppTheme {
         ),
         filled: true,
         fillColor: Colors.white,
-        labelStyle: TextStyle(color: greyTextLight),
-        hintStyle: TextStyle(color: greyTextLight.withOpacity(0.7)),
+        labelStyle: const TextStyle(color: greyTextLight),
+        hintStyle:
+            TextStyle(color: greyTextLight.withAlpha((255 * 0.7).toInt())),
       ),
       cardTheme: CardTheme(
         color: cardBackgroundLight,
@@ -133,13 +134,14 @@ class AppTheme {
           return Colors.grey.shade400;
         }),
         trackColor: MaterialStateProperty.resolveWith<Color>((states) {
-          if (states.contains(MaterialState.selected))
-            return primaryColor.withOpacity(0.5);
+          if (states.contains(MaterialState.selected)) {
+            return primaryColor.withAlpha((255 * 0.5).toInt());
+          }
           return Colors.grey.shade300;
         }),
       ),
-      iconTheme: IconThemeData(color: greyTextLight),
-      primaryIconTheme: IconThemeData(color: primaryColor),
+      iconTheme: const IconThemeData(color: greyTextLight),
+      primaryIconTheme: const IconThemeData(color: primaryColor),
     );
   }
 
@@ -164,14 +166,14 @@ class AppTheme {
         onSurface: darkTextDark,
         onError: lightTextDark,
       ),
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: appBarBackgroundDark,
         foregroundColor: appBarForegroundDark,
         elevation: 0,
-        shadowColor: Colors.black26,
-        iconTheme: IconThemeData(color: appBarForegroundDark),
-        actionsIconTheme: IconThemeData(color: appBarForegroundDark),
-        titleTextStyle: TextStyle(
+        shadowColor: Colors.black.withAlpha((255 * 0.07).toInt()),
+        iconTheme: const IconThemeData(color: appBarForegroundDark),
+        actionsIconTheme: const IconThemeData(color: appBarForegroundDark),
+        titleTextStyle: const TextStyle(
           color: appBarForegroundDark,
           fontFamily: fontFamily,
           fontSize: 20,
@@ -209,8 +211,9 @@ class AppTheme {
         ),
         filled: true,
         fillColor: cardBackgroundDark,
-        labelStyle: TextStyle(color: greyTextDark),
-        hintStyle: TextStyle(color: greyTextDark.withOpacity(0.7)),
+        labelStyle: const TextStyle(color: greyTextDark),
+        hintStyle:
+            TextStyle(color: greyTextDark.withAlpha((255 * 0.7).toInt())),
       ),
       cardTheme: CardTheme(
         color: cardBackgroundDark,
@@ -225,13 +228,14 @@ class AppTheme {
           return Colors.grey.shade600;
         }),
         trackColor: MaterialStateProperty.resolveWith<Color>((states) {
-          if (states.contains(MaterialState.selected))
-            return primaryColorDark.withOpacity(0.5);
+          if (states.contains(MaterialState.selected)) {
+            return primaryColorDark.withAlpha((255 * 0.5).toInt());
+          }
           return Colors.grey.shade700;
         }),
       ),
-      iconTheme: IconThemeData(color: greyTextDark),
-      primaryIconTheme: IconThemeData(color: primaryColorDark),
+      iconTheme: const IconThemeData(color: greyTextDark),
+      primaryIconTheme: const IconThemeData(color: primaryColorDark),
     );
   }
 }

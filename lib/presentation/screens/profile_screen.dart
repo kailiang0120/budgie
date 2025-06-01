@@ -71,14 +71,14 @@ class ProfileScreen extends StatelessWidget {
                 AuthButton(
                   label: 'Log out',
                   leadingIcon: const Icon(Icons.logout),
-                  backgroundColor: Color(0xff1A1A19),
+                  backgroundColor: const Color(0xff1A1A19),
                   onPressed: () => _handleLogout(context),
                 ),
                 const SizedBox(height: 12),
                 AuthButton(
                   label: 'Switch Account',
                   leadingIcon: const Icon(Icons.switch_account),
-                  backgroundColor: Color(0xff1A1A19),
+                  backgroundColor: const Color(0xff1A1A19),
                   onPressed: () => _handleSwitchAccount(context),
                 ),
               ],
