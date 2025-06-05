@@ -58,6 +58,12 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
       type: DriftSqlType.string,
       requiredDuringInsert: false,
       defaultValue: const Constant('MYR'));
+  static const VerificationMeta _recurringExpenseIdMeta =
+      const VerificationMeta('recurringExpenseId');
+  @override
+  late final GeneratedColumn<String> recurringExpenseId =
+      GeneratedColumn<String>('recurring_expense_id', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _isSyncedMeta =
       const VerificationMeta('isSynced');
   @override
@@ -85,6 +91,7 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         method,
         description,
         currency,
+        recurringExpenseId,
         isSynced,
         lastModified
       ];
@@ -149,6 +156,12 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
       context.handle(_currencyMeta,
           currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta));
     }
+    if (data.containsKey('recurring_expense_id')) {
+      context.handle(
+          _recurringExpenseIdMeta,
+          recurringExpenseId.isAcceptableOrUnknown(
+              data['recurring_expense_id']!, _recurringExpenseIdMeta));
+    }
     if (data.containsKey('is_synced')) {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
@@ -188,6 +201,8 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
           .read(DriftSqlType.string, data['${effectivePrefix}description']),
       currency: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}currency'])!,
+      recurringExpenseId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}recurring_expense_id']),
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
       lastModified: attachedDatabase.typeMapping.read(
@@ -211,6 +226,7 @@ class Expense extends DataClass implements Insertable<Expense> {
   final String method;
   final String? description;
   final String currency;
+  final String? recurringExpenseId;
   final bool isSynced;
   final DateTime lastModified;
   const Expense(
@@ -223,6 +239,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       required this.method,
       this.description,
       required this.currency,
+      this.recurringExpenseId,
       required this.isSynced,
       required this.lastModified});
   @override
@@ -239,6 +256,9 @@ class Expense extends DataClass implements Insertable<Expense> {
       map['description'] = Variable<String>(description);
     }
     map['currency'] = Variable<String>(currency);
+    if (!nullToAbsent || recurringExpenseId != null) {
+      map['recurring_expense_id'] = Variable<String>(recurringExpenseId);
+    }
     map['is_synced'] = Variable<bool>(isSynced);
     map['last_modified'] = Variable<DateTime>(lastModified);
     return map;
@@ -257,6 +277,9 @@ class Expense extends DataClass implements Insertable<Expense> {
           ? const Value.absent()
           : Value(description),
       currency: Value(currency),
+      recurringExpenseId: recurringExpenseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(recurringExpenseId),
       isSynced: Value(isSynced),
       lastModified: Value(lastModified),
     );
@@ -275,6 +298,8 @@ class Expense extends DataClass implements Insertable<Expense> {
       method: serializer.fromJson<String>(json['method']),
       description: serializer.fromJson<String?>(json['description']),
       currency: serializer.fromJson<String>(json['currency']),
+      recurringExpenseId:
+          serializer.fromJson<String?>(json['recurringExpenseId']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       lastModified: serializer.fromJson<DateTime>(json['lastModified']),
     );
@@ -292,6 +317,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       'method': serializer.toJson<String>(method),
       'description': serializer.toJson<String?>(description),
       'currency': serializer.toJson<String>(currency),
+      'recurringExpenseId': serializer.toJson<String?>(recurringExpenseId),
       'isSynced': serializer.toJson<bool>(isSynced),
       'lastModified': serializer.toJson<DateTime>(lastModified),
     };
@@ -307,6 +333,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           String? method,
           Value<String?> description = const Value.absent(),
           String? currency,
+          Value<String?> recurringExpenseId = const Value.absent(),
           bool? isSynced,
           DateTime? lastModified}) =>
       Expense(
@@ -319,6 +346,9 @@ class Expense extends DataClass implements Insertable<Expense> {
         method: method ?? this.method,
         description: description.present ? description.value : this.description,
         currency: currency ?? this.currency,
+        recurringExpenseId: recurringExpenseId.present
+            ? recurringExpenseId.value
+            : this.recurringExpenseId,
         isSynced: isSynced ?? this.isSynced,
         lastModified: lastModified ?? this.lastModified,
       );
@@ -334,6 +364,9 @@ class Expense extends DataClass implements Insertable<Expense> {
       description:
           data.description.present ? data.description.value : this.description,
       currency: data.currency.present ? data.currency.value : this.currency,
+      recurringExpenseId: data.recurringExpenseId.present
+          ? data.recurringExpenseId.value
+          : this.recurringExpenseId,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       lastModified: data.lastModified.present
           ? data.lastModified.value
@@ -353,6 +386,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           ..write('method: $method, ')
           ..write('description: $description, ')
           ..write('currency: $currency, ')
+          ..write('recurringExpenseId: $recurringExpenseId, ')
           ..write('isSynced: $isSynced, ')
           ..write('lastModified: $lastModified')
           ..write(')'))
@@ -360,8 +394,19 @@ class Expense extends DataClass implements Insertable<Expense> {
   }
 
   @override
-  int get hashCode => Object.hash(id, userId, remark, amount, date, category,
-      method, description, currency, isSynced, lastModified);
+  int get hashCode => Object.hash(
+      id,
+      userId,
+      remark,
+      amount,
+      date,
+      category,
+      method,
+      description,
+      currency,
+      recurringExpenseId,
+      isSynced,
+      lastModified);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -375,6 +420,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           other.method == this.method &&
           other.description == this.description &&
           other.currency == this.currency &&
+          other.recurringExpenseId == this.recurringExpenseId &&
           other.isSynced == this.isSynced &&
           other.lastModified == this.lastModified);
 }
@@ -389,6 +435,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<String> method;
   final Value<String?> description;
   final Value<String> currency;
+  final Value<String?> recurringExpenseId;
   final Value<bool> isSynced;
   final Value<DateTime> lastModified;
   final Value<int> rowid;
@@ -402,6 +449,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.method = const Value.absent(),
     this.description = const Value.absent(),
     this.currency = const Value.absent(),
+    this.recurringExpenseId = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.lastModified = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -416,6 +464,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     required String method,
     this.description = const Value.absent(),
     this.currency = const Value.absent(),
+    this.recurringExpenseId = const Value.absent(),
     this.isSynced = const Value.absent(),
     required DateTime lastModified,
     this.rowid = const Value.absent(),
@@ -437,6 +486,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Expression<String>? method,
     Expression<String>? description,
     Expression<String>? currency,
+    Expression<String>? recurringExpenseId,
     Expression<bool>? isSynced,
     Expression<DateTime>? lastModified,
     Expression<int>? rowid,
@@ -451,6 +501,8 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       if (method != null) 'method': method,
       if (description != null) 'description': description,
       if (currency != null) 'currency': currency,
+      if (recurringExpenseId != null)
+        'recurring_expense_id': recurringExpenseId,
       if (isSynced != null) 'is_synced': isSynced,
       if (lastModified != null) 'last_modified': lastModified,
       if (rowid != null) 'rowid': rowid,
@@ -467,6 +519,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       Value<String>? method,
       Value<String?>? description,
       Value<String>? currency,
+      Value<String?>? recurringExpenseId,
       Value<bool>? isSynced,
       Value<DateTime>? lastModified,
       Value<int>? rowid}) {
@@ -480,6 +533,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       method: method ?? this.method,
       description: description ?? this.description,
       currency: currency ?? this.currency,
+      recurringExpenseId: recurringExpenseId ?? this.recurringExpenseId,
       isSynced: isSynced ?? this.isSynced,
       lastModified: lastModified ?? this.lastModified,
       rowid: rowid ?? this.rowid,
@@ -516,6 +570,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     if (currency.present) {
       map['currency'] = Variable<String>(currency.value);
     }
+    if (recurringExpenseId.present) {
+      map['recurring_expense_id'] = Variable<String>(recurringExpenseId.value);
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -540,6 +597,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
           ..write('method: $method, ')
           ..write('description: $description, ')
           ..write('currency: $currency, ')
+          ..write('recurringExpenseId: $recurringExpenseId, ')
           ..write('isSynced: $isSynced, ')
           ..write('lastModified: $lastModified, ')
           ..write('rowid: $rowid')
@@ -1278,6 +1336,846 @@ class SyncQueueCompanion extends UpdateCompanion<SyncQueueData> {
   }
 }
 
+class $RecurringExpensesTable extends RecurringExpenses
+    with TableInfo<$RecurringExpensesTable, RecurringExpense> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RecurringExpensesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+      'user_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _frequencyMeta =
+      const VerificationMeta('frequency');
+  @override
+  late final GeneratedColumn<String> frequency = GeneratedColumn<String>(
+      'frequency', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _dayOfMonthMeta =
+      const VerificationMeta('dayOfMonth');
+  @override
+  late final GeneratedColumn<int> dayOfMonth = GeneratedColumn<int>(
+      'day_of_month', aliasedName, true,
+      type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _dayOfWeekMeta =
+      const VerificationMeta('dayOfWeek');
+  @override
+  late final GeneratedColumn<String> dayOfWeek = GeneratedColumn<String>(
+      'day_of_week', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _startDateMeta =
+      const VerificationMeta('startDate');
+  @override
+  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
+      'start_date', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _endDateMeta =
+      const VerificationMeta('endDate');
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+      'end_date', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _isActiveMeta =
+      const VerificationMeta('isActive');
+  @override
+  late final GeneratedColumn<bool> isActive = GeneratedColumn<bool>(
+      'is_active', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_active" IN (0, 1))'),
+      defaultValue: const Constant(true));
+  static const VerificationMeta _lastProcessedDateMeta =
+      const VerificationMeta('lastProcessedDate');
+  @override
+  late final GeneratedColumn<DateTime> lastProcessedDate =
+      GeneratedColumn<DateTime>('last_processed_date', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  static const VerificationMeta _expenseRemarkMeta =
+      const VerificationMeta('expenseRemark');
+  @override
+  late final GeneratedColumn<String> expenseRemark = GeneratedColumn<String>(
+      'expense_remark', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _expenseAmountMeta =
+      const VerificationMeta('expenseAmount');
+  @override
+  late final GeneratedColumn<double> expenseAmount = GeneratedColumn<double>(
+      'expense_amount', aliasedName, false,
+      type: DriftSqlType.double, requiredDuringInsert: true);
+  static const VerificationMeta _expenseCategoryIdMeta =
+      const VerificationMeta('expenseCategoryId');
+  @override
+  late final GeneratedColumn<String> expenseCategoryId =
+      GeneratedColumn<String>('expense_category_id', aliasedName, false,
+          type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _expensePaymentMethodMeta =
+      const VerificationMeta('expensePaymentMethod');
+  @override
+  late final GeneratedColumn<String> expensePaymentMethod =
+      GeneratedColumn<String>('expense_payment_method', aliasedName, false,
+          type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _expenseCurrencyMeta =
+      const VerificationMeta('expenseCurrency');
+  @override
+  late final GeneratedColumn<String> expenseCurrency = GeneratedColumn<String>(
+      'expense_currency', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('MYR'));
+  static const VerificationMeta _expenseDescriptionMeta =
+      const VerificationMeta('expenseDescription');
+  @override
+  late final GeneratedColumn<String> expenseDescription =
+      GeneratedColumn<String>('expense_description', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _isSyncedMeta =
+      const VerificationMeta('isSynced');
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+      'is_synced', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _lastModifiedMeta =
+      const VerificationMeta('lastModified');
+  @override
+  late final GeneratedColumn<DateTime> lastModified = GeneratedColumn<DateTime>(
+      'last_modified', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        userId,
+        frequency,
+        dayOfMonth,
+        dayOfWeek,
+        startDate,
+        endDate,
+        isActive,
+        lastProcessedDate,
+        expenseRemark,
+        expenseAmount,
+        expenseCategoryId,
+        expensePaymentMethod,
+        expenseCurrency,
+        expenseDescription,
+        isSynced,
+        lastModified
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'recurring_expenses';
+  @override
+  VerificationContext validateIntegrity(Insertable<RecurringExpense> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('frequency')) {
+      context.handle(_frequencyMeta,
+          frequency.isAcceptableOrUnknown(data['frequency']!, _frequencyMeta));
+    } else if (isInserting) {
+      context.missing(_frequencyMeta);
+    }
+    if (data.containsKey('day_of_month')) {
+      context.handle(
+          _dayOfMonthMeta,
+          dayOfMonth.isAcceptableOrUnknown(
+              data['day_of_month']!, _dayOfMonthMeta));
+    }
+    if (data.containsKey('day_of_week')) {
+      context.handle(
+          _dayOfWeekMeta,
+          dayOfWeek.isAcceptableOrUnknown(
+              data['day_of_week']!, _dayOfWeekMeta));
+    }
+    if (data.containsKey('start_date')) {
+      context.handle(_startDateMeta,
+          startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta));
+    } else if (isInserting) {
+      context.missing(_startDateMeta);
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(_endDateMeta,
+          endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta));
+    }
+    if (data.containsKey('is_active')) {
+      context.handle(_isActiveMeta,
+          isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta));
+    }
+    if (data.containsKey('last_processed_date')) {
+      context.handle(
+          _lastProcessedDateMeta,
+          lastProcessedDate.isAcceptableOrUnknown(
+              data['last_processed_date']!, _lastProcessedDateMeta));
+    }
+    if (data.containsKey('expense_remark')) {
+      context.handle(
+          _expenseRemarkMeta,
+          expenseRemark.isAcceptableOrUnknown(
+              data['expense_remark']!, _expenseRemarkMeta));
+    } else if (isInserting) {
+      context.missing(_expenseRemarkMeta);
+    }
+    if (data.containsKey('expense_amount')) {
+      context.handle(
+          _expenseAmountMeta,
+          expenseAmount.isAcceptableOrUnknown(
+              data['expense_amount']!, _expenseAmountMeta));
+    } else if (isInserting) {
+      context.missing(_expenseAmountMeta);
+    }
+    if (data.containsKey('expense_category_id')) {
+      context.handle(
+          _expenseCategoryIdMeta,
+          expenseCategoryId.isAcceptableOrUnknown(
+              data['expense_category_id']!, _expenseCategoryIdMeta));
+    } else if (isInserting) {
+      context.missing(_expenseCategoryIdMeta);
+    }
+    if (data.containsKey('expense_payment_method')) {
+      context.handle(
+          _expensePaymentMethodMeta,
+          expensePaymentMethod.isAcceptableOrUnknown(
+              data['expense_payment_method']!, _expensePaymentMethodMeta));
+    } else if (isInserting) {
+      context.missing(_expensePaymentMethodMeta);
+    }
+    if (data.containsKey('expense_currency')) {
+      context.handle(
+          _expenseCurrencyMeta,
+          expenseCurrency.isAcceptableOrUnknown(
+              data['expense_currency']!, _expenseCurrencyMeta));
+    }
+    if (data.containsKey('expense_description')) {
+      context.handle(
+          _expenseDescriptionMeta,
+          expenseDescription.isAcceptableOrUnknown(
+              data['expense_description']!, _expenseDescriptionMeta));
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(_isSyncedMeta,
+          isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+          _lastModifiedMeta,
+          lastModified.isAcceptableOrUnknown(
+              data['last_modified']!, _lastModifiedMeta));
+    } else if (isInserting) {
+      context.missing(_lastModifiedMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  RecurringExpense map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return RecurringExpense(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
+      frequency: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}frequency'])!,
+      dayOfMonth: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}day_of_month']),
+      dayOfWeek: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}day_of_week']),
+      startDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}start_date'])!,
+      endDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}end_date']),
+      isActive: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_active'])!,
+      lastProcessedDate: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}last_processed_date']),
+      expenseRemark: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}expense_remark'])!,
+      expenseAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}expense_amount'])!,
+      expenseCategoryId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}expense_category_id'])!,
+      expensePaymentMethod: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}expense_payment_method'])!,
+      expenseCurrency: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}expense_currency'])!,
+      expenseDescription: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}expense_description']),
+      isSynced: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      lastModified: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}last_modified'])!,
+    );
+  }
+
+  @override
+  $RecurringExpensesTable createAlias(String alias) {
+    return $RecurringExpensesTable(attachedDatabase, alias);
+  }
+}
+
+class RecurringExpense extends DataClass
+    implements Insertable<RecurringExpense> {
+  final String id;
+  final String userId;
+  final String frequency;
+  final int? dayOfMonth;
+  final String? dayOfWeek;
+  final DateTime startDate;
+  final DateTime? endDate;
+  final bool isActive;
+  final DateTime? lastProcessedDate;
+  final String expenseRemark;
+  final double expenseAmount;
+  final String expenseCategoryId;
+  final String expensePaymentMethod;
+  final String expenseCurrency;
+  final String? expenseDescription;
+  final bool isSynced;
+  final DateTime lastModified;
+  const RecurringExpense(
+      {required this.id,
+      required this.userId,
+      required this.frequency,
+      this.dayOfMonth,
+      this.dayOfWeek,
+      required this.startDate,
+      this.endDate,
+      required this.isActive,
+      this.lastProcessedDate,
+      required this.expenseRemark,
+      required this.expenseAmount,
+      required this.expenseCategoryId,
+      required this.expensePaymentMethod,
+      required this.expenseCurrency,
+      this.expenseDescription,
+      required this.isSynced,
+      required this.lastModified});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['frequency'] = Variable<String>(frequency);
+    if (!nullToAbsent || dayOfMonth != null) {
+      map['day_of_month'] = Variable<int>(dayOfMonth);
+    }
+    if (!nullToAbsent || dayOfWeek != null) {
+      map['day_of_week'] = Variable<String>(dayOfWeek);
+    }
+    map['start_date'] = Variable<DateTime>(startDate);
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
+    map['is_active'] = Variable<bool>(isActive);
+    if (!nullToAbsent || lastProcessedDate != null) {
+      map['last_processed_date'] = Variable<DateTime>(lastProcessedDate);
+    }
+    map['expense_remark'] = Variable<String>(expenseRemark);
+    map['expense_amount'] = Variable<double>(expenseAmount);
+    map['expense_category_id'] = Variable<String>(expenseCategoryId);
+    map['expense_payment_method'] = Variable<String>(expensePaymentMethod);
+    map['expense_currency'] = Variable<String>(expenseCurrency);
+    if (!nullToAbsent || expenseDescription != null) {
+      map['expense_description'] = Variable<String>(expenseDescription);
+    }
+    map['is_synced'] = Variable<bool>(isSynced);
+    map['last_modified'] = Variable<DateTime>(lastModified);
+    return map;
+  }
+
+  RecurringExpensesCompanion toCompanion(bool nullToAbsent) {
+    return RecurringExpensesCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      frequency: Value(frequency),
+      dayOfMonth: dayOfMonth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dayOfMonth),
+      dayOfWeek: dayOfWeek == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dayOfWeek),
+      startDate: Value(startDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      isActive: Value(isActive),
+      lastProcessedDate: lastProcessedDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastProcessedDate),
+      expenseRemark: Value(expenseRemark),
+      expenseAmount: Value(expenseAmount),
+      expenseCategoryId: Value(expenseCategoryId),
+      expensePaymentMethod: Value(expensePaymentMethod),
+      expenseCurrency: Value(expenseCurrency),
+      expenseDescription: expenseDescription == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expenseDescription),
+      isSynced: Value(isSynced),
+      lastModified: Value(lastModified),
+    );
+  }
+
+  factory RecurringExpense.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return RecurringExpense(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      frequency: serializer.fromJson<String>(json['frequency']),
+      dayOfMonth: serializer.fromJson<int?>(json['dayOfMonth']),
+      dayOfWeek: serializer.fromJson<String?>(json['dayOfWeek']),
+      startDate: serializer.fromJson<DateTime>(json['startDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      isActive: serializer.fromJson<bool>(json['isActive']),
+      lastProcessedDate:
+          serializer.fromJson<DateTime?>(json['lastProcessedDate']),
+      expenseRemark: serializer.fromJson<String>(json['expenseRemark']),
+      expenseAmount: serializer.fromJson<double>(json['expenseAmount']),
+      expenseCategoryId: serializer.fromJson<String>(json['expenseCategoryId']),
+      expensePaymentMethod:
+          serializer.fromJson<String>(json['expensePaymentMethod']),
+      expenseCurrency: serializer.fromJson<String>(json['expenseCurrency']),
+      expenseDescription:
+          serializer.fromJson<String?>(json['expenseDescription']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+      lastModified: serializer.fromJson<DateTime>(json['lastModified']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'frequency': serializer.toJson<String>(frequency),
+      'dayOfMonth': serializer.toJson<int?>(dayOfMonth),
+      'dayOfWeek': serializer.toJson<String?>(dayOfWeek),
+      'startDate': serializer.toJson<DateTime>(startDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
+      'isActive': serializer.toJson<bool>(isActive),
+      'lastProcessedDate': serializer.toJson<DateTime?>(lastProcessedDate),
+      'expenseRemark': serializer.toJson<String>(expenseRemark),
+      'expenseAmount': serializer.toJson<double>(expenseAmount),
+      'expenseCategoryId': serializer.toJson<String>(expenseCategoryId),
+      'expensePaymentMethod': serializer.toJson<String>(expensePaymentMethod),
+      'expenseCurrency': serializer.toJson<String>(expenseCurrency),
+      'expenseDescription': serializer.toJson<String?>(expenseDescription),
+      'isSynced': serializer.toJson<bool>(isSynced),
+      'lastModified': serializer.toJson<DateTime>(lastModified),
+    };
+  }
+
+  RecurringExpense copyWith(
+          {String? id,
+          String? userId,
+          String? frequency,
+          Value<int?> dayOfMonth = const Value.absent(),
+          Value<String?> dayOfWeek = const Value.absent(),
+          DateTime? startDate,
+          Value<DateTime?> endDate = const Value.absent(),
+          bool? isActive,
+          Value<DateTime?> lastProcessedDate = const Value.absent(),
+          String? expenseRemark,
+          double? expenseAmount,
+          String? expenseCategoryId,
+          String? expensePaymentMethod,
+          String? expenseCurrency,
+          Value<String?> expenseDescription = const Value.absent(),
+          bool? isSynced,
+          DateTime? lastModified}) =>
+      RecurringExpense(
+        id: id ?? this.id,
+        userId: userId ?? this.userId,
+        frequency: frequency ?? this.frequency,
+        dayOfMonth: dayOfMonth.present ? dayOfMonth.value : this.dayOfMonth,
+        dayOfWeek: dayOfWeek.present ? dayOfWeek.value : this.dayOfWeek,
+        startDate: startDate ?? this.startDate,
+        endDate: endDate.present ? endDate.value : this.endDate,
+        isActive: isActive ?? this.isActive,
+        lastProcessedDate: lastProcessedDate.present
+            ? lastProcessedDate.value
+            : this.lastProcessedDate,
+        expenseRemark: expenseRemark ?? this.expenseRemark,
+        expenseAmount: expenseAmount ?? this.expenseAmount,
+        expenseCategoryId: expenseCategoryId ?? this.expenseCategoryId,
+        expensePaymentMethod: expensePaymentMethod ?? this.expensePaymentMethod,
+        expenseCurrency: expenseCurrency ?? this.expenseCurrency,
+        expenseDescription: expenseDescription.present
+            ? expenseDescription.value
+            : this.expenseDescription,
+        isSynced: isSynced ?? this.isSynced,
+        lastModified: lastModified ?? this.lastModified,
+      );
+  RecurringExpense copyWithCompanion(RecurringExpensesCompanion data) {
+    return RecurringExpense(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      frequency: data.frequency.present ? data.frequency.value : this.frequency,
+      dayOfMonth:
+          data.dayOfMonth.present ? data.dayOfMonth.value : this.dayOfMonth,
+      dayOfWeek: data.dayOfWeek.present ? data.dayOfWeek.value : this.dayOfWeek,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      lastProcessedDate: data.lastProcessedDate.present
+          ? data.lastProcessedDate.value
+          : this.lastProcessedDate,
+      expenseRemark: data.expenseRemark.present
+          ? data.expenseRemark.value
+          : this.expenseRemark,
+      expenseAmount: data.expenseAmount.present
+          ? data.expenseAmount.value
+          : this.expenseAmount,
+      expenseCategoryId: data.expenseCategoryId.present
+          ? data.expenseCategoryId.value
+          : this.expenseCategoryId,
+      expensePaymentMethod: data.expensePaymentMethod.present
+          ? data.expensePaymentMethod.value
+          : this.expensePaymentMethod,
+      expenseCurrency: data.expenseCurrency.present
+          ? data.expenseCurrency.value
+          : this.expenseCurrency,
+      expenseDescription: data.expenseDescription.present
+          ? data.expenseDescription.value
+          : this.expenseDescription,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringExpense(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('frequency: $frequency, ')
+          ..write('dayOfMonth: $dayOfMonth, ')
+          ..write('dayOfWeek: $dayOfWeek, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('isActive: $isActive, ')
+          ..write('lastProcessedDate: $lastProcessedDate, ')
+          ..write('expenseRemark: $expenseRemark, ')
+          ..write('expenseAmount: $expenseAmount, ')
+          ..write('expenseCategoryId: $expenseCategoryId, ')
+          ..write('expensePaymentMethod: $expensePaymentMethod, ')
+          ..write('expenseCurrency: $expenseCurrency, ')
+          ..write('expenseDescription: $expenseDescription, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('lastModified: $lastModified')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      userId,
+      frequency,
+      dayOfMonth,
+      dayOfWeek,
+      startDate,
+      endDate,
+      isActive,
+      lastProcessedDate,
+      expenseRemark,
+      expenseAmount,
+      expenseCategoryId,
+      expensePaymentMethod,
+      expenseCurrency,
+      expenseDescription,
+      isSynced,
+      lastModified);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is RecurringExpense &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.frequency == this.frequency &&
+          other.dayOfMonth == this.dayOfMonth &&
+          other.dayOfWeek == this.dayOfWeek &&
+          other.startDate == this.startDate &&
+          other.endDate == this.endDate &&
+          other.isActive == this.isActive &&
+          other.lastProcessedDate == this.lastProcessedDate &&
+          other.expenseRemark == this.expenseRemark &&
+          other.expenseAmount == this.expenseAmount &&
+          other.expenseCategoryId == this.expenseCategoryId &&
+          other.expensePaymentMethod == this.expensePaymentMethod &&
+          other.expenseCurrency == this.expenseCurrency &&
+          other.expenseDescription == this.expenseDescription &&
+          other.isSynced == this.isSynced &&
+          other.lastModified == this.lastModified);
+}
+
+class RecurringExpensesCompanion extends UpdateCompanion<RecurringExpense> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> frequency;
+  final Value<int?> dayOfMonth;
+  final Value<String?> dayOfWeek;
+  final Value<DateTime> startDate;
+  final Value<DateTime?> endDate;
+  final Value<bool> isActive;
+  final Value<DateTime?> lastProcessedDate;
+  final Value<String> expenseRemark;
+  final Value<double> expenseAmount;
+  final Value<String> expenseCategoryId;
+  final Value<String> expensePaymentMethod;
+  final Value<String> expenseCurrency;
+  final Value<String?> expenseDescription;
+  final Value<bool> isSynced;
+  final Value<DateTime> lastModified;
+  final Value<int> rowid;
+  const RecurringExpensesCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.frequency = const Value.absent(),
+    this.dayOfMonth = const Value.absent(),
+    this.dayOfWeek = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.lastProcessedDate = const Value.absent(),
+    this.expenseRemark = const Value.absent(),
+    this.expenseAmount = const Value.absent(),
+    this.expenseCategoryId = const Value.absent(),
+    this.expensePaymentMethod = const Value.absent(),
+    this.expenseCurrency = const Value.absent(),
+    this.expenseDescription = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.lastModified = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RecurringExpensesCompanion.insert({
+    required String id,
+    required String userId,
+    required String frequency,
+    this.dayOfMonth = const Value.absent(),
+    this.dayOfWeek = const Value.absent(),
+    required DateTime startDate,
+    this.endDate = const Value.absent(),
+    this.isActive = const Value.absent(),
+    this.lastProcessedDate = const Value.absent(),
+    required String expenseRemark,
+    required double expenseAmount,
+    required String expenseCategoryId,
+    required String expensePaymentMethod,
+    this.expenseCurrency = const Value.absent(),
+    this.expenseDescription = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    required DateTime lastModified,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        userId = Value(userId),
+        frequency = Value(frequency),
+        startDate = Value(startDate),
+        expenseRemark = Value(expenseRemark),
+        expenseAmount = Value(expenseAmount),
+        expenseCategoryId = Value(expenseCategoryId),
+        expensePaymentMethod = Value(expensePaymentMethod),
+        lastModified = Value(lastModified);
+  static Insertable<RecurringExpense> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? frequency,
+    Expression<int>? dayOfMonth,
+    Expression<String>? dayOfWeek,
+    Expression<DateTime>? startDate,
+    Expression<DateTime>? endDate,
+    Expression<bool>? isActive,
+    Expression<DateTime>? lastProcessedDate,
+    Expression<String>? expenseRemark,
+    Expression<double>? expenseAmount,
+    Expression<String>? expenseCategoryId,
+    Expression<String>? expensePaymentMethod,
+    Expression<String>? expenseCurrency,
+    Expression<String>? expenseDescription,
+    Expression<bool>? isSynced,
+    Expression<DateTime>? lastModified,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (frequency != null) 'frequency': frequency,
+      if (dayOfMonth != null) 'day_of_month': dayOfMonth,
+      if (dayOfWeek != null) 'day_of_week': dayOfWeek,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+      if (isActive != null) 'is_active': isActive,
+      if (lastProcessedDate != null) 'last_processed_date': lastProcessedDate,
+      if (expenseRemark != null) 'expense_remark': expenseRemark,
+      if (expenseAmount != null) 'expense_amount': expenseAmount,
+      if (expenseCategoryId != null) 'expense_category_id': expenseCategoryId,
+      if (expensePaymentMethod != null)
+        'expense_payment_method': expensePaymentMethod,
+      if (expenseCurrency != null) 'expense_currency': expenseCurrency,
+      if (expenseDescription != null) 'expense_description': expenseDescription,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RecurringExpensesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? userId,
+      Value<String>? frequency,
+      Value<int?>? dayOfMonth,
+      Value<String?>? dayOfWeek,
+      Value<DateTime>? startDate,
+      Value<DateTime?>? endDate,
+      Value<bool>? isActive,
+      Value<DateTime?>? lastProcessedDate,
+      Value<String>? expenseRemark,
+      Value<double>? expenseAmount,
+      Value<String>? expenseCategoryId,
+      Value<String>? expensePaymentMethod,
+      Value<String>? expenseCurrency,
+      Value<String?>? expenseDescription,
+      Value<bool>? isSynced,
+      Value<DateTime>? lastModified,
+      Value<int>? rowid}) {
+    return RecurringExpensesCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      frequency: frequency ?? this.frequency,
+      dayOfMonth: dayOfMonth ?? this.dayOfMonth,
+      dayOfWeek: dayOfWeek ?? this.dayOfWeek,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      isActive: isActive ?? this.isActive,
+      lastProcessedDate: lastProcessedDate ?? this.lastProcessedDate,
+      expenseRemark: expenseRemark ?? this.expenseRemark,
+      expenseAmount: expenseAmount ?? this.expenseAmount,
+      expenseCategoryId: expenseCategoryId ?? this.expenseCategoryId,
+      expensePaymentMethod: expensePaymentMethod ?? this.expensePaymentMethod,
+      expenseCurrency: expenseCurrency ?? this.expenseCurrency,
+      expenseDescription: expenseDescription ?? this.expenseDescription,
+      isSynced: isSynced ?? this.isSynced,
+      lastModified: lastModified ?? this.lastModified,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (frequency.present) {
+      map['frequency'] = Variable<String>(frequency.value);
+    }
+    if (dayOfMonth.present) {
+      map['day_of_month'] = Variable<int>(dayOfMonth.value);
+    }
+    if (dayOfWeek.present) {
+      map['day_of_week'] = Variable<String>(dayOfWeek.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<DateTime>(startDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (isActive.present) {
+      map['is_active'] = Variable<bool>(isActive.value);
+    }
+    if (lastProcessedDate.present) {
+      map['last_processed_date'] = Variable<DateTime>(lastProcessedDate.value);
+    }
+    if (expenseRemark.present) {
+      map['expense_remark'] = Variable<String>(expenseRemark.value);
+    }
+    if (expenseAmount.present) {
+      map['expense_amount'] = Variable<double>(expenseAmount.value);
+    }
+    if (expenseCategoryId.present) {
+      map['expense_category_id'] = Variable<String>(expenseCategoryId.value);
+    }
+    if (expensePaymentMethod.present) {
+      map['expense_payment_method'] =
+          Variable<String>(expensePaymentMethod.value);
+    }
+    if (expenseCurrency.present) {
+      map['expense_currency'] = Variable<String>(expenseCurrency.value);
+    }
+    if (expenseDescription.present) {
+      map['expense_description'] = Variable<String>(expenseDescription.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<DateTime>(lastModified.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RecurringExpensesCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('frequency: $frequency, ')
+          ..write('dayOfMonth: $dayOfMonth, ')
+          ..write('dayOfWeek: $dayOfWeek, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('isActive: $isActive, ')
+          ..write('lastProcessedDate: $lastProcessedDate, ')
+          ..write('expenseRemark: $expenseRemark, ')
+          ..write('expenseAmount: $expenseAmount, ')
+          ..write('expenseCategoryId: $expenseCategoryId, ')
+          ..write('expensePaymentMethod: $expensePaymentMethod, ')
+          ..write('expenseCurrency: $expenseCurrency, ')
+          ..write('expenseDescription: $expenseDescription, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $UsersTable extends Users with TableInfo<$UsersTable, User> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -1856,13 +2754,15 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ExpensesTable expenses = $ExpensesTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
   late final $SyncQueueTable syncQueue = $SyncQueueTable(this);
+  late final $RecurringExpensesTable recurringExpenses =
+      $RecurringExpensesTable(this);
   late final $UsersTable users = $UsersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [expenses, budgets, syncQueue, users];
+      [expenses, budgets, syncQueue, recurringExpenses, users];
 }
 
 typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
@@ -1875,6 +2775,7 @@ typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
   required String method,
   Value<String?> description,
   Value<String> currency,
+  Value<String?> recurringExpenseId,
   Value<bool> isSynced,
   required DateTime lastModified,
   Value<int> rowid,
@@ -1889,6 +2790,7 @@ typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({
   Value<String> method,
   Value<String?> description,
   Value<String> currency,
+  Value<String?> recurringExpenseId,
   Value<bool> isSynced,
   Value<DateTime> lastModified,
   Value<int> rowid,
@@ -1920,6 +2822,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             Value<String> method = const Value.absent(),
             Value<String?> description = const Value.absent(),
             Value<String> currency = const Value.absent(),
+            Value<String?> recurringExpenseId = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<DateTime> lastModified = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -1934,6 +2837,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             method: method,
             description: description,
             currency: currency,
+            recurringExpenseId: recurringExpenseId,
             isSynced: isSynced,
             lastModified: lastModified,
             rowid: rowid,
@@ -1948,6 +2852,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             required String method,
             Value<String?> description = const Value.absent(),
             Value<String> currency = const Value.absent(),
+            Value<String?> recurringExpenseId = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             required DateTime lastModified,
             Value<int> rowid = const Value.absent(),
@@ -1962,6 +2867,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             method: method,
             description: description,
             currency: currency,
+            recurringExpenseId: recurringExpenseId,
             isSynced: isSynced,
             lastModified: lastModified,
             rowid: rowid,
@@ -2014,6 +2920,11 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<String> get currency => $state.composableBuilder(
       column: $state.table.currency,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get recurringExpenseId => $state.composableBuilder(
+      column: $state.table.recurringExpenseId,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
@@ -2073,6 +2984,11 @@ class $$ExpensesTableOrderingComposer
 
   ColumnOrderings<String> get currency => $state.composableBuilder(
       column: $state.table.currency,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get recurringExpenseId => $state.composableBuilder(
+      column: $state.table.recurringExpenseId,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 
@@ -2381,6 +3297,327 @@ class $$SyncQueueTableOrderingComposer
           ColumnOrderings(column, joinBuilders: joinBuilders));
 }
 
+typedef $$RecurringExpensesTableCreateCompanionBuilder
+    = RecurringExpensesCompanion Function({
+  required String id,
+  required String userId,
+  required String frequency,
+  Value<int?> dayOfMonth,
+  Value<String?> dayOfWeek,
+  required DateTime startDate,
+  Value<DateTime?> endDate,
+  Value<bool> isActive,
+  Value<DateTime?> lastProcessedDate,
+  required String expenseRemark,
+  required double expenseAmount,
+  required String expenseCategoryId,
+  required String expensePaymentMethod,
+  Value<String> expenseCurrency,
+  Value<String?> expenseDescription,
+  Value<bool> isSynced,
+  required DateTime lastModified,
+  Value<int> rowid,
+});
+typedef $$RecurringExpensesTableUpdateCompanionBuilder
+    = RecurringExpensesCompanion Function({
+  Value<String> id,
+  Value<String> userId,
+  Value<String> frequency,
+  Value<int?> dayOfMonth,
+  Value<String?> dayOfWeek,
+  Value<DateTime> startDate,
+  Value<DateTime?> endDate,
+  Value<bool> isActive,
+  Value<DateTime?> lastProcessedDate,
+  Value<String> expenseRemark,
+  Value<double> expenseAmount,
+  Value<String> expenseCategoryId,
+  Value<String> expensePaymentMethod,
+  Value<String> expenseCurrency,
+  Value<String?> expenseDescription,
+  Value<bool> isSynced,
+  Value<DateTime> lastModified,
+  Value<int> rowid,
+});
+
+class $$RecurringExpensesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $RecurringExpensesTable,
+    RecurringExpense,
+    $$RecurringExpensesTableFilterComposer,
+    $$RecurringExpensesTableOrderingComposer,
+    $$RecurringExpensesTableCreateCompanionBuilder,
+    $$RecurringExpensesTableUpdateCompanionBuilder> {
+  $$RecurringExpensesTableTableManager(
+      _$AppDatabase db, $RecurringExpensesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer:
+              $$RecurringExpensesTableFilterComposer(ComposerState(db, table)),
+          orderingComposer: $$RecurringExpensesTableOrderingComposer(
+              ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> userId = const Value.absent(),
+            Value<String> frequency = const Value.absent(),
+            Value<int?> dayOfMonth = const Value.absent(),
+            Value<String?> dayOfWeek = const Value.absent(),
+            Value<DateTime> startDate = const Value.absent(),
+            Value<DateTime?> endDate = const Value.absent(),
+            Value<bool> isActive = const Value.absent(),
+            Value<DateTime?> lastProcessedDate = const Value.absent(),
+            Value<String> expenseRemark = const Value.absent(),
+            Value<double> expenseAmount = const Value.absent(),
+            Value<String> expenseCategoryId = const Value.absent(),
+            Value<String> expensePaymentMethod = const Value.absent(),
+            Value<String> expenseCurrency = const Value.absent(),
+            Value<String?> expenseDescription = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            Value<DateTime> lastModified = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RecurringExpensesCompanion(
+            id: id,
+            userId: userId,
+            frequency: frequency,
+            dayOfMonth: dayOfMonth,
+            dayOfWeek: dayOfWeek,
+            startDate: startDate,
+            endDate: endDate,
+            isActive: isActive,
+            lastProcessedDate: lastProcessedDate,
+            expenseRemark: expenseRemark,
+            expenseAmount: expenseAmount,
+            expenseCategoryId: expenseCategoryId,
+            expensePaymentMethod: expensePaymentMethod,
+            expenseCurrency: expenseCurrency,
+            expenseDescription: expenseDescription,
+            isSynced: isSynced,
+            lastModified: lastModified,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String userId,
+            required String frequency,
+            Value<int?> dayOfMonth = const Value.absent(),
+            Value<String?> dayOfWeek = const Value.absent(),
+            required DateTime startDate,
+            Value<DateTime?> endDate = const Value.absent(),
+            Value<bool> isActive = const Value.absent(),
+            Value<DateTime?> lastProcessedDate = const Value.absent(),
+            required String expenseRemark,
+            required double expenseAmount,
+            required String expenseCategoryId,
+            required String expensePaymentMethod,
+            Value<String> expenseCurrency = const Value.absent(),
+            Value<String?> expenseDescription = const Value.absent(),
+            Value<bool> isSynced = const Value.absent(),
+            required DateTime lastModified,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              RecurringExpensesCompanion.insert(
+            id: id,
+            userId: userId,
+            frequency: frequency,
+            dayOfMonth: dayOfMonth,
+            dayOfWeek: dayOfWeek,
+            startDate: startDate,
+            endDate: endDate,
+            isActive: isActive,
+            lastProcessedDate: lastProcessedDate,
+            expenseRemark: expenseRemark,
+            expenseAmount: expenseAmount,
+            expenseCategoryId: expenseCategoryId,
+            expensePaymentMethod: expensePaymentMethod,
+            expenseCurrency: expenseCurrency,
+            expenseDescription: expenseDescription,
+            isSynced: isSynced,
+            lastModified: lastModified,
+            rowid: rowid,
+          ),
+        ));
+}
+
+class $$RecurringExpensesTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $RecurringExpensesTable> {
+  $$RecurringExpensesTableFilterComposer(super.$state);
+  ColumnFilters<String> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get userId => $state.composableBuilder(
+      column: $state.table.userId,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get frequency => $state.composableBuilder(
+      column: $state.table.frequency,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<int> get dayOfMonth => $state.composableBuilder(
+      column: $state.table.dayOfMonth,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get dayOfWeek => $state.composableBuilder(
+      column: $state.table.dayOfWeek,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get startDate => $state.composableBuilder(
+      column: $state.table.startDate,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get endDate => $state.composableBuilder(
+      column: $state.table.endDate,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<bool> get isActive => $state.composableBuilder(
+      column: $state.table.isActive,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get lastProcessedDate => $state.composableBuilder(
+      column: $state.table.lastProcessedDate,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get expenseRemark => $state.composableBuilder(
+      column: $state.table.expenseRemark,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<double> get expenseAmount => $state.composableBuilder(
+      column: $state.table.expenseAmount,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get expenseCategoryId => $state.composableBuilder(
+      column: $state.table.expenseCategoryId,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get expensePaymentMethod => $state.composableBuilder(
+      column: $state.table.expensePaymentMethod,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get expenseCurrency => $state.composableBuilder(
+      column: $state.table.expenseCurrency,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get expenseDescription => $state.composableBuilder(
+      column: $state.table.expenseDescription,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<bool> get isSynced => $state.composableBuilder(
+      column: $state.table.isSynced,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get lastModified => $state.composableBuilder(
+      column: $state.table.lastModified,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$RecurringExpensesTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $RecurringExpensesTable> {
+  $$RecurringExpensesTableOrderingComposer(super.$state);
+  ColumnOrderings<String> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get userId => $state.composableBuilder(
+      column: $state.table.userId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get frequency => $state.composableBuilder(
+      column: $state.table.frequency,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<int> get dayOfMonth => $state.composableBuilder(
+      column: $state.table.dayOfMonth,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get dayOfWeek => $state.composableBuilder(
+      column: $state.table.dayOfWeek,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get startDate => $state.composableBuilder(
+      column: $state.table.startDate,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get endDate => $state.composableBuilder(
+      column: $state.table.endDate,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<bool> get isActive => $state.composableBuilder(
+      column: $state.table.isActive,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get lastProcessedDate => $state.composableBuilder(
+      column: $state.table.lastProcessedDate,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get expenseRemark => $state.composableBuilder(
+      column: $state.table.expenseRemark,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<double> get expenseAmount => $state.composableBuilder(
+      column: $state.table.expenseAmount,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get expenseCategoryId => $state.composableBuilder(
+      column: $state.table.expenseCategoryId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get expensePaymentMethod => $state.composableBuilder(
+      column: $state.table.expensePaymentMethod,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get expenseCurrency => $state.composableBuilder(
+      column: $state.table.expenseCurrency,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get expenseDescription => $state.composableBuilder(
+      column: $state.table.expenseDescription,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<bool> get isSynced => $state.composableBuilder(
+      column: $state.table.isSynced,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get lastModified => $state.composableBuilder(
+      column: $state.table.lastModified,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
 typedef $$UsersTableCreateCompanionBuilder = UsersCompanion Function({
   required String id,
   Value<String?> email,
@@ -2612,6 +3849,8 @@ class $AppDatabaseManager {
       $$BudgetsTableTableManager(_db, _db.budgets);
   $$SyncQueueTableTableManager get syncQueue =>
       $$SyncQueueTableTableManager(_db, _db.syncQueue);
+  $$RecurringExpensesTableTableManager get recurringExpenses =>
+      $$RecurringExpensesTableTableManager(_db, _db.recurringExpenses);
   $$UsersTableTableManager get users =>
       $$UsersTableTableManager(_db, _db.users);
 }

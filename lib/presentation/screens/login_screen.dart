@@ -139,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                             )
                           : Image.asset(
-                              'assets/icons/google.png',
+                              'assets/icons/google_logo.png',
                               width: 24,
                             ),
                       backgroundColor: Colors.white,

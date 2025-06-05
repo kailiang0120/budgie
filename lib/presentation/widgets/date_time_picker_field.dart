@@ -94,7 +94,7 @@ class DateTimePickerField extends StatelessWidget {
             ),
             Container(
               width: 1,
-              height: 48,
+              height: 40,
               color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade400,
             ),
             Expanded(

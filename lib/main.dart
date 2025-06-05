@@ -10,6 +10,7 @@ import 'core/constants/routes.dart';
 import 'core/router/app_router.dart';
 import 'core/services/settings_service.dart';
 import 'core/services/sync_service.dart';
+import 'core/services/recurring_expense_service.dart';
 import 'presentation/viewmodels/expenses_viewmodel.dart';
 import 'presentation/viewmodels/auth_viewmodel.dart';
 import 'presentation/viewmodels/budget_viewmodel.dart';
@@ -96,6 +97,11 @@ Future<void> main() async {
       debugPrint('Initializing SyncService for logged in user...');
       await di.sl<SyncService>().initialize(startPeriodicSync: false);
       debugPrint('SyncService initialized without automatic periodic sync');
+
+      // Start recurring expense service
+      debugPrint('Starting RecurringExpenseService...');
+      di.sl<RecurringExpenseService>().startProcessing();
+      debugPrint('RecurringExpenseService started');
     }
 
     // Disable Provider type checking in debug mode if needed
@@ -181,7 +187,9 @@ class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.detached) {
       // App is being killed, clean up resources
       di.sl<SyncService>().dispose();
-      debugPrint('App detached: disposed SyncService');
+      di.sl<RecurringExpenseService>().stopProcessing();
+      debugPrint(
+          'App detached: disposed SyncService and RecurringExpenseService');
     }
   }
 

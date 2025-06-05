@@ -100,29 +100,29 @@ class AuthViewModel extends ChangeNotifier {
   // Handle user login with new/existing user detection
   Future<void> _handleUserLogin(String userId) async {
     try {
-      debugPrint('🔥 AuthViewModel: Handling user login for: $userId');
+      //debugPrint('🔥 AuthViewModel: Handling user login for: $userId');
 
       // Step 1: Initialize settings (will handle new/existing user detection internally)
-      debugPrint('🔥 AuthViewModel: Initializing settings for user');
+      // debugPrint('🔥 AuthViewModel: Initializing settings for user');
       await _settingsService.initializeForUser(userId);
-      debugPrint('🔥 AuthViewModel: Settings initialization completed');
-      debugPrint(
-          '🔥 AuthViewModel: Current settings - Currency: ${_settingsService.currency}, Theme: ${_settingsService.theme}, Notifications: ${_settingsService.allowNotification}');
+      //debugPrint('🔥 AuthViewModel: Settings initialization completed');
+      //debugPrint(
+      //    '🔥 AuthViewModel: Current settings - Currency: ${_settingsService.currency}, Theme: ${_settingsService.theme}, Notifications: ${_settingsService.allowNotification}');
 
       // Step 2: Initialize theme based on user settings (only after settings are loaded/created)
-      debugPrint('🔥 AuthViewModel: Initializing theme for user');
+      //debugPrint('🔥 AuthViewModel: Initializing theme for user');
       await _themeViewModel.initializeForUser(userId);
-      debugPrint('🔥 AuthViewModel: Theme initialization completed');
+      //debugPrint('🔥 AuthViewModel: Theme initialization completed');
 
       // Step 3: Initialize local data synchronization
-      debugPrint('🔥 AuthViewModel: Initializing local data sync');
+      //debugPrint('🔥 AuthViewModel: Initializing local data sync');
       await _syncService.initializeLocalDataOnLogin(userId);
-      debugPrint('🔥 AuthViewModel: Local data sync initialized');
+      //debugPrint('🔥 AuthViewModel: Local data sync initialized');
 
-      debugPrint(
-          '🔥 AuthViewModel: User login handling completed for: $userId');
+      //debugPrint(
+      //    '🔥 AuthViewModel: User login handling completed for: $userId');
     } catch (e) {
-      debugPrint('🔥 AuthViewModel: Error handling user login for $userId: $e');
+      //debugPrint('🔥 AuthViewModel: Error handling user login for $userId: $e');
       _error = 'Failed to initialize user data: ${e.toString()}';
       rethrow;
     }
@@ -131,33 +131,33 @@ class AuthViewModel extends ChangeNotifier {
   // Handle user logout
   Future<void> _handleUserLogout() async {
     try {
-      debugPrint('🔥 AuthViewModel: Handling user logout');
+      //debugPrint('🔥 AuthViewModel: Handling user logout');
       // Reset any local state if needed
       // The services will handle their own cleanup
     } catch (e) {
-      debugPrint('🔥 AuthViewModel: Error handling user logout: $e');
+      //debugPrint('🔥 AuthViewModel: Error handling user logout: $e');
     }
   }
 
   // Initialize user data (used for current user on app start)
   Future<void> _initializeUserData(String userId) async {
     try {
-      debugPrint(
-          '🔥 AuthViewModel: Initializing data for current user: $userId');
+      //debugPrint(
+      //    '🔥 AuthViewModel: Initializing data for current user: $userId');
 
       // Initialize settings first
       await _settingsService.initializeForUser(userId);
-      debugPrint('🔥 AuthViewModel: Settings initialized for current user');
+      //debugPrint('🔥 AuthViewModel: Settings initialized for current user');
 
       // Then initialize theme
       await _themeViewModel.initializeForUser(userId);
-      debugPrint('🔥 AuthViewModel: Theme initialized for current user');
+      //debugPrint('🔥 AuthViewModel: Theme initialized for current user');
 
       // Finally initialize local data
       await _syncService.initializeLocalDataOnLogin(userId);
-      debugPrint('🔥 AuthViewModel: Local data initialized for current user');
+      //debugPrint('🔥 AuthViewModel: Local data initialized for current user');
     } catch (e) {
-      debugPrint('🔥 AuthViewModel: Error initializing current user data: $e');
+      //debugPrint('🔥 AuthViewModel: Error initializing current user data: $e');
       _error = 'Failed to initialize user data: ${e.toString()}';
       rethrow;
     }
@@ -166,7 +166,7 @@ class AuthViewModel extends ChangeNotifier {
   // Refresh authentication state to ensure current user info is up-to-date
   Future<void> refreshAuthState() async {
     try {
-      debugPrint('🔥 Refreshing auth state');
+      //debugPrint('🔥 Refreshing auth state');
       PerformanceMonitor.startTimer('refresh_auth_state');
       _isLoading = true;
       _error = null;
@@ -176,27 +176,27 @@ class AuthViewModel extends ChangeNotifier {
       _currentUser = await _authRepository.getCurrentUser();
 
       // Additional debug info
-      debugPrint('🔥 Refreshed user: ${_currentUser?.id ?? 'Not logged in'}');
+      //debugPrint('🔥 Refreshed user: ${_currentUser?.id ?? 'Not logged in'}');
       final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
-      debugPrint('🔥 Firebase user: ${firebaseUser?.uid ?? 'Not logged in'}');
+      //debugPrint('🔥 Firebase user: ${firebaseUser?.uid ?? 'Not logged in'}');
 
       // Handle potential state mismatch
       if (firebaseUser != null && _currentUser == null) {
-        debugPrint(
-            '🔥 State mismatch detected: Firebase user exists but domain user is null');
+        //debugPrint(
+        //    '🔥 State mismatch detected: Firebase user exists but domain user is null');
         await firebaseUser.reload();
         _currentUser = await _authRepository.getCurrentUser();
       }
 
       // Initialize theme if user is authenticated
       if (_currentUser != null) {
-        debugPrint(
-            '🔥 Initializing theme for authenticated user: ${_currentUser!.id}');
+        //debugPrint(
+        //    '🔥 Initializing theme for authenticated user: ${_currentUser!.id}');
         await _themeViewModel.initializeForUser(_currentUser!.id);
-        debugPrint('🔥 Theme initialization completed for refreshed user');
+        //debugPrint('🔥 Theme initialization completed for refreshed user');
       }
     } catch (e) {
-      debugPrint('🔥 Error refreshing auth state: $e');
+      //debugPrint('🔥 Error refreshing auth state: $e');
       _error = 'Failed to refresh authentication state';
       _currentUser = null;
     } finally {
@@ -218,17 +218,17 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      debugPrint('🔥 AuthViewModel: Signing in with email: $email');
+      //debugPrint('🔥 AuthViewModel: Signing in with email: $email');
       final user =
           await _authRepository.signInWithEmailAndPassword(email, password);
       _currentUser = user;
-      debugPrint('🔥 AuthViewModel: Successfully signed in: ${user.id}');
+      //debugPrint('🔥 AuthViewModel: Successfully signed in: ${user.id}');
 
       // Use the new user handling logic
       await _handleUserLogin(user.id);
-      debugPrint('🔥 AuthViewModel: Sign-in process completed for: ${user.id}');
+      // debugPrint('🔥 AuthViewModel: Sign-in process completed for: ${user.id}');
     } catch (e) {
-      debugPrint('🔥 AuthViewModel: Sign in error: $e');
+      // debugPrint('🔥 AuthViewModel: Sign in error: $e');
       _error = 'Failed to sign in: ${e.toString()}';
     } finally {
       _isLoading = false;
@@ -248,17 +248,17 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      debugPrint('🔥 AuthViewModel: Creating account with email: $email');
+      //debugPrint('🔥 AuthViewModel: Creating account with email: $email');
       final user =
           await _authRepository.createUserWithEmailAndPassword(email, password);
       _currentUser = user;
-      debugPrint('🔥 AuthViewModel: Successfully created account: ${user.id}');
+      //debugPrint('🔥 AuthViewModel: Successfully created account: ${user.id}');
 
       // Use the new user handling logic (will detect this as a new user)
       await _handleUserLogin(user.id);
-      debugPrint('🔥 AuthViewModel: Sign-up process completed for: ${user.id}');
+      //debugPrint('🔥 AuthViewModel: Sign-up process completed for: ${user.id}');
     } catch (e) {
-      debugPrint('🔥 AuthViewModel: Sign up error: $e');
+      //debugPrint('🔥 AuthViewModel: Sign up error: $e');
       _error = 'Failed to create account: ${e.toString()}';
     } finally {
       _isLoading = false;
@@ -272,7 +272,7 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      debugPrint('🔥 AuthViewModel: Starting Google sign-in');
+      //debugPrint('🔥 AuthViewModel: Starting Google sign-in');
 
       // Call repository for Google sign-in
       final user = await _authRepository.signInWithGoogle();
@@ -282,19 +282,19 @@ class AuthViewModel extends ChangeNotifier {
 
       // Verify we have a valid user
       if (_currentUser == null || _currentUser!.id.isEmpty) {
-        debugPrint('🔥 AuthViewModel: Invalid user returned from repository');
+        //debugPrint('🔥 AuthViewModel: Invalid user returned from repository');
         throw Exception('Authentication failed - Invalid user');
       }
 
-      debugPrint(
-          '🔥 AuthViewModel: Google sign-in successful - User ID: ${_currentUser!.id}');
+      //debugPrint(
+      //    '🔥 AuthViewModel: Google sign-in successful - User ID: ${_currentUser!.id}');
 
       // Use the new user handling logic
       await _handleUserLogin(_currentUser!.id);
-      debugPrint(
-          '🔥 AuthViewModel: Google sign-in process completed for: ${_currentUser!.id}');
+      //debugPrint(
+      //    '🔥 AuthViewModel: Google sign-in process completed for: ${_currentUser!.id}');
     } catch (e) {
-      debugPrint('🔥 AuthViewModel: Google sign-in error: $e');
+      //debugPrint('🔥 AuthViewModel: Google sign-in error: $e');
 
       // Set appropriate error message
       if (e.toString().contains('network')) {
@@ -321,12 +321,12 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      debugPrint('Signing out');
+      //debugPrint('Signing out');
       await _authRepository.signOut();
       _currentUser = null;
-      debugPrint('Successfully signed out');
+      //debugPrint('Successfully signed out');
     } catch (e) {
-      debugPrint('Sign out error: $e');
+      //debugPrint('Sign out error: $e');
       _error = 'Failed to sign out: ${e.toString()}';
     } finally {
       _isLoading = false;
@@ -346,11 +346,11 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      debugPrint('Sending password reset email to: $email');
+      //debugPrint('Sending password reset email to: $email');
       await _authRepository.resetPassword(email);
-      debugPrint('Password reset email sent');
+      //debugPrint('Password reset email sent');
     } catch (e) {
-      debugPrint('Password reset error: $e');
+      //debugPrint('Password reset error: $e');
       _error = 'Failed to reset password: ${e.toString()}';
     } finally {
       _isLoading = false;

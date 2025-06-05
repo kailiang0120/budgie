@@ -1,33 +1,23 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 
-/// 提交按钮组件
 class SubmitButton extends StatelessWidget {
-  /// 按钮文本
   final String text;
 
-  /// 加载状态文本
   final String loadingText;
 
-  /// 是否处于加载状态
   final bool isLoading;
 
-  /// 点击回调
   final VoidCallback onPressed;
 
-  /// 按钮颜色
   final Color? color;
 
-  /// 边框圆角
   final double borderRadius;
 
-  /// 图标
   final IconData? icon;
 
-  /// 按钮宽度
   final double? width;
 
-  /// 按钮高度
   final double height;
 
   const SubmitButton({
@@ -37,10 +27,10 @@ class SubmitButton extends StatelessWidget {
     required this.isLoading,
     required this.onPressed,
     this.color,
-    this.borderRadius = 15.0,
+    this.borderRadius = 25, // Updated to match new design
     this.icon,
     this.width,
-    this.height = 50.0,
+    this.height = 56.0, // Updated to match new square-ish design
   }) : super(key: key);
 
   @override
@@ -53,13 +43,17 @@ class SubmitButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: effectiveColor.withAlpha((255 * 0.7).toInt()),
+          backgroundColor: effectiveColor,
           disabledBackgroundColor:
               effectiveColor.withAlpha((255 * 0.5).toInt()),
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 16,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(borderRadius),
           ),
+          elevation: 2,
         ),
         child: isLoading
             ? Row(
@@ -79,7 +73,7 @@ class SubmitButton extends StatelessWidget {
                     style: const TextStyle(
                       fontFamily: AppTheme.fontFamily,
                       fontSize: 16,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       color: Colors.white,
                     ),
                   ),
@@ -95,14 +89,14 @@ class SubmitButton extends StatelessWidget {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 20),
+          Icon(icon, size: 22),
           const SizedBox(width: 8),
           Text(
             text,
             style: const TextStyle(
               fontFamily: AppTheme.fontFamily,
               fontSize: 16,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
           ),
@@ -115,7 +109,7 @@ class SubmitButton extends StatelessWidget {
       style: const TextStyle(
         fontFamily: AppTheme.fontFamily,
         fontSize: 16,
-        fontWeight: FontWeight.w500,
+        fontWeight: FontWeight.w600,
         color: Colors.white,
       ),
     );

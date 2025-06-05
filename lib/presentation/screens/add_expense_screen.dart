@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../domain/entities/expense.dart';
 import '../../domain/entities/category.dart';
+import '../../domain/entities/recurring_expense.dart';
+import '../../domain/repositories/recurring_expenses_repository.dart';
 import '../viewmodels/expenses_viewmodel.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
@@ -10,6 +12,7 @@ import '../widgets/category_selector.dart';
 import '../widgets/custom_dropdown_field.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/date_time_picker_field.dart';
+import '../widgets/recurring_expense_config.dart';
 import '../../core/errors/app_error.dart';
 import '../../core/services/settings_service.dart';
 import '../../di/injection_container.dart' as di;
@@ -36,10 +39,17 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       ValueNotifier<Category>(Category.food);
   final ValueNotifier<String> _selectedPaymentMethod =
       ValueNotifier<String>('Cash');
-  final ValueNotifier<String> _recurring = ValueNotifier<String>('One-time');
+  final ValueNotifier<RecurringFrequency> _recurringFrequency =
+      ValueNotifier<RecurringFrequency>(RecurringFrequency.oneTime);
+  final ValueNotifier<int?> _recurringDayOfMonth = ValueNotifier<int?>(null);
+  final ValueNotifier<DayOfWeek?> _recurringDayOfWeek =
+      ValueNotifier<DayOfWeek?>(null);
+  final ValueNotifier<DateTime?> _recurringEndDate =
+      ValueNotifier<DateTime?>(null);
 
   // Get services
   final _settingsService = di.sl<SettingsService>();
+  final _recurringExpensesRepository = di.sl<RecurringExpensesRepository>();
 
   // Payment method mapping
   final Map<String, PaymentMethod> _paymentMethodMap = {
@@ -57,7 +67,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   @override
   void dispose() {
-    // 释放所有controller和notifier
     _amountController.dispose();
     _remarkController.dispose();
     _descriptionController.dispose();
@@ -65,7 +74,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _selectedDateTime.dispose();
     _selectedCategory.dispose();
     _selectedPaymentMethod.dispose();
-    _recurring.dispose();
+    _recurringFrequency.dispose();
+    _recurringDayOfMonth.dispose();
+    _recurringDayOfWeek.dispose();
+    _recurringEndDate.dispose();
     super.dispose();
   }
 
@@ -73,7 +85,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _selectedDateTime.value = DateTime.now();
   }
 
-  // 专门用作VoidCallback的方法
   void _handleSubmit() {
     _submit();
   }
@@ -105,6 +116,35 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           throw Exception('Remark cannot be empty');
         }
 
+        String? recurringExpenseId;
+
+        // If it's a recurring expense, create the recurring expense record first
+        if (_recurringFrequency.value != RecurringFrequency.oneTime) {
+          final recurringExpense = RecurringExpense(
+            id: '', // Let repository assign ID
+            frequency: _recurringFrequency.value,
+            dayOfMonth: _recurringDayOfMonth.value,
+            dayOfWeek: _recurringDayOfWeek.value,
+            startDate: _selectedDateTime.value,
+            endDate: _recurringEndDate.value,
+            isActive: true,
+            lastProcessedDate:
+                _selectedDateTime.value, // Mark as processed to avoid duplicate
+            expenseRemark: remarkText,
+            expenseAmount: amount,
+            expenseCategoryId: _selectedCategory.value.id,
+            expensePaymentMethod:
+                _selectedPaymentMethod.value.toLowerCase().replaceAll(' ', ''),
+            expenseCurrency: _currency.value,
+            expenseDescription: null,
+          );
+
+          final createdRecurringExpense = await _recurringExpensesRepository
+              .addRecurringExpense(recurringExpense);
+          recurringExpenseId = createdRecurringExpense.id;
+        }
+
+        // Create the expense with the recurring expense ID if applicable
         final expense = Expense(
           id: '', // Use empty ID to let repository handle Firebase/offline ID assignment
           remark: remarkText,
@@ -112,8 +152,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           date: _selectedDateTime.value,
           category: _selectedCategory.value,
           method: _getPaymentMethodEnum(_selectedPaymentMethod.value),
-          description: _recurring.value,
+          description: null, // No longer storing recurring info in description
           currency: _currency.value,
+          recurringExpenseId: recurringExpenseId,
         );
 
         await viewModel.addExpense(expense);
@@ -181,16 +222,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Add Expense',
-                  style: TextStyle(
-                    fontFamily: 'Lexend',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 24,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                // 类别选择器 - 使用ValueListenableBuilder避免整个屏幕重建
                 Center(
                   child: ValueListenableBuilder<Category>(
                     valueListenable: _selectedCategory,
@@ -206,10 +237,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // 金额输入框和货币选择
                 Row(
                   children: [
-                    // 货币下拉选择器
                     Container(
                       width: 100,
                       margin: const EdgeInsets.only(right: 8),
@@ -230,7 +259,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                         },
                       ),
                     ),
-                    // 金额输入框
                     Expanded(
                       child: ValueListenableBuilder<String>(
                         valueListenable: _currency,
@@ -250,7 +278,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // 备注输入框
                 CustomTextField(
                   controller: _remarkController,
                   labelText: 'Remark',
@@ -259,7 +286,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // 日期时间选择器
                 ValueListenableBuilder<DateTime>(
                   valueListenable: _selectedDateTime,
                   builder: (context, selectedDateTime, _) {
@@ -277,7 +303,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // 支付方式选择
                 ValueListenableBuilder<String>(
                   valueListenable: _selectedPaymentMethod,
                   builder: (context, selectedPaymentMethod, _) {
@@ -297,76 +322,106 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // 重复支付选项
-                ValueListenableBuilder<String>(
-                  valueListenable: _recurring,
-                  builder: (context, recurring, _) {
-                    return CustomDropdownField<String>(
-                      value: recurring,
-                      items: AppConstants.recurringOptions,
-                      labelText: 'Recurring Payment',
-                      onChanged: (value) {
-                        if (value != null) {
-                          _recurring.value = value;
-                        }
+                // Recurring expense configuration
+                ValueListenableBuilder<RecurringFrequency>(
+                  valueListenable: _recurringFrequency,
+                  builder: (context, frequency, _) {
+                    return ValueListenableBuilder<int?>(
+                      valueListenable: _recurringDayOfMonth,
+                      builder: (context, dayOfMonth, _) {
+                        return ValueListenableBuilder<DayOfWeek?>(
+                          valueListenable: _recurringDayOfWeek,
+                          builder: (context, dayOfWeek, _) {
+                            return ValueListenableBuilder<DateTime?>(
+                              valueListenable: _recurringEndDate,
+                              builder: (context, endDate, _) {
+                                return RecurringExpenseConfig(
+                                  initialFrequency: frequency,
+                                  initialDayOfMonth: dayOfMonth,
+                                  initialDayOfWeek: dayOfWeek,
+                                  initialEndDate: endDate,
+                                  onFrequencyChanged: (newFrequency) {
+                                    _recurringFrequency.value = newFrequency;
+                                  },
+                                  onDayOfMonthChanged: (newDayOfMonth) {
+                                    _recurringDayOfMonth.value = newDayOfMonth;
+                                  },
+                                  onDayOfWeekChanged: (newDayOfWeek) {
+                                    _recurringDayOfWeek.value = newDayOfWeek;
+                                  },
+                                  onEndDateChanged: (newEndDate) {
+                                    _recurringEndDate.value = newEndDate;
+                                  },
+                                );
+                              },
+                            );
+                          },
+                        );
                       },
-                      itemLabelBuilder: (item) => item,
-                      prefixIcon: Icons.repeat,
                     );
                   },
                 ),
                 const SizedBox(height: 24),
 
-                // 提交按钮 - 使用原生按钮解决问题
-                ElevatedButton(
-                  onPressed: _isSubmitting ? null : _handleSubmit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15.0),
+                // Submit button - Square with corner radius
+                SizedBox(
+                  width: double.infinity,
+                  height: 56, // Square-ish height
+                  child: ElevatedButton(
+                    onPressed: _isSubmitting ? null : _handleSubmit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(16.0), // Corner radius
+                      ),
+                      elevation: 2,
                     ),
+                    child: _isSubmitting
+                        ? const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              SizedBox(width: 12),
+                              Text(
+                                AppConstants.addingText,
+                                style: TextStyle(
+                                  fontFamily: AppTheme.fontFamily,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          )
+                        : const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.add_rounded, size: 22),
+                              SizedBox(width: 8),
+                              Text(
+                                'Add New Expenses',
+                                style: TextStyle(
+                                  fontFamily: AppTheme.fontFamily,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
                   ),
-                  child: _isSubmitting
-                      ? const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Text(
-                              AppConstants.addingText,
-                              style: TextStyle(
-                                fontFamily: AppTheme.fontFamily,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        )
-                      : const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.add, size: 20),
-                            SizedBox(width: 8),
-                            Text(
-                              'Add New Expenses',
-                              style: TextStyle(
-                                fontFamily: AppTheme.fontFamily,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
                 ),
               ],
             ),

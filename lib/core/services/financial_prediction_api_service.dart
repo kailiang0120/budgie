@@ -402,7 +402,7 @@ class FinancialPredictionApiService {
   // API Configuration
   static const String baseUrl = 'http://10.0.2.2:8000';
   static const Duration timeoutDuration =
-      Duration(seconds: 300); // Longer timeout for LLM processing
+      Duration(seconds: 600); // Longer timeout for LLM processing
 
   /// Get daily expense prediction from the LLM API
   Future<LLMPredictionApiResponse> getDailyExpensePrediction(

@@ -25,7 +25,6 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late DateTime _selectedDate;
   bool _filterByDay = false;
-  bool _isInitialized = false;
 
   @override
   void initState() {
@@ -35,7 +34,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     // Initialize with current date as default
     _selectedDate = DateTime.now();
 
-    // Get view model for expenses
+    // Initialize filters in post-frame callback to avoid build phase issues
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _initializeFilters();
@@ -46,9 +45,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_isInitialized) {
-      _initializeFilters();
-    }
+    // Remove initialization from didChangeDependencies to avoid build phase issues
   }
 
   void _initializeFilters() {
@@ -63,9 +60,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       vm.setSelectedMonth(_selectedDate,
           filterByDay: _filterByDay, screenKey: 'home');
 
-      setState(() {
-        _isInitialized = true;
-      });
+      setState(() {});
     } catch (e) {
       debugPrint('Error initializing date filter: $e');
       _selectedDate = DateTime.now();
@@ -281,8 +276,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         )
                       : SliverList(
                           delegate: SliverChildBuilderDelegate(
-                            (context, index) =>
-                                ExpenseCard(expense: expenses[index]),
+                            (context, index) => ExpenseCard(
+                              expense: expenses[index],
+                              onExpenseUpdated: () {
+                                // Refresh the data when expense is updated or deleted
+                                Provider.of<ExpensesViewModel>(context,
+                                        listen: false)
+                                    .refreshData();
+                              },
+                            ),
                             childCount: expenses.length,
                           ),
                         ),
@@ -296,7 +298,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       // 3) Floating "+" button
       floatingActionButton: AnimatedFloatButton(
         onPressed: () {
-          // 使用自定义动画导航到添加支出页面
           Navigator.push(
             context,
             PageTransition(
@@ -318,7 +319,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       bottomNavigationBar: BottomNavBar(
         currentIndex: 0,
         onTap: (idx) {
-          // 实现导航逻辑
           if (idx != 0) {
             switch (idx) {
               case 1:

@@ -1,5 +1,6 @@
 import '../../domain/entities/budget.dart';
 import '../../domain/entities/expense.dart';
+import '../../domain/entities/recurring_expense.dart';
 import '../../domain/entities/user.dart';
 
 /// Abstract interface for local data source operations
@@ -21,6 +22,17 @@ abstract class LocalDataSource {
   Future<void> deleteExpense(String id);
   Future<List<Expense>> getUnsyncedExpenses();
   Future<void> markExpenseAsSynced(String id);
+
+  // Recurring expenses operations
+  Future<List<RecurringExpense>> getRecurringExpenses();
+  Future<void> saveRecurringExpense(RecurringExpense recurringExpense);
+  Future<void> saveSyncedRecurringExpense(RecurringExpense recurringExpense);
+  Future<void> updateRecurringExpense(RecurringExpense recurringExpense);
+  Future<void> deleteRecurringExpense(String id);
+  Future<List<RecurringExpense>> getActiveRecurringExpenses();
+  Future<void> markRecurringExpenseAsSynced(String id);
+  Future<void> updateRecurringExpenseLastProcessed(
+      String id, DateTime lastProcessedDate);
 
   // Budget operations
   Future<Budget?> getBudget(String monthId, String userId);

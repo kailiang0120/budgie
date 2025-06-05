@@ -136,17 +136,16 @@ class ExpensesViewModel extends ChangeNotifier {
 
   /// Set selected month with screen context
   void setSelectedMonth(DateTime month,
-      {bool persist = true,
-      bool filterByDay = false,
-      String screenKey = 'home'}) {
+      {bool filterByDay = false,
+      String screenKey = 'default',
+      bool persist = true}) {
     try {
-      // Store screen-specific filter
-      _screenFilters[screenKey] =
-          filterByDay ? month : DateTime(month.year, month.month, 1);
+      // Store filter settings for the specific screen
+      _screenFilters[screenKey] = month;
       _screenDayFilters[screenKey] = filterByDay;
 
       if (filterByDay) {
-        // For day filtering, keep the exact date
+        // For day filtering, use exact date
         if (_selectedMonth == month && _isDayFiltering) {
           return; // No change needed
         }
@@ -179,7 +178,10 @@ class ExpensesViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error setting selected month: $e');
       _error = 'Failed to set selected month';
-      notifyListeners();
+      // Use microtask to avoid build phase issues
+      Future.microtask(() {
+        notifyListeners();
+      });
     }
   }
 
@@ -219,7 +221,10 @@ class ExpensesViewModel extends ChangeNotifier {
     if (_cache.containsKey(cacheKey)) {
       _filteredExpenses = _cache[cacheKey]!;
       PerformanceMonitor.stopTimer('filter_expenses', logResult: true);
-      notifyListeners();
+      // Schedule notification for next event loop to avoid build phase issues
+      Future.microtask(() {
+        notifyListeners();
+      });
       return;
     }
 
@@ -249,7 +254,10 @@ class ExpensesViewModel extends ChangeNotifier {
     }
 
     PerformanceMonitor.stopTimer('filter_expenses');
-    notifyListeners();
+    // Schedule notification for next event loop to avoid build phase issues
+    Future.microtask(() {
+      notifyListeners();
+    });
   }
 
   void _startExpensesStream() {

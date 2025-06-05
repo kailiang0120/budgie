@@ -18,6 +18,7 @@ class Expenses extends Table {
   TextColumn get method => text()();
   TextColumn get description => text().nullable()();
   TextColumn get currency => text().withDefault(const Constant('MYR'))();
+  TextColumn get recurringExpenseId => text().nullable()();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   DateTimeColumn get lastModified => dateTime()();
 
@@ -50,6 +51,30 @@ class SyncQueue extends Table {
   DateTimeColumn get timestamp => dateTime()();
 }
 
+/// Recurring expenses table definition
+class RecurringExpenses extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get frequency => text()(); // 'oneTime', 'weekly', 'monthly'
+  IntColumn get dayOfMonth => integer().nullable()(); // 1-31 for monthly
+  TextColumn get dayOfWeek => text().nullable()(); // 'monday', 'tuesday', etc.
+  DateTimeColumn get startDate => dateTime()();
+  DateTimeColumn get endDate => dateTime().nullable()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get lastProcessedDate => dateTime().nullable()();
+  TextColumn get expenseRemark => text()();
+  RealColumn get expenseAmount => real()();
+  TextColumn get expenseCategoryId => text()();
+  TextColumn get expensePaymentMethod => text()();
+  TextColumn get expenseCurrency => text().withDefault(const Constant('MYR'))();
+  TextColumn get expenseDescription => text().nullable()();
+  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get lastModified => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// Users table for storing user information and settings
 class Users extends Table {
   TextColumn get id => text()();
@@ -80,12 +105,12 @@ LazyDatabase _openConnection() {
 }
 
 /// Main application database
-@DriftDatabase(tables: [Expenses, Budgets, SyncQueue, Users])
+@DriftDatabase(tables: [Expenses, Budgets, SyncQueue, RecurringExpenses, Users])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration {
@@ -101,6 +126,12 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(users, users.autoBudget as GeneratedColumn<Object>);
           await m.addColumn(
               users, users.improveAccuracy as GeneratedColumn<Object>);
+        }
+        if (from <= 2 && to == 3) {
+          // Add recurring expense support
+          await m.createTable(this.recurringExpenses);
+          await m.addColumn(
+              expenses, expenses.recurringExpenseId as GeneratedColumn<Object>);
         }
       },
     );

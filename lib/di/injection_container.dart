@@ -5,9 +5,11 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../data/repositories/auth_repository_impl.dart';
 import '../data/repositories/expenses_repository_impl.dart';
 import '../data/repositories/budget_repository_impl.dart';
+import '../data/repositories/recurring_expenses_repository_impl.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/expenses_repository.dart';
 import '../domain/repositories/budget_repository.dart';
+import '../domain/repositories/recurring_expenses_repository.dart';
 import '../presentation/viewmodels/auth_viewmodel.dart';
 import '../presentation/viewmodels/expenses_viewmodel.dart';
 import '../presentation/viewmodels/budget_viewmodel.dart';
@@ -20,6 +22,7 @@ import '../core/services/sync_service.dart';
 import '../core/services/notification_service.dart';
 import '../core/services/settings_service.dart';
 import '../core/services/currency_conversion_service.dart';
+import '../core/services/recurring_expense_service.dart';
 
 /// Service locator instance
 final sl = GetIt.instance;
@@ -115,6 +118,23 @@ Future<void> init() async {
       auth: sl<FirebaseAuth>(),
       localDataSource: sl(),
       connectivityService: sl(),
+    ),
+  );
+
+  sl.registerLazySingleton<RecurringExpensesRepository>(
+    () => RecurringExpensesRepositoryImpl(
+      firestore: sl<FirebaseFirestore>(),
+      auth: sl<FirebaseAuth>(),
+      localDataSource: sl(),
+      connectivityService: sl(),
+    ),
+  );
+
+  // Recurring expense service
+  sl.registerLazySingleton(
+    () => RecurringExpenseService(
+      expensesRepository: sl(),
+      recurringExpensesRepository: sl(),
     ),
   );
 

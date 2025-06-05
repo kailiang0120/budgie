@@ -88,6 +88,7 @@ class ExpensesRepositoryImpl implements ExpensesRepository {
           ),
           description: data['description'] as String?,
           currency: data['currency'] as String? ?? 'MYR',
+          recurringExpenseId: data['recurringExpenseId'] as String?,
         );
       }).toList();
 
@@ -138,6 +139,7 @@ class ExpensesRepositoryImpl implements ExpensesRepository {
           'method': expense.method.toString().split('.').last,
           'description': expense.description,
           'currency': expense.currency,
+          'recurringExpenseId': expense.recurringExpenseId,
         };
 
         debugPrint('Expense document to save: $expenseDoc');
@@ -264,6 +266,7 @@ class ExpensesRepositoryImpl implements ExpensesRepository {
         'method': expense.method.toString().split('.').last,
         'description': expense.description,
         'currency': expense.currency,
+        'recurringExpenseId': expense.recurringExpenseId,
       });
 
       // Mark as synced

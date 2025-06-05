@@ -16,7 +16,7 @@ class BottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final icons = [
       Icons.home,
-      Icons.receipt_long,
+      Icons.analytics,
       Icons.settings,
       Icons.person,
     ];
@@ -37,7 +37,12 @@ class BottomNavBar extends StatelessWidget {
 
     final primaryColor = Theme.of(context).colorScheme.primary;
     final textColor = Theme.of(context).colorScheme.onSurface;
-    final backgroundColor = Theme.of(context).colorScheme.surface;
+
+    // Create a more distinct background for the nav bar
+    final backgroundColor = Theme.of(context).brightness == Brightness.dark
+        ? Color.lerp(Theme.of(context).colorScheme.surface, Colors.black, 0.2)!
+        : Color.lerp(
+            Theme.of(context).colorScheme.surface, Colors.blueGrey, 0.0)!;
 
     return SizedBox(
       height: 80,
@@ -52,8 +57,10 @@ class BottomNavBar extends StatelessWidget {
           ),
           // Enhanced nav bar icons with smooth animations
           Positioned.fill(
+            bottom: 16, // Adjust bottom position for better centering
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: List.generate(4, (idx) {
                 final isSelected = currentIndex == idx;
                 return _buildNavItem(
@@ -89,44 +96,24 @@ class BottomNavBar extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          shape: BoxShape.circle,
           color: isSelected
               ? primaryColor.withAlpha((255 * 0.1).toInt())
               : Colors.transparent,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            const SizedBox(height: 18),
-            AnimatedScale(
-              scale: isSelected ? 1.1 : 1.0,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              child: Icon(
-                icon,
-                color: isSelected
-                    ? primaryColor
-                    : textColor.withAlpha((255 * 0.6).toInt()),
-                size: 24,
-              ),
-            ),
-            const SizedBox(height: 4),
-            AnimatedDefaultTextStyle(
-              duration: const Duration(milliseconds: 200),
-              style: TextStyle(
-                color: isSelected
-                    ? primaryColor
-                    : textColor.withAlpha((255 * 0.6).toInt()),
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                fontSize: 12,
-              ),
-              child: Text(label),
-            ),
-            const SizedBox(height: 12),
-          ],
+        child: AnimatedScale(
+          scale: isSelected ? 1.1 : 1.0,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          child: Icon(
+            icon,
+            color: isSelected
+                ? primaryColor
+                : textColor.withAlpha((255 * 0.6).toInt()),
+            size: 24,
+          ),
         ),
       ),
     );
@@ -162,8 +149,14 @@ class _NavBarPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    // Make background color slightly darker for better contrast
+    final Color navBarColor = HSLColor.fromColor(backgroundColor)
+        .withLightness((HSLColor.fromColor(backgroundColor).lightness - 0.05)
+            .clamp(0.0, 1.0))
+        .toColor();
+
     final paint = Paint()
-      ..color = backgroundColor
+      ..color = navBarColor
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 

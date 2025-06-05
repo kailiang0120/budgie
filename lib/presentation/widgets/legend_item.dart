@@ -12,7 +12,6 @@ class LegendItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 字符串ID转Category枚举
     final Category? catEnum = CategoryExtension.fromId(category);
     return Row(
       mainAxisSize: MainAxisSize.min,

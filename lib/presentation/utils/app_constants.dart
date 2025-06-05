@@ -39,8 +39,25 @@ class AppConstants {
   /// Recurring payment options
   static const List<String> recurringOptions = [
     'One-time',
-    'Recurring Payment'
+    'Weekly',
+    'Monthly'
   ];
+
+  /// Days of week for weekly recurring
+  static const List<String> daysOfWeek = [
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday'
+  ];
+
+  /// Days of month for monthly recurring (1-31)
+  static List<String> getDaysOfMonth() {
+    return List.generate(31, (index) => (index + 1).toString());
+  }
 
   /// Date formats
   static const String dateFormat = 'yyyy MMMM dd';

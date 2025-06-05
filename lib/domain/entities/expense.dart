@@ -33,6 +33,9 @@ class Expense {
   /// Currency code (default: MYR)
   final String currency;
 
+  /// Reference to recurring expense if this expense was auto-generated
+  final String? recurringExpenseId;
+
   /// Creates a new Expense instance
   Expense({
     required this.id,
@@ -43,6 +46,7 @@ class Expense {
     required this.method,
     this.description,
     this.currency = 'MYR',
+    this.recurringExpenseId,
   });
 
   /// Creates a copy of this Expense with the given fields replaced with new values
@@ -55,6 +59,7 @@ class Expense {
     PaymentMethod? method,
     String? description,
     String? currency,
+    String? recurringExpenseId,
   }) {
     return Expense(
       id: id ?? this.id,
@@ -65,6 +70,7 @@ class Expense {
       method: method ?? this.method,
       description: description ?? this.description,
       currency: currency ?? this.currency,
+      recurringExpenseId: recurringExpenseId ?? this.recurringExpenseId,
     );
   }
 }
