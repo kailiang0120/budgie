@@ -195,7 +195,8 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
                       vertical: 12,
                       horizontal: 16,
                     ),
-                    backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                    backgroundColor:
+                        AppTheme.primaryColor.withValues(alpha: 0.1),
                     foregroundColor: AppTheme.primaryColor,
                     elevation: 0,
                   ),
@@ -233,7 +234,7 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -309,7 +310,7 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
         return 'This expense will be automatically recorded every $day.';
       case RecurringFrequency.monthly:
         final dayText = _selectedDayOfMonth != null
-            ? 'the ${_selectedDayOfMonth}${_getOrdinalSuffix(_selectedDayOfMonth!)}'
+            ? 'the $_selectedDayOfMonth${_getOrdinalSuffix(_selectedDayOfMonth!)}'
             : 'the selected day';
         return 'This expense will be automatically recorded on $dayText of each month.';
       case RecurringFrequency.oneTime:

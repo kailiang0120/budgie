@@ -180,11 +180,11 @@ class _LoginScreenState extends State<LoginScreen>
     try {
       await _authViewModel.signInWithGoogle();
 
-      if (context.mounted) {
+      if (mounted) {
         Navigator.pushReplacementNamed(context, Routes.home);
       }
     } catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         _showErrorSnackBar(context, e.toString());
       }
     } finally {

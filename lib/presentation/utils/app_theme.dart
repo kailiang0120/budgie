@@ -63,11 +63,9 @@ class AppTheme {
         primary: primaryColor,
         secondary: secondaryColor,
         error: errorColor,
-        background: backgroundLight,
         surface: cardBackgroundLight,
         onPrimary: lightTextLight,
         onSecondary: lightTextLight,
-        onBackground: darkTextLight,
         onSurface: darkTextLight,
         onError: lightTextLight,
       ),
@@ -129,12 +127,12 @@ class AppTheme {
         elevation: 2,
       ),
       switchTheme: SwitchThemeData(
-        thumbColor: MaterialStateProperty.resolveWith<Color>((states) {
-          if (states.contains(MaterialState.selected)) return primaryColor;
+        thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.selected)) return primaryColor;
           return Colors.grey.shade400;
         }),
-        trackColor: MaterialStateProperty.resolveWith<Color>((states) {
-          if (states.contains(MaterialState.selected)) {
+        trackColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.selected)) {
             return primaryColor.withAlpha((255 * 0.5).toInt());
           }
           return Colors.grey.shade300;
@@ -158,11 +156,9 @@ class AppTheme {
         primary: primaryColorDark,
         secondary: secondaryColorDark,
         error: errorColorDark,
-        background: backgroundDark,
         surface: cardBackgroundDark,
         onPrimary: lightTextDark,
         onSecondary: lightTextDark,
-        onBackground: darkTextDark,
         onSurface: darkTextDark,
         onError: lightTextDark,
       ),
@@ -223,12 +219,12 @@ class AppTheme {
         elevation: 2,
       ),
       switchTheme: SwitchThemeData(
-        thumbColor: MaterialStateProperty.resolveWith<Color>((states) {
-          if (states.contains(MaterialState.selected)) return primaryColorDark;
+        thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.selected)) return primaryColorDark;
           return Colors.grey.shade600;
         }),
-        trackColor: MaterialStateProperty.resolveWith<Color>((states) {
-          if (states.contains(MaterialState.selected)) {
+        trackColor: WidgetStateProperty.resolveWith<Color>((states) {
+          if (states.contains(WidgetState.selected)) {
             return primaryColorDark.withAlpha((255 * 0.5).toInt());
           }
           return Colors.grey.shade700;

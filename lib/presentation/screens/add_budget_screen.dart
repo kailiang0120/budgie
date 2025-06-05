@@ -366,7 +366,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         }
       } catch (e) {
         debugPrint('Error calculating budget during save: $e');
-        throw e; // Re-throw to show error message
+        rethrow; // Re-throw to show error message
       }
 
       if (!mounted) return;
@@ -559,7 +559,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                           .textTheme
                                           .bodyMedium
                                           ?.color
-                                          ?.withOpacity(0.7),
+                                          ?.withValues(alpha: 0.7),
                                     ),
                                   ),
                                   Text(

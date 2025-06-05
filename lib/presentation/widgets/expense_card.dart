@@ -31,7 +31,6 @@ class _ExpenseCardState extends State<ExpenseCard>
   static const double cardMinHeight = 80.0;
   static const double buttonSize = 56.0; // Round buttons size
   static const double buttonMargin = 8.0;
-  static const double swipeThreshold = 140.0;
 
   @override
   void initState() {
@@ -196,7 +195,7 @@ class _ExpenseCardState extends State<ExpenseCard>
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 2,
             offset: const Offset(0, 4),
           ),
@@ -210,7 +209,7 @@ class _ExpenseCardState extends State<ExpenseCard>
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
                 color: isDarkMode
-                    ? Colors.grey.shade900.withOpacity(0.3)
+                    ? Colors.grey.shade900.withValues(alpha: 0.3)
                     : Colors.grey.shade300,
               ),
               child: Row(
@@ -226,7 +225,7 @@ class _ExpenseCardState extends State<ExpenseCard>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primaryColor.withOpacity(0.2),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -256,7 +255,7 @@ class _ExpenseCardState extends State<ExpenseCard>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.red.shade500.withOpacity(0.2),
+                          color: Colors.red.shade500.withValues(alpha: 0.2),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         ),
@@ -294,7 +293,7 @@ class _ExpenseCardState extends State<ExpenseCard>
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
+                      color: Colors.black.withValues(alpha: 0.08),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -317,15 +316,13 @@ class _ExpenseCardState extends State<ExpenseCard>
                           CategoryManager.getIcon(widget.expense.category),
                           color: Colors.white,
                           size: 24,
-
                           shadows: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 5,
                               offset: const Offset(0, 5),
                             ),
                           ],
-
                         ),
                       ),
 
@@ -361,7 +358,7 @@ class _ExpenseCardState extends State<ExpenseCard>
                                     .textTheme
                                     .bodyMedium
                                     ?.color
-                                    ?.withOpacity(0.7),
+                                    ?.withValues(alpha: 0.7),
                               ),
                             ),
                           ],
@@ -393,7 +390,7 @@ class _ExpenseCardState extends State<ExpenseCard>
                                   .textTheme
                                   .bodyMedium
                                   ?.color
-                                  ?.withOpacity(0.6),
+                                  ?.withValues(alpha: 0.6),
                             ),
                           ),
                         ],

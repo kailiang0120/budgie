@@ -85,7 +85,7 @@ class RecurringExpensesRepositoryImpl implements RecurringExpensesRepository {
       return recurringExpenses;
     } catch (e, stackTrace) {
       if (e is AuthError) {
-        throw e;
+        rethrow;
       }
 
       if (e is NetworkError) {
@@ -278,7 +278,7 @@ class RecurringExpensesRepositoryImpl implements RecurringExpensesRepository {
       return activeRecurringExpenses;
     } catch (e, stackTrace) {
       if (e is AuthError) {
-        throw e;
+        rethrow;
       }
 
       if (e is NetworkError) {

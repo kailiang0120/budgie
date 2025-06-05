@@ -59,7 +59,7 @@ class BudgetViewModel extends ChangeNotifier {
         // Log the currency for debugging
         final settingsService = SettingsService.instance;
         if (settingsService != null) {
-          debugPrint('Budget loaded with currency: ${loadedBudget.currency}, ' +
+          debugPrint('Budget loaded with currency: ${loadedBudget.currency}, '
               'User preferred currency: ${settingsService.currency}');
 
           // Check if currency conversion is needed

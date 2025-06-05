@@ -1,7 +1,6 @@
 import '../../domain/entities/budget.dart';
 import '../../domain/entities/category.dart';
 import '../../domain/entities/expense.dart';
-import '../../presentation/utils/category_manager.dart';
 import 'currency_conversion_service.dart';
 
 /// Budget calculation service class
@@ -66,8 +65,7 @@ class BudgetCalculationService {
 
     // Log category totals for debugging
     categoryExpenses.forEach((categoryId, amount) {
-      final categoryName = CategoryManager.getNameFromId(categoryId);
-      // debugPrint('🧮 Category "$categoryName" total expenses: $amount $budgetCurrency');
+      // debugPrint('🧮 Category "$categoryId" total expenses: $amount $budgetCurrency');
     });
 
     // Calculate total expenses
@@ -100,7 +98,7 @@ class BudgetCalculationService {
         left: categoryLeft,
       );
 
-      //   debugPrint('🧮 Category "${CategoryManager.getNameFromId(categoryId)}" budget: ${categoryBudget.budget}, spent: $categoryExpense, left: $categoryLeft');
+      //   debugPrint('🧮 Category "$categoryId" budget: ${categoryBudget.budget}, spent: $categoryExpense, left: $categoryLeft');
     }
 
     // Create and return new budget object
@@ -111,15 +109,4 @@ class BudgetCalculationService {
       currency: budgetCurrency,
     );
   }
-}
-
-/// Calculation parameters class for compute function
-class _CalculationParams {
-  final Budget budget;
-  final List<Expense> expenses;
-
-  _CalculationParams({
-    required this.budget,
-    required this.expenses,
-  });
 }

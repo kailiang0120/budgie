@@ -277,7 +277,7 @@ class _SettingScreenState extends State<SettingScreen> {
 
               // Enable background execution as well if needed
               if (await FlutterBackground.hasPermissions &&
-                  !await FlutterBackground.isBackgroundExecutionEnabled) {
+                  !FlutterBackground.isBackgroundExecutionEnabled) {
                 await FlutterBackground.enableBackgroundExecution();
               }
 

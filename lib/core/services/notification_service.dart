@@ -315,7 +315,7 @@ class NotificationService {
 
         // Disable background execution if it was enabled
         if (Platform.isAndroid) {
-          if (await FlutterBackground.isBackgroundExecutionEnabled) {
+          if (FlutterBackground.isBackgroundExecutionEnabled) {
             await FlutterBackground.disableBackgroundExecution();
             debugPrint('Background execution disabled');
           }
@@ -362,7 +362,7 @@ class NotificationService {
 
       // Disable background execution if it was enabled
       if (Platform.isAndroid) {
-        if (await FlutterBackground.isBackgroundExecutionEnabled) {
+        if (FlutterBackground.isBackgroundExecutionEnabled) {
           await FlutterBackground.disableBackgroundExecution();
           debugPrint('Background execution disabled');
         }
@@ -795,8 +795,7 @@ class NotificationService {
       // First check if the background service is enabled
       bool isBackgroundEnabled = false;
       if (Platform.isAndroid) {
-        isBackgroundEnabled =
-            await FlutterBackground.isBackgroundExecutionEnabled;
+        isBackgroundEnabled = FlutterBackground.isBackgroundExecutionEnabled;
       }
 
       // Check if notification listener is enabled

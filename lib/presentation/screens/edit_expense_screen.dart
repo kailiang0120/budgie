@@ -550,7 +550,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                       const SizedBox(height: 24),
 
                       // Update button - Square with corner radius
-                      Container(
+                      SizedBox(
                         width: double.infinity,
                         height: 56, // Square-ish height
                         child: ElevatedButton(
@@ -614,7 +614,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                       const SizedBox(height: 12),
 
                       // Delete button - Square with corner radius
-                      Container(
+                      SizedBox(
                         width: double.infinity,
                         height: 56, // Square-ish height
                         child: ElevatedButton(

@@ -129,7 +129,7 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from <= 2 && to == 3) {
           // Add recurring expense support
-          await m.createTable(this.recurringExpenses);
+          await m.createTable(recurringExpenses);
           await m.addColumn(
               expenses, expenses.recurringExpenseId as GeneratedColumn<Object>);
         }

@@ -100,7 +100,7 @@ class ExpensesRepositoryImpl implements ExpensesRepository {
       return expenses;
     } catch (e, stackTrace) {
       if (e is AuthError) {
-        throw e;
+        rethrow;
       }
 
       if (e is NetworkError) {

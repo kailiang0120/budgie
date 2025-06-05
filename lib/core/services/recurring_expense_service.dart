@@ -306,7 +306,6 @@ class RecurringExpenseService {
       return null;
     }
 
-    final now = DateTime.now();
     final lastProcessed =
         recurringExpense.lastProcessedDate ?? recurringExpense.startDate;
 
