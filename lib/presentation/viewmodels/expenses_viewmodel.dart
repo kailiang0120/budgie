@@ -385,7 +385,6 @@ class ExpensesViewModel extends ChangeNotifier {
             date: date,
             category: category,
             method: method,
-            description: documentData['description'] as String?,
             currency: documentData['currency'] as String? ?? 'MYR',
           );
         })
@@ -393,13 +392,12 @@ class ExpensesViewModel extends ChangeNotifier {
         .toList(); // Filter out null expenses
   }
 
-  // 统一错误处理
   void _handleError(dynamic e, [StackTrace? stackTrace]) {
     final appError = AppError.from(e, stackTrace);
     _error = appError.message;
     _isLoading = false;
     notifyListeners();
-    appError.log(); // 使用自定义的日志记录
+    appError.log();
   }
 
   // Get total expenses for the selected month by category - 优化使用compute函数

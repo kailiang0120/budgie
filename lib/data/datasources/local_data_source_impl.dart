@@ -667,4 +667,5 @@ class LocalDataSourceImpl implements LocalDataSource {
       debugPrint('Error saving exchange rates to local database: $e');
     }
   }
+
 }

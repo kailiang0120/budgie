@@ -7,6 +7,7 @@ import '../widgets/auth_button.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/animated_float_button.dart';
 import '../widgets/custom_text_field.dart';
+import '../utils/auth_utils.dart';
 import 'add_expense_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -70,11 +71,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _handleLogout(BuildContext context) async {
-    final viewModel = Provider.of<AuthViewModel>(context, listen: false);
-    await viewModel.signOut();
-    if (context.mounted) {
-      Navigator.of(context).pushReplacementNamed(Routes.login);
-    }
+    // Use the new secure sign-out handler from AuthUtils
+    await AuthUtils.handleSignOut(context);
   }
 
   void _handleSwitchAccount(BuildContext context) {

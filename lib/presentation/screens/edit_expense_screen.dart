@@ -75,7 +75,10 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
     // Pre-populate fields with expense data
     _amountController.text = widget.expense.amount.toString();
     _remarkController.text = widget.expense.remark;
+
+    // Initialize description controller with payment type if available, otherwise keep empty
     _descriptionController.text = widget.expense.description ?? '';
+
     _selectedDateTime = ValueNotifier<DateTime>(widget.expense.date);
     _selectedCategory = ValueNotifier<Category>(widget.expense.category);
     _selectedPaymentMethod =
@@ -86,6 +89,8 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
     if (widget.expense.recurringExpenseId != null) {
       await _loadRecurringExpenseData();
     } else {
+      // Set default frequency to one-time if not a recurring expense
+      _recurringFrequency.value = RecurringFrequency.oneTime;
       setState(() {
         _isLoadingRecurringData = false;
       });
@@ -195,8 +200,13 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
             final updatedRecurringExpense = RecurringExpense(
               id: _originalRecurringExpense!.id,
               frequency: _recurringFrequency.value,
-              dayOfMonth: _recurringDayOfMonth.value,
-              dayOfWeek: _recurringDayOfWeek.value,
+              dayOfMonth:
+                  _recurringFrequency.value == RecurringFrequency.monthly
+                      ? _recurringDayOfMonth.value
+                      : null,
+              dayOfWeek: _recurringFrequency.value == RecurringFrequency.weekly
+                  ? _recurringDayOfWeek.value
+                  : null,
               startDate: _originalRecurringExpense!.startDate,
               endDate: _recurringEndDate.value,
               isActive: true,
@@ -208,9 +218,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                   .toLowerCase()
                   .replaceAll(' ', ''),
               expenseCurrency: _currency.value,
-              expenseDescription: _descriptionController.text.trim().isEmpty
-                  ? null
-                  : _descriptionController.text.trim(),
+              expenseDescription: _recurringFrequency.value.displayName,
             );
 
             await _recurringExpensesRepository
@@ -220,8 +228,13 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
             final newRecurringExpense = RecurringExpense(
               id: '', // Let repository assign ID
               frequency: _recurringFrequency.value,
-              dayOfMonth: _recurringDayOfMonth.value,
-              dayOfWeek: _recurringDayOfWeek.value,
+              dayOfMonth:
+                  _recurringFrequency.value == RecurringFrequency.monthly
+                      ? _recurringDayOfMonth.value
+                      : null,
+              dayOfWeek: _recurringFrequency.value == RecurringFrequency.weekly
+                  ? _recurringDayOfWeek.value
+                  : null,
               startDate: _selectedDateTime.value,
               endDate: _recurringEndDate.value,
               isActive: true,
@@ -233,9 +246,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                   .toLowerCase()
                   .replaceAll(' ', ''),
               expenseCurrency: _currency.value,
-              expenseDescription: _descriptionController.text.trim().isEmpty
-                  ? null
-                  : _descriptionController.text.trim(),
+              expenseDescription: _recurringFrequency.value.displayName,
             );
 
             final createdRecurringExpense = await _recurringExpensesRepository
@@ -244,8 +255,13 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
           }
         } else if (_originalRecurringExpense != null) {
           // User changed from recurring to one-time, deactivate the recurring expense
+          // and explicitly set dayOfMonth and dayOfWeek to null
           final deactivatedRecurringExpense =
-              _originalRecurringExpense!.copyWith(isActive: false);
+              _originalRecurringExpense!.copyWith(
+            isActive: false,
+            dayOfMonth: null,
+            dayOfWeek: null,
+          );
           await _recurringExpensesRepository
               .updateRecurringExpense(deactivatedRecurringExpense);
           recurringExpenseId = null;
@@ -259,9 +275,9 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
           date: _selectedDateTime.value,
           category: _selectedCategory.value,
           method: _getPaymentMethodEnum(_selectedPaymentMethod.value),
-          description: _descriptionController.text.trim().isEmpty
-              ? null
-              : _descriptionController.text.trim(),
+          description: _recurringFrequency.value == RecurringFrequency.oneTime
+              ? "One-time Payment"
+              : _recurringFrequency.value.displayName,
           currency: _currency.value,
           recurringExpenseId: recurringExpenseId,
         );

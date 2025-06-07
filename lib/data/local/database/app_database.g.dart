@@ -44,6 +44,14 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
   late final GeneratedColumn<String> method = GeneratedColumn<String>(
       'method', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _paymentFrequencyMeta =
+      const VerificationMeta('paymentFrequency');
+  @override
+  late final GeneratedColumn<String> paymentFrequency = GeneratedColumn<String>(
+      'payment_frequency', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('one-time'));
   static const VerificationMeta _descriptionMeta =
       const VerificationMeta('description');
   @override
@@ -89,6 +97,7 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         date,
         category,
         method,
+        paymentFrequency,
         description,
         currency,
         recurringExpenseId,
@@ -146,6 +155,12 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     } else if (isInserting) {
       context.missing(_methodMeta);
     }
+    if (data.containsKey('payment_frequency')) {
+      context.handle(
+          _paymentFrequencyMeta,
+          paymentFrequency.isAcceptableOrUnknown(
+              data['payment_frequency']!, _paymentFrequencyMeta));
+    }
     if (data.containsKey('description')) {
       context.handle(
           _descriptionMeta,
@@ -197,6 +212,8 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
           .read(DriftSqlType.string, data['${effectivePrefix}category'])!,
       method: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}method'])!,
+      paymentFrequency: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}payment_frequency'])!,
       description: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}description']),
       currency: attachedDatabase.typeMapping
@@ -224,6 +241,7 @@ class Expense extends DataClass implements Insertable<Expense> {
   final DateTime date;
   final String category;
   final String method;
+  final String paymentFrequency;
   final String? description;
   final String currency;
   final String? recurringExpenseId;
@@ -237,6 +255,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       required this.date,
       required this.category,
       required this.method,
+      required this.paymentFrequency,
       this.description,
       required this.currency,
       this.recurringExpenseId,
@@ -252,6 +271,7 @@ class Expense extends DataClass implements Insertable<Expense> {
     map['date'] = Variable<DateTime>(date);
     map['category'] = Variable<String>(category);
     map['method'] = Variable<String>(method);
+    map['payment_frequency'] = Variable<String>(paymentFrequency);
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
     }
@@ -273,6 +293,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       date: Value(date),
       category: Value(category),
       method: Value(method),
+      paymentFrequency: Value(paymentFrequency),
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
@@ -296,6 +317,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       date: serializer.fromJson<DateTime>(json['date']),
       category: serializer.fromJson<String>(json['category']),
       method: serializer.fromJson<String>(json['method']),
+      paymentFrequency: serializer.fromJson<String>(json['paymentFrequency']),
       description: serializer.fromJson<String?>(json['description']),
       currency: serializer.fromJson<String>(json['currency']),
       recurringExpenseId:
@@ -315,6 +337,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       'date': serializer.toJson<DateTime>(date),
       'category': serializer.toJson<String>(category),
       'method': serializer.toJson<String>(method),
+      'paymentFrequency': serializer.toJson<String>(paymentFrequency),
       'description': serializer.toJson<String?>(description),
       'currency': serializer.toJson<String>(currency),
       'recurringExpenseId': serializer.toJson<String?>(recurringExpenseId),
@@ -331,6 +354,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           DateTime? date,
           String? category,
           String? method,
+          String? paymentFrequency,
           Value<String?> description = const Value.absent(),
           String? currency,
           Value<String?> recurringExpenseId = const Value.absent(),
@@ -344,6 +368,7 @@ class Expense extends DataClass implements Insertable<Expense> {
         date: date ?? this.date,
         category: category ?? this.category,
         method: method ?? this.method,
+        paymentFrequency: paymentFrequency ?? this.paymentFrequency,
         description: description.present ? description.value : this.description,
         currency: currency ?? this.currency,
         recurringExpenseId: recurringExpenseId.present
@@ -361,6 +386,9 @@ class Expense extends DataClass implements Insertable<Expense> {
       date: data.date.present ? data.date.value : this.date,
       category: data.category.present ? data.category.value : this.category,
       method: data.method.present ? data.method.value : this.method,
+      paymentFrequency: data.paymentFrequency.present
+          ? data.paymentFrequency.value
+          : this.paymentFrequency,
       description:
           data.description.present ? data.description.value : this.description,
       currency: data.currency.present ? data.currency.value : this.currency,
@@ -384,6 +412,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           ..write('date: $date, ')
           ..write('category: $category, ')
           ..write('method: $method, ')
+          ..write('paymentFrequency: $paymentFrequency, ')
           ..write('description: $description, ')
           ..write('currency: $currency, ')
           ..write('recurringExpenseId: $recurringExpenseId, ')
@@ -402,6 +431,7 @@ class Expense extends DataClass implements Insertable<Expense> {
       date,
       category,
       method,
+      paymentFrequency,
       description,
       currency,
       recurringExpenseId,
@@ -418,6 +448,7 @@ class Expense extends DataClass implements Insertable<Expense> {
           other.date == this.date &&
           other.category == this.category &&
           other.method == this.method &&
+          other.paymentFrequency == this.paymentFrequency &&
           other.description == this.description &&
           other.currency == this.currency &&
           other.recurringExpenseId == this.recurringExpenseId &&
@@ -433,6 +464,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<DateTime> date;
   final Value<String> category;
   final Value<String> method;
+  final Value<String> paymentFrequency;
   final Value<String?> description;
   final Value<String> currency;
   final Value<String?> recurringExpenseId;
@@ -447,6 +479,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.date = const Value.absent(),
     this.category = const Value.absent(),
     this.method = const Value.absent(),
+    this.paymentFrequency = const Value.absent(),
     this.description = const Value.absent(),
     this.currency = const Value.absent(),
     this.recurringExpenseId = const Value.absent(),
@@ -462,6 +495,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     required DateTime date,
     required String category,
     required String method,
+    this.paymentFrequency = const Value.absent(),
     this.description = const Value.absent(),
     this.currency = const Value.absent(),
     this.recurringExpenseId = const Value.absent(),
@@ -484,6 +518,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Expression<DateTime>? date,
     Expression<String>? category,
     Expression<String>? method,
+    Expression<String>? paymentFrequency,
     Expression<String>? description,
     Expression<String>? currency,
     Expression<String>? recurringExpenseId,
@@ -499,6 +534,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       if (date != null) 'date': date,
       if (category != null) 'category': category,
       if (method != null) 'method': method,
+      if (paymentFrequency != null) 'payment_frequency': paymentFrequency,
       if (description != null) 'description': description,
       if (currency != null) 'currency': currency,
       if (recurringExpenseId != null)
@@ -517,6 +553,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       Value<DateTime>? date,
       Value<String>? category,
       Value<String>? method,
+      Value<String>? paymentFrequency,
       Value<String?>? description,
       Value<String>? currency,
       Value<String?>? recurringExpenseId,
@@ -531,6 +568,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       date: date ?? this.date,
       category: category ?? this.category,
       method: method ?? this.method,
+      paymentFrequency: paymentFrequency ?? this.paymentFrequency,
       description: description ?? this.description,
       currency: currency ?? this.currency,
       recurringExpenseId: recurringExpenseId ?? this.recurringExpenseId,
@@ -564,6 +602,9 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     if (method.present) {
       map['method'] = Variable<String>(method.value);
     }
+    if (paymentFrequency.present) {
+      map['payment_frequency'] = Variable<String>(paymentFrequency.value);
+    }
     if (description.present) {
       map['description'] = Variable<String>(description.value);
     }
@@ -595,6 +636,7 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
           ..write('date: $date, ')
           ..write('category: $category, ')
           ..write('method: $method, ')
+          ..write('paymentFrequency: $paymentFrequency, ')
           ..write('description: $description, ')
           ..write('currency: $currency, ')
           ..write('recurringExpenseId: $recurringExpenseId, ')
@@ -2217,7 +2259,7 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
       'theme', aliasedName, false,
       type: DriftSqlType.string,
       requiredDuringInsert: false,
-      defaultValue: const Constant('dark'));
+      defaultValue: const Constant('light'));
   static const VerificationMeta _allowNotificationMeta =
       const VerificationMeta('allowNotification');
   @override
@@ -2227,7 +2269,7 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
       requiredDuringInsert: false,
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("allow_notification" IN (0, 1))'),
-      defaultValue: const Constant(true));
+      defaultValue: const Constant(false));
   static const VerificationMeta _autoBudgetMeta =
       const VerificationMeta('autoBudget');
   @override
@@ -2773,6 +2815,7 @@ typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
   required DateTime date,
   required String category,
   required String method,
+  Value<String> paymentFrequency,
   Value<String?> description,
   Value<String> currency,
   Value<String?> recurringExpenseId,
@@ -2788,6 +2831,7 @@ typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({
   Value<DateTime> date,
   Value<String> category,
   Value<String> method,
+  Value<String> paymentFrequency,
   Value<String?> description,
   Value<String> currency,
   Value<String?> recurringExpenseId,
@@ -2820,6 +2864,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             Value<DateTime> date = const Value.absent(),
             Value<String> category = const Value.absent(),
             Value<String> method = const Value.absent(),
+            Value<String> paymentFrequency = const Value.absent(),
             Value<String?> description = const Value.absent(),
             Value<String> currency = const Value.absent(),
             Value<String?> recurringExpenseId = const Value.absent(),
@@ -2835,6 +2880,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             date: date,
             category: category,
             method: method,
+            paymentFrequency: paymentFrequency,
             description: description,
             currency: currency,
             recurringExpenseId: recurringExpenseId,
@@ -2850,6 +2896,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             required DateTime date,
             required String category,
             required String method,
+            Value<String> paymentFrequency = const Value.absent(),
             Value<String?> description = const Value.absent(),
             Value<String> currency = const Value.absent(),
             Value<String?> recurringExpenseId = const Value.absent(),
@@ -2865,6 +2912,7 @@ class $$ExpensesTableTableManager extends RootTableManager<
             date: date,
             category: category,
             method: method,
+            paymentFrequency: paymentFrequency,
             description: description,
             currency: currency,
             recurringExpenseId: recurringExpenseId,
@@ -2910,6 +2958,11 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<String> get method => $state.composableBuilder(
       column: $state.table.method,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get paymentFrequency => $state.composableBuilder(
+      column: $state.table.paymentFrequency,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
@@ -2974,6 +3027,11 @@ class $$ExpensesTableOrderingComposer
 
   ColumnOrderings<String> get method => $state.composableBuilder(
       column: $state.table.method,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get paymentFrequency => $state.composableBuilder(
+      column: $state.table.paymentFrequency,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 

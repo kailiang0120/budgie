@@ -8,6 +8,8 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import '../../domain/entities/user.dart' as domain;
 import '../../domain/repositories/auth_repository.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Implementation of AuthRepository using Firebase Authentication
 class AuthRepositoryImpl implements AuthRepository {
@@ -257,54 +259,7 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
-  @override
-  Future<domain.User> signInAnonymously() async {
-    try {
-      debugPrint('Starting anonymous sign-in flow');
-
-      // Check if the current user is already anonymous
-      final currentUser = _auth.currentUser;
-      if (currentUser != null && currentUser.isAnonymous) {
-        debugPrint('Reusing existing anonymous user: ${currentUser.uid}');
-        // Return existing user instead of creating a new one
-        return await _mapFirebaseUserToDomain(currentUser);
-      }
-
-      // Sign in anonymously with Firebase
-      final userCredential = await _auth.signInAnonymously();
-      final user = userCredential.user;
-
-      if (user == null) {
-        debugPrint('Anonymous sign-in failed - null user');
-        throw Exception('Anonymous sign-in failed');
-      }
-
-      debugPrint('Anonymous sign-in successful: ${user.uid}');
-
-      // Create initial user document with default settings
-      // This will only be used for new users, not existing ones
-      await _firestore.collection('users').doc(user.uid).set({
-        'isGuest': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'currency': 'MYR',
-        'theme': 'light',
-        'settings': {
-          'allowNotification': false,
-          'autoBudget': false,
-          'improveAccuracy': false,
-        }
-      }, SetOptions(merge: true));
-
-      // Map to domain user and return
-      final domainUser = await _mapFirebaseUserToDomain(user);
-      return domainUser;
-    } catch (e) {
-      debugPrint('Anonymous sign-in error: $e');
-      throw Exception('Failed to sign in anonymously: $e');
-    }
-  }
-
-  // Helper method to link anonymous account with Google
+  /// Helper method to link anonymous account with Google
   Future<domain.User> linkAnonymousWithGoogle() async {
     try {
       final currentUser = _auth.currentUser;
@@ -318,6 +273,9 @@ class AuthRepositoryImpl implements AuthRepository {
       }
 
       debugPrint('Linking anonymous account to Google');
+
+      // Store anonymous user ID for potential data migration
+      final anonymousUserId = currentUser.uid;
 
       // Clear any previous Google sessions to get fresh tokens
       try {
@@ -347,11 +305,109 @@ class AuthRepositoryImpl implements AuthRepository {
       firebase_auth.UserCredential userCredential;
       try {
         userCredential = await currentUser.linkWithCredential(credential);
+
+        // If linking succeeds, update the user document
+        final user = userCredential.user;
+        if (user != null) {
+          // Update user document to remove guest flag
+          await _firestore.collection('users').doc(user.uid).update({
+            'isGuest': false,
+            'email': user.email,
+            'displayName': user.displayName,
+            'photoURL': user.photoURL,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+          debugPrint('Successfully linked anonymous account to Google');
+          return await _mapFirebaseUserToDomain(user);
+        } else {
+          throw Exception('Failed to link account: No user returned');
+        }
       } catch (e) {
         debugPrint('Error during credential linking: $e');
 
-        // If we get a stale token error, try linking again with a fresh token
-        if (e.toString().contains('stale') ||
+        // If we get a credential-already-in-use error, handle data migration
+        if (e is firebase_auth.FirebaseAuthException &&
+            e.code == 'credential-already-in-use') {
+          debugPrint('Detected credential already in use. Migrating data...');
+
+          // Get the credential from the error
+          final pendingCredential = e.credential;
+          if (pendingCredential == null) {
+            throw Exception('Failed to get pending credential for migration');
+          }
+
+          // Store the anonymous user's data before signing in with the existing account
+          Map<String, dynamic>? anonymousUserData;
+          try {
+            final anonUserDoc =
+                await _firestore.collection('users').doc(anonymousUserId).get();
+            if (anonUserDoc.exists) {
+              anonymousUserData = anonUserDoc.data();
+              debugPrint(
+                  'Successfully retrieved anonymous user data for migration');
+            }
+          } catch (fetchError) {
+            debugPrint('Error fetching anonymous user data: $fetchError');
+            // Continue with sign-in anyway
+          }
+
+          // Sign out from anonymous account
+          await _auth.signOut();
+
+          // Sign in with the existing Google account
+          final googleCredential =
+              await _auth.signInWithCredential(pendingCredential);
+          final existingUser = googleCredential.user;
+
+          if (existingUser == null) {
+            throw Exception('Failed to sign in with existing account');
+          }
+
+          debugPrint(
+              'Successfully signed in with existing Google account: ${existingUser.uid}');
+
+          // Migrate data from anonymous account to the existing account
+          if (anonymousUserData != null) {
+            // Remove fields we don't want to overwrite
+            anonymousUserData.remove('email');
+            anonymousUserData.remove('displayName');
+            anonymousUserData.remove('photoURL');
+
+            // Set isGuest to false
+            anonymousUserData['isGuest'] = false;
+            anonymousUserData['updatedAt'] = FieldValue.serverTimestamp();
+            anonymousUserData['previousAnonymousId'] = anonymousUserId;
+
+            // Merge data into existing user document
+            await _firestore.collection('users').doc(existingUser.uid).set(
+                  anonymousUserData,
+                  SetOptions(merge: true),
+                );
+
+            debugPrint(
+                'Successfully migrated data from anonymous user to existing account');
+
+            // Migrate other collections like expenses, budgets, etc.
+            await _migrateUserData(anonymousUserId, existingUser.uid);
+
+            // Delete the anonymous user document after migration
+            try {
+              await _firestore
+                  .collection('users')
+                  .doc(anonymousUserId)
+                  .delete();
+              debugPrint('Deleted anonymous user document after migration');
+            } catch (deleteError) {
+              debugPrint(
+                  'Error deleting anonymous user document: $deleteError');
+              // Continue anyway
+            }
+          }
+
+          // Return the existing user
+          return await _mapFirebaseUserToDomain(existingUser);
+        } else if (e.toString().contains('stale') ||
             e.toString().contains('expired') ||
             e.toString().contains('invalid-credential')) {
           debugPrint(
@@ -375,31 +431,29 @@ class AuthRepositoryImpl implements AuthRepository {
 
           userCredential =
               await currentUser.linkWithCredential(freshCredential);
+
+          final user = userCredential.user;
+          if (user == null) {
+            throw Exception('Failed to link account: No user returned');
+          }
+
+          // Update user document to remove guest flag
+          await _firestore.collection('users').doc(user.uid).update({
+            'isGuest': false,
+            'email': user.email,
+            'displayName': user.displayName,
+            'photoURL': user.photoURL,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+
+          debugPrint(
+              'Successfully linked anonymous account to Google with fresh token');
+          return await _mapFirebaseUserToDomain(user);
         } else {
           // Rethrow other errors
           rethrow;
         }
       }
-
-      final user = userCredential.user;
-
-      if (user == null) {
-        throw Exception('Failed to link account: No user returned');
-      }
-
-      // Update user document to remove guest flag
-      await _firestore.collection('users').doc(user.uid).update({
-        'isGuest': false,
-        'email': user.email,
-        'displayName': user.displayName,
-        'photoURL': user.photoURL,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      debugPrint('Successfully linked anonymous account to Google');
-
-      // Return updated user
-      return await _mapFirebaseUserToDomain(user);
     } catch (e) {
       debugPrint('Error linking anonymous account with Google: $e');
 
@@ -414,65 +468,407 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
-  @override
-  Future<domain.User> linkAnonymousAccount(
-      {required String email, required String password}) async {
+  /// Helper method to migrate user data from anonymous account to permanent account
+  Future<void> _migrateUserData(String fromUserId, String toUserId) async {
     try {
-      final currentUser = _auth.currentUser;
+      debugPrint('Starting data migration from $fromUserId to $toUserId');
 
-      if (currentUser == null) {
-        throw Exception('No user is currently signed in');
+      // Migrate expenses
+      final expenses = await _firestore
+          .collection('expenses')
+          .where('userId', isEqualTo: fromUserId)
+          .get();
+
+      debugPrint('Found ${expenses.docs.length} expenses to migrate');
+
+      for (final doc in expenses.docs) {
+        final data = doc.data();
+        data['userId'] = toUserId;
+        data['previousUserId'] = fromUserId;
+        data['migratedAt'] = FieldValue.serverTimestamp();
+
+        // Create a new document with the same ID but under the new user
+        await _firestore.collection('expenses').doc(doc.id).set(data);
       }
 
-      if (!currentUser.isAnonymous) {
-        throw Exception('Current user is not an anonymous user');
-      }
+      // Migrate budgets
+      final budgets = await _firestore
+          .collection('budgets')
+          .where('userId', isEqualTo: fromUserId)
+          .get();
 
-      debugPrint('Linking anonymous account to email: $email');
+      debugPrint('Found ${budgets.docs.length} budgets to migrate');
 
-      // Create email credential
-      final credential = firebase_auth.EmailAuthProvider.credential(
-        email: email,
-        password: password,
-      );
+      for (final doc in budgets.docs) {
+        final data = doc.data();
+        data['userId'] = toUserId;
+        data['previousUserId'] = fromUserId;
+        data['migratedAt'] = FieldValue.serverTimestamp();
 
-      // Link anonymous account with email credential
-      final userCredential = await currentUser.linkWithCredential(credential);
-      final user = userCredential.user;
+        // For budgets, we need to check if a budget already exists for this month
+        final monthId = data['monthId'];
+        final existingBudget = await _firestore
+            .collection('budgets')
+            .where('userId', isEqualTo: toUserId)
+            .where('monthId', isEqualTo: monthId)
+            .get();
 
-      if (user == null) {
-        throw Exception('Failed to link account: No user returned');
-      }
+        if (existingBudget.docs.isEmpty) {
+          // No existing budget, create a new one
+          await _firestore
+              .collection('budgets')
+              .doc('${monthId}_${toUserId}')
+              .set(data);
+        } else {
+          debugPrint('Budget already exists for month $monthId, merging data');
+          // Existing budget found, merge the data
+          final existingData = existingBudget.docs.first.data();
 
-      // Update user document to remove guest flag
-      await _firestore.collection('users').doc(user.uid).update({
-        'isGuest': false,
-        'email': email,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+          // Logic to merge budgets - prefer higher amounts
+          if ((data['total'] ?? 0) > (existingData['total'] ?? 0)) {
+            existingData['total'] = data['total'];
+          }
 
-      debugPrint('Successfully linked anonymous account to email: $email');
+          // Merge category budgets
+          final existingCategories = existingData['categories'] ?? {};
+          final newCategories = data['categories'] ?? {};
 
-      // Return updated user
-      return await _mapFirebaseUserToDomain(user);
-    } catch (e) {
-      debugPrint('Error linking anonymous account: $e');
+          newCategories.forEach((category, budget) {
+            if (!existingCategories.containsKey(category) ||
+                (existingCategories[category]['budget'] ?? 0) <
+                    budget['budget']) {
+              existingCategories[category] = budget;
+            }
+          });
 
-      // Handle specific Firebase errors
-      if (e is firebase_auth.FirebaseAuthException) {
-        switch (e.code) {
-          case 'email-already-in-use':
-            throw Exception('This email is already in use by another account');
-          case 'invalid-email':
-            throw Exception('The email address is not valid');
-          case 'weak-password':
-            throw Exception('The password is too weak');
-          default:
-            throw Exception('Failed to link account: ${e.message}');
+          existingData['categories'] = existingCategories;
+          existingData['mergedAt'] = FieldValue.serverTimestamp();
+
+          await _firestore
+              .collection('budgets')
+              .doc(existingBudget.docs.first.id)
+              .set(
+                existingData,
+                SetOptions(merge: true),
+              );
         }
       }
 
-      throw Exception('Failed to link anonymous account: $e');
+      // Migrate recurring expenses
+      final recurringExpenses = await _firestore
+          .collection('recurring_expenses')
+          .where('userId', isEqualTo: fromUserId)
+          .get();
+
+      debugPrint(
+          'Found ${recurringExpenses.docs.length} recurring expenses to migrate');
+
+      for (final doc in recurringExpenses.docs) {
+        final data = doc.data();
+        data['userId'] = toUserId;
+        data['previousUserId'] = fromUserId;
+        data['migratedAt'] = FieldValue.serverTimestamp();
+
+        await _firestore.collection('recurring_expenses').doc(doc.id).set(data);
+      }
+
+      debugPrint('Data migration completed successfully');
+    } catch (e) {
+      debugPrint('Error during data migration: $e');
+      // Don't throw here, we want to continue with authentication even if migration fails
+    }
+  }
+
+  @override
+  Future<domain.User> signInAnonymously() async {
+    try {
+      debugPrint('Starting anonymous sign-in flow');
+
+      // Check if the current user is already anonymous
+      final currentUser = _auth.currentUser;
+      if (currentUser != null && currentUser.isAnonymous) {
+        debugPrint('Reusing existing anonymous user: ${currentUser.uid}');
+
+        // Check if this user exists in Firestore to ensure data consistency
+        final userDoc =
+            await _firestore.collection('users').doc(currentUser.uid).get();
+
+        if (!userDoc.exists) {
+          // User document doesn't exist, create it
+          debugPrint(
+              'Creating missing user document for existing anonymous user');
+          await _firestore.collection('users').doc(currentUser.uid).set({
+            'isGuest': true,
+            'createdAt': FieldValue.serverTimestamp(),
+            'currency': 'MYR',
+            'theme': 'light',
+            'settings': {
+              'allowNotification': false,
+              'autoBudget': false,
+              'improveAccuracy': false,
+            }
+          }, SetOptions(merge: true));
+        }
+
+        // Return existing user instead of creating a new one
+        return await _mapFirebaseUserToDomain(currentUser);
+      }
+
+      // Check if we have a stored guest user ID in shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      final storedGuestUserId = prefs.getString('last_guest_user_id');
+
+      if (storedGuestUserId != null) {
+        debugPrint('Found stored guest user ID: $storedGuestUserId');
+
+        try {
+          // Try to sign in with the stored ID
+          // First, check if this anonymous user still exists in Firebase Auth
+          final isValid = await _checkIfAnonymousUserExists(storedGuestUserId);
+
+          if (isValid) {
+            debugPrint(
+                'Verified stored guest user is valid, attempting to reuse');
+
+            // If the current user is different or null, sign in with the stored user
+            if (currentUser == null || currentUser.uid != storedGuestUserId) {
+              // We can't directly sign in as a specific anonymous user,
+              // but we can check if the anonymous account has an entry in Firestore
+              // and create a new anonymous user if not
+
+              // Create a new anonymous user
+              final userCredential = await _auth.signInAnonymously();
+              final newUser = userCredential.user;
+
+              if (newUser == null) {
+                throw Exception('Failed to create new anonymous user');
+              }
+
+              // Try to transfer data from the old anonymous user
+              try {
+                await _migrateUserData(storedGuestUserId, newUser.uid);
+                debugPrint(
+                    'Migrated data from stored guest user to new anonymous user');
+              } catch (e) {
+                debugPrint('Error migrating from stored guest user: $e');
+                // Continue with the new user anyway
+              }
+
+              // Store the new user ID
+              await prefs.setString('last_guest_user_id', newUser.uid);
+
+              // Create initial user document
+              await _firestore.collection('users').doc(newUser.uid).set({
+                'isGuest': true,
+                'createdAt': FieldValue.serverTimestamp(),
+                'currency': 'MYR',
+                'theme': 'light',
+                'previousGuestId': storedGuestUserId,
+                'settings': {
+                  'allowNotification': false,
+                  'autoBudget': false,
+                  'improveAccuracy': false,
+                }
+              }, SetOptions(merge: true));
+
+              return await _mapFirebaseUserToDomain(newUser);
+            } else {
+              // Current user is already the stored guest user
+              return await _mapFirebaseUserToDomain(currentUser);
+            }
+          } else {
+            debugPrint(
+                'Stored guest user is invalid, creating new anonymous user');
+            // Clear the stored ID since it's invalid
+            await prefs.remove('last_guest_user_id');
+          }
+        } catch (e) {
+          debugPrint('Error trying to reuse stored guest user: $e');
+          // Continue with creating a new anonymous user
+        }
+      }
+
+      // Sign in anonymously with Firebase
+      final userCredential = await _auth.signInAnonymously();
+      final user = userCredential.user;
+
+      if (user == null) {
+        debugPrint('Anonymous sign-in failed - null user');
+        throw Exception('Anonymous sign-in failed');
+      }
+
+      debugPrint('Anonymous sign-in successful: ${user.uid}');
+
+      // Store the guest user ID for future use
+      await prefs.setString('last_guest_user_id', user.uid);
+
+      // Create initial user document with default settings
+      await _firestore.collection('users').doc(user.uid).set({
+        'isGuest': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'currency': 'MYR',
+        'theme': 'light',
+        'settings': {
+          'allowNotification': false,
+          'autoBudget': false,
+          'improveAccuracy': false,
+        }
+      }, SetOptions(merge: true));
+
+      // Map to domain user and return
+      final domainUser = await _mapFirebaseUserToDomain(user);
+      return domainUser;
+    } catch (e) {
+      debugPrint('Anonymous sign-in error: $e');
+      throw Exception('Failed to sign in anonymously: $e');
+    }
+  }
+
+  /// Check if an anonymous user exists in Firebase
+  Future<bool> _checkIfAnonymousUserExists(String userId) async {
+    try {
+      // Get the currently signed-in Firebase user
+      final firebaseUser = _auth.currentUser;
+
+      // If there's already a signed-in user with a different ID, it's likely invalid
+      if (firebaseUser != null && firebaseUser.uid != userId) {
+        debugPrint('🔥 AuthRepository: Found different user ID than requested');
+        return false;
+      }
+
+      // Try to see if we have this user in Firestore
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      if (userDoc.exists) {
+        debugPrint('🔥 AuthRepository: Found user document in Firestore');
+        // The user exists in Firestore, which means it's a valid user
+        return true;
+      }
+
+      // If we reach here, we couldn't verify the user exists
+      debugPrint('🔥 AuthRepository: Could not verify user existence');
+      return false;
+    } catch (e) {
+      debugPrint(
+          '🔥 AuthRepository: Error checking if anonymous user exists: $e');
+      return false;
+    }
+  }
+
+  /// Delete guest user and all associated data
+  @override
+  Future<void> deleteGuestUser() async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null || !currentUser.isAnonymous) {
+        throw Exception('No anonymous user to delete');
+      }
+
+      final userId = currentUser.uid;
+      debugPrint('Deleting guest user and all associated data: $userId');
+
+      try {
+        // Try to delete user data first, but continue if permission denied
+        await _deleteUserDataFromFirestore(userId);
+      } catch (e) {
+        // Log the error but continue with deleting the user account
+        debugPrint('Warning: Could not delete user data: $e');
+        debugPrint('Continuing with authentication account deletion anyway');
+      }
+
+      // Delete the Authentication user account (this also signs them out)
+      await currentUser.delete();
+
+      debugPrint(
+          'Guest user authentication account successfully deleted: $userId');
+    } catch (e) {
+      debugPrint('Error deleting guest user: $e');
+      throw Exception('Failed to delete guest user: $e');
+    }
+  }
+
+  /// Delete all user data from Firestore
+  Future<void> _deleteUserDataFromFirestore(String userId) async {
+    debugPrint('Attempting to delete all Firestore data for user: $userId');
+
+    // Keep track of what was deleted
+    bool anyDataDeleted = false;
+
+    // Delete user document
+    try {
+      await _firestore.collection('users').doc(userId).delete();
+      debugPrint('Deleted user document');
+      anyDataDeleted = true;
+    } catch (e) {
+      debugPrint('Error deleting user document: $e');
+      // Continue with other deletions
+    }
+
+    // Delete user's expenses
+    try {
+      final expenses = await _firestore
+          .collection('expenses')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      for (final doc in expenses.docs) {
+        try {
+          await doc.reference.delete();
+        } catch (e) {
+          debugPrint('Error deleting expense document ${doc.id}: $e');
+        }
+      }
+      debugPrint('Attempted to delete ${expenses.docs.length} expenses');
+      if (expenses.docs.isNotEmpty) anyDataDeleted = true;
+    } catch (e) {
+      debugPrint('Error querying expenses: $e');
+    }
+
+    // Delete user's budgets
+    try {
+      final budgets = await _firestore
+          .collection('budgets')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      for (final doc in budgets.docs) {
+        try {
+          await doc.reference.delete();
+        } catch (e) {
+          debugPrint('Error deleting budget document ${doc.id}: $e');
+        }
+      }
+      debugPrint('Attempted to delete ${budgets.docs.length} budgets');
+      if (budgets.docs.isNotEmpty) anyDataDeleted = true;
+    } catch (e) {
+      debugPrint('Error querying budgets: $e');
+    }
+
+    // Delete user's recurring expenses
+    try {
+      final recurringExpenses = await _firestore
+          .collection('recurring_expenses')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      for (final doc in recurringExpenses.docs) {
+        try {
+          await doc.reference.delete();
+        } catch (e) {
+          debugPrint('Error deleting recurring expense document ${doc.id}: $e');
+        }
+      }
+      debugPrint(
+          'Attempted to delete ${recurringExpenses.docs.length} recurring expenses');
+      if (recurringExpenses.docs.isNotEmpty) anyDataDeleted = true;
+    } catch (e) {
+      debugPrint('Error querying recurring expenses: $e');
+    }
+
+    // Report on the overall result
+    if (anyDataDeleted) {
+      debugPrint('Successfully deleted some data for user: $userId');
+    } else {
+      debugPrint('Warning: No data was deleted for user: $userId');
     }
   }
 
@@ -481,18 +877,27 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       debugPrint('Starting sign out process');
 
-      // Sign out from Google first
-      try {
-        await _googleSignIn.signOut();
-        debugPrint('Successfully signed out from Google');
-      } catch (e) {
-        debugPrint('Error signing out from Google: $e');
-        // Continue with Firebase sign out
-      }
+      // Check if the user is anonymous before signing out
+      final currentUser = _auth.currentUser;
+      final isAnonymous = currentUser?.isAnonymous ?? false;
 
-      // Then sign out from Firebase
-      await _auth.signOut();
-      debugPrint('Successfully signed out from Firebase');
+      // For regular users, just sign out from Google and Firebase
+      if (!isAnonymous) {
+        // Sign out from Google first
+        try {
+          await _googleSignIn.signOut();
+          debugPrint('Successfully signed out from Google');
+        } catch (e) {
+          debugPrint('Error signing out from Google: $e');
+          // Continue with Firebase sign out
+        }
+
+        // Then sign out from Firebase
+        await _auth.signOut();
+        debugPrint('Successfully signed out from Firebase');
+      }
+      // For anonymous users, we don't need to do anything here since
+      // the deleteGuestUser method will be called separately
     } catch (e) {
       debugPrint('Sign out error: $e');
       throw Exception('Failed to sign out: $e');
@@ -716,5 +1121,79 @@ class AuthRepositoryImpl implements AuthRepository {
     final bytes = utf8.encode(input);
     final digest = sha256.convert(bytes);
     return digest.toString();
+  }
+
+  @override
+  Future<domain.User> linkAnonymousAccount(
+      {required String email, required String password}) async {
+    try {
+      final currentUser = _auth.currentUser;
+
+      if (currentUser == null) {
+        throw Exception('No user is currently signed in');
+      }
+
+      if (!currentUser.isAnonymous) {
+        throw Exception('Current user is not an anonymous user');
+      }
+
+      debugPrint('Linking anonymous account to email: $email');
+
+      // Store the anonymous user ID for potential error handling
+      final anonymousUserId = currentUser.uid;
+
+      // Create email credential
+      final credential = firebase_auth.EmailAuthProvider.credential(
+        email: email,
+        password: password,
+      );
+
+      // Try to link the anonymous account with the email credential
+      try {
+        final userCredential = await currentUser.linkWithCredential(credential);
+        final user = userCredential.user;
+
+        if (user == null) {
+          throw Exception('Failed to link account: No user returned');
+        }
+
+        // Update user document to remove guest flag
+        await _firestore.collection('users').doc(user.uid).update({
+          'isGuest': false,
+          'email': email,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        debugPrint('Successfully linked anonymous account to email: $email');
+        return await _mapFirebaseUserToDomain(user);
+      } catch (e) {
+        debugPrint('Error linking anonymous account with email: $e');
+
+        // Handle specific Firebase errors
+        if (e is firebase_auth.FirebaseAuthException) {
+          switch (e.code) {
+            case 'email-already-in-use':
+              // This email is already associated with another account
+              // Similar to Google sign-in, we could implement data migration here
+              // but email/password doesn't provide the credential in the error
+              // so we can't directly sign in with it
+              throw Exception(
+                  'This email is already in use by another account. Please use a different email or sign in with that account.');
+            case 'invalid-email':
+              throw Exception('The email address is not valid');
+            case 'weak-password':
+              throw Exception('The password is too weak');
+            default:
+              throw Exception('Failed to link account: ${e.message}');
+          }
+        }
+
+        rethrow;
+      }
+    } catch (e) {
+      debugPrint('Error in linkAnonymousAccount: $e');
+      if (e is Exception) rethrow;
+      throw Exception('Failed to link anonymous account: $e');
+    }
   }
 }

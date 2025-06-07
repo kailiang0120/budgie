@@ -223,17 +223,6 @@ class LocalNotificationService {
     );
   }
 
-  /// Send non-expense notification (for testing)
-  Future<void> sendTestNonExpenseNotification() async {
-    await sendNotification(
-      id: 1002,
-      title: 'Greeting',
-      body: 'How are you recently?',
-      payload: 'general_notification',
-      channelId: 'test_notifications',
-    );
-  }
-
   /// Send payment notification with custom amount and merchant
   Future<void> sendPaymentNotification({
     required double amount,

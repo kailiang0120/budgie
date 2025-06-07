@@ -511,10 +511,4 @@ class CurrencyConversionService {
       return double.parse(amount.toStringAsFixed(2));
     }
   }
-
-  /// Clear saved rates to force fresh conversion rates
-  void clearSavedRates() {
-    _usedRates.clear();
-    debugPrint('🔄 Cleared saved conversion rates');
-  }
 }

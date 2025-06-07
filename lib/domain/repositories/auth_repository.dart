@@ -38,4 +38,7 @@ abstract class AuthRepository {
   /// Links anonymous account to permanent credentials
   Future<User> linkAnonymousAccount(
       {required String email, required String password});
+
+  /// Delete anonymous user and all associated data
+  Future<void> deleteGuestUser();
 }

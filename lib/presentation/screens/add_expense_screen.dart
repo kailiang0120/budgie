@@ -123,8 +123,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           final recurringExpense = RecurringExpense(
             id: '', // Let repository assign ID
             frequency: _recurringFrequency.value,
-            dayOfMonth: _recurringDayOfMonth.value,
-            dayOfWeek: _recurringDayOfWeek.value,
+            dayOfMonth: _recurringFrequency.value == RecurringFrequency.monthly
+                ? _recurringDayOfMonth.value
+                : null,
+            dayOfWeek: _recurringFrequency.value == RecurringFrequency.weekly
+                ? _recurringDayOfWeek.value
+                : null,
             startDate: _selectedDateTime.value,
             endDate: _recurringEndDate.value,
             isActive: true,
@@ -136,7 +140,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             expensePaymentMethod:
                 _selectedPaymentMethod.value.toLowerCase().replaceAll(' ', ''),
             expenseCurrency: _currency.value,
-            expenseDescription: null,
+            expenseDescription: _recurringFrequency.value.displayName,
           );
 
           final createdRecurringExpense = await _recurringExpensesRepository
@@ -152,7 +156,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           date: _selectedDateTime.value,
           category: _selectedCategory.value,
           method: _getPaymentMethodEnum(_selectedPaymentMethod.value),
-          description: null, // No longer storing recurring info in description
+          description: _recurringFrequency.value == RecurringFrequency.oneTime
+              ? "One-time Payment"
+              : _recurringFrequency.value.displayName,
           currency: _currency.value,
           recurringExpenseId: recurringExpenseId,
         );

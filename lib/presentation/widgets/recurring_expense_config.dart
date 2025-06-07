@@ -45,6 +45,19 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
     _selectedDayOfMonth = widget.initialDayOfMonth;
     _selectedDayOfWeek = widget.initialDayOfWeek;
     _selectedEndDate = widget.initialEndDate;
+
+    // Ensure default values are set
+    if (_selectedFrequency == RecurringFrequency.weekly &&
+        _selectedDayOfWeek == null) {
+      _selectedDayOfWeek = DayOfWeek.monday;
+      widget.onDayOfWeekChanged(_selectedDayOfWeek);
+    }
+
+    if (_selectedFrequency == RecurringFrequency.monthly &&
+        _selectedDayOfMonth == null) {
+      _selectedDayOfMonth = 1;
+      widget.onDayOfMonthChanged(_selectedDayOfMonth);
+    }
   }
 
   @override
@@ -89,6 +102,19 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
                       if (frequency != RecurringFrequency.weekly) {
                         _selectedDayOfWeek = null;
                         widget.onDayOfWeekChanged(null);
+                      } else {
+                        // Set default day of week to Monday if not already set
+                        if (_selectedDayOfWeek == null) {
+                          _selectedDayOfWeek = DayOfWeek.monday;
+                          widget.onDayOfWeekChanged(_selectedDayOfWeek);
+                        }
+                      }
+
+                      // Set default day of month to 1 if monthly and not already set
+                      if (frequency == RecurringFrequency.monthly &&
+                          _selectedDayOfMonth == null) {
+                        _selectedDayOfMonth = 1;
+                        widget.onDayOfMonthChanged(_selectedDayOfMonth);
                       }
                     });
                     widget.onFrequencyChanged(frequency);

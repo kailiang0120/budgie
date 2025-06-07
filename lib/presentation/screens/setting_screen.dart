@@ -16,6 +16,7 @@ import '../widgets/bottom_nav_bar.dart';
 import '../widgets/animated_float_button.dart';
 import '../utils/app_constants.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/auth_utils.dart';
 import 'add_expense_screen.dart';
 import 'notification_test_screen.dart';
 import '../viewmodels/budget_viewmodel.dart';
@@ -518,63 +519,18 @@ class _SettingScreenState extends State<SettingScreen> {
             },
           ),
 
-          // // Debug: Force refresh settings button (only in debug mode)
-          // if (kDebugMode)
-          //   ListTile(
-          //     leading: Container(
-          //       padding: const EdgeInsets.all(8.0),
-          //       decoration: BoxDecoration(
-          //         color: Colors.orange.withOpacity(0.1),
-          //         borderRadius: BorderRadius.circular(8.0),
-          //       ),
-          //       child: const Icon(
-          //         Icons.refresh,
-          //         color: Colors.orange,
-          //         size: 20,
-          //       ),
-          //     ),
-          //     title: const Text('Debug: Refresh Settings'),
-          //     subtitle: const Text('Force reload settings from Firebase'),
-          //     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-          //     onTap: () async {
-          //       try {
-          //         // Show loading indicator
-          //         ScaffoldMessenger.of(context).showSnackBar(
-          //           const SnackBar(
-          //             content: Text('Refreshing settings from Firebase...'),
-          //             duration: Duration(seconds: 2),
-          //           ),
-          //         );
+          // Sign Out Button
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+            child: Divider(
+              color: Theme.of(context).dividerColor,
+              thickness: 0.5,
+            ),
+          ),
 
-          //         // Force refresh settings
-          //         await _settingsService.forceReloadFromFirebase();
-
-          //         // Show success message
-          //         if (mounted) {
-          //           ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          //           ScaffoldMessenger.of(context).showSnackBar(
-          //             SnackBar(
-          //               content: Text(
-          //                   'Settings refreshed! Currency: ${_settingsService.currency}, Theme: ${_settingsService.theme}, Notifications: ${_settingsService.allowNotification}'),
-          //               backgroundColor: Colors.green,
-          //               duration: const Duration(seconds: 3),
-          //             ),
-          //           );
-          //         }
-          //       } catch (e) {
-          //         if (mounted) {
-          //           ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          //           ScaffoldMessenger.of(context).showSnackBar(
-          //             SnackBar(
-          //               content: Text('Failed to refresh settings: $e'),
-          //               backgroundColor: Colors.red,
-          //               duration: const Duration(seconds: 3),
-          //             ),
-          //           );
-          //         }
-          //       }
-          //     },
-          //   ),
+          // Add some space at the bottom for better UI
+          const SizedBox(height: 90),
         ],
       ),
       extendBody: true,

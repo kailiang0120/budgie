@@ -681,12 +681,6 @@ class NotificationService {
     await _localNotificationService.sendTestExpenseNotification();
   }
 
-  // Send test non-expense notification - REAL NOTIFICATION
-  Future<void> sendTestNonExpenseNotification() async {
-    debugPrint('Sending real non-expense notification...');
-    await _localNotificationService.sendTestNonExpenseNotification();
-  }
-
   // Send custom test notification with user-provided text
   Future<void> sendTestCustomNotification({
     required String title,
@@ -706,12 +700,6 @@ class NotificationService {
     debugPrint('Simulating expense notification workflow...');
     await simulateNotification(
         'Payment of RM 25.50 at Starbucks has been processed');
-  }
-
-  // Simulate non-expense workflow (for testing workflow without sending notification)
-  Future<void> simulateNonExpenseWorkflow() async {
-    debugPrint('Simulating non-expense notification workflow...');
-    await simulateNotification('How are you recently?');
   }
 
   // Request local notification permissions

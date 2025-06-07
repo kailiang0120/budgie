@@ -613,6 +613,61 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
+  /// Securely sign out an anonymous user with data deletion
+  Future<void> secureSignOutAnonymousUser() async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      // Check if current user is anonymous
+      final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null || !firebaseUser.isAnonymous) {
+        throw Exception('No anonymous user to sign out');
+      }
+
+      final userId = firebaseUser.uid;
+      debugPrint('Securely signing out anonymous user: $userId');
+
+      // Clear local storage reference to guest user
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('last_guest_user_id');
+
+      // Call the comprehensive function that deletes the user account and data
+      try {
+        await _authRepository.deleteGuestUser();
+        _currentUser = null;
+        debugPrint('Anonymous user securely signed out and deleted');
+      } catch (e) {
+        debugPrint('Warning: Error during secure sign out: $e');
+
+        // Even if there was an error with deletion, try a normal sign out
+        // to ensure the user is at least logged out
+        if (firebase_auth.FirebaseAuth.instance.currentUser != null) {
+          debugPrint('Attempting normal sign out as fallback');
+          await _authRepository.signOut();
+          _currentUser = null;
+        }
+
+        // Specific error handling for better user feedback
+        if (e.toString().contains('permission-denied')) {
+          _error =
+              'Sign out completed, but some data could not be deleted due to permission restrictions.';
+        } else {
+          _error =
+              'Sign out completed, but there was an issue with data deletion.';
+        }
+      }
+    } catch (e) {
+      debugPrint('Secure sign out error: $e');
+      _error = 'Failed to securely sign out: ${e.toString()}';
+      rethrow; // Rethrow to allow UI to handle the error
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> resetPassword(String email) async {
     if (email.isEmpty) {
       _error = 'Email cannot be empty';
