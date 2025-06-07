@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 
 class ThemeViewModel extends ChangeNotifier {
-  bool _isDarkMode = true;
-  String _currentTheme = 'dark';
+  bool _isDarkMode = false;
+  String _currentTheme = 'light';
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -15,8 +15,8 @@ class ThemeViewModel extends ChangeNotifier {
   ThemeData get theme => _isDarkMode ? AppTheme.darkTheme : AppTheme.lightTheme;
 
   ThemeViewModel() {
-    // Start with dark theme as default to match SettingsService defaults
-    debugPrint('🎨 ThemeViewModel created with default dark theme');
+    // Start with light theme as default to match SettingsService defaults
+    debugPrint('🎨 ThemeViewModel created with default light theme');
   }
 
   Future<void> setTheme(String theme) async {

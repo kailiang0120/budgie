@@ -8,6 +8,8 @@ import '../../core/utils/performance_monitor.dart';
 import '../../core/services/sync_service.dart';
 import '../../core/services/settings_service.dart';
 import '../viewmodels/theme_viewmodel.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
@@ -100,29 +102,36 @@ class AuthViewModel extends ChangeNotifier {
   // Handle user login with new/existing user detection
   Future<void> _handleUserLogin(String userId) async {
     try {
-      //debugPrint('🔥 AuthViewModel: Handling user login for: $userId');
+      debugPrint('🔥 AuthViewModel: Handling user login for: $userId');
 
       // Step 1: Initialize settings (will handle new/existing user detection internally)
-      // debugPrint('🔥 AuthViewModel: Initializing settings for user');
+      debugPrint('🔥 AuthViewModel: Initializing settings for user');
       await _settingsService.initializeForUser(userId);
-      //debugPrint('🔥 AuthViewModel: Settings initialization completed');
-      //debugPrint(
-      //    '🔥 AuthViewModel: Current settings - Currency: ${_settingsService.currency}, Theme: ${_settingsService.theme}, Notifications: ${_settingsService.allowNotification}');
+      debugPrint('🔥 AuthViewModel: Settings initialization completed');
+      debugPrint(
+          '🔥 AuthViewModel: Current settings - Currency: ${_settingsService.currency}, Theme: ${_settingsService.theme}, Notifications: ${_settingsService.allowNotification}');
 
       // Step 2: Initialize theme based on user settings (only after settings are loaded/created)
-      //debugPrint('🔥 AuthViewModel: Initializing theme for user');
+      debugPrint('🔥 AuthViewModel: Initializing theme for user');
       await _themeViewModel.initializeForUser(userId);
-      //debugPrint('🔥 AuthViewModel: Theme initialization completed');
+      debugPrint('🔥 AuthViewModel: Theme initialization completed');
 
       // Step 3: Initialize local data synchronization
-      //debugPrint('🔥 AuthViewModel: Initializing local data sync');
+      debugPrint('🔥 AuthViewModel: Initializing local data sync');
       await _syncService.initializeLocalDataOnLogin(userId);
-      //debugPrint('🔥 AuthViewModel: Local data sync initialized');
+      debugPrint('🔥 AuthViewModel: Local data sync initialized');
 
-      //debugPrint(
-      //    '🔥 AuthViewModel: User login handling completed for: $userId');
+      // Step 4: Trigger a full sync to ensure offline data is merged with Firebase
+      debugPrint('🔥 AuthViewModel: Triggering full data synchronization');
+      // Use a slight delay to ensure everything is initialized properly
+      Future.delayed(const Duration(seconds: 2), () {
+        _syncService.forceFullSync();
+      });
+
+      debugPrint(
+          '🔥 AuthViewModel: User login handling completed for: $userId');
     } catch (e) {
-      //debugPrint('🔥 AuthViewModel: Error handling user login for $userId: $e');
+      debugPrint('🔥 AuthViewModel: Error handling user login for $userId: $e');
       _error = 'Failed to initialize user data: ${e.toString()}';
       rethrow;
     }
@@ -131,33 +140,41 @@ class AuthViewModel extends ChangeNotifier {
   // Handle user logout
   Future<void> _handleUserLogout() async {
     try {
-      //debugPrint('🔥 AuthViewModel: Handling user logout');
+      debugPrint('🔥 AuthViewModel: Handling user logout');
       // Reset any local state if needed
       // The services will handle their own cleanup
     } catch (e) {
-      //debugPrint('🔥 AuthViewModel: Error handling user logout: $e');
+      debugPrint('🔥 AuthViewModel: Error handling user logout: $e');
     }
   }
 
   // Initialize user data (used for current user on app start)
   Future<void> _initializeUserData(String userId) async {
     try {
-      //debugPrint(
-      //    '🔥 AuthViewModel: Initializing data for current user: $userId');
+      debugPrint(
+          '🔥 AuthViewModel: Initializing data for current user: $userId');
 
       // Initialize settings first
       await _settingsService.initializeForUser(userId);
-      //debugPrint('🔥 AuthViewModel: Settings initialized for current user');
+      debugPrint('🔥 AuthViewModel: Settings initialized for current user');
 
       // Then initialize theme
       await _themeViewModel.initializeForUser(userId);
-      //debugPrint('🔥 AuthViewModel: Theme initialized for current user');
+      debugPrint('🔥 AuthViewModel: Theme initialized for current user');
 
       // Finally initialize local data
       await _syncService.initializeLocalDataOnLogin(userId);
-      //debugPrint('🔥 AuthViewModel: Local data initialized for current user');
+      debugPrint('🔥 AuthViewModel: Local data initialized for current user');
+
+      // Trigger a full sync to ensure offline data is merged with Firebase
+      debugPrint(
+          '🔥 AuthViewModel: Triggering full data synchronization for current user');
+      // Use a slight delay to ensure everything is initialized properly
+      Future.delayed(const Duration(seconds: 2), () {
+        _syncService.forceFullSync();
+      });
     } catch (e) {
-      //debugPrint('🔥 AuthViewModel: Error initializing current user data: $e');
+      debugPrint('🔥 AuthViewModel: Error initializing current user data: $e');
       _error = 'Failed to initialize user data: ${e.toString()}';
       rethrow;
     }
@@ -274,6 +291,13 @@ class AuthViewModel extends ChangeNotifier {
 
       //debugPrint('🔥 AuthViewModel: Starting Google sign-in');
 
+      // Check if the current user is anonymous
+      final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
+      final isAnonymous = firebaseUser != null && firebaseUser.isAnonymous;
+
+      // If user is anonymous and in profile screen context, we link the accounts
+      // The repository will handle the linking automatically
+
       // Call repository for Google sign-in
       final user = await _authRepository.signInWithGoogle();
 
@@ -288,6 +312,14 @@ class AuthViewModel extends ChangeNotifier {
 
       //debugPrint(
       //    '🔥 AuthViewModel: Google sign-in successful - User ID: ${_currentUser!.id}');
+
+      // If we were previously anonymous, ensure we remove stored guest ID
+      if (isAnonymous) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('last_guest_user_id');
+        debugPrint(
+            '🔥 AuthViewModel: Removed stored guest user ID after upgrade to Google account');
+      }
 
       // Use the new user handling logic
       await _handleUserLogin(_currentUser!.id);
@@ -313,6 +345,253 @@ class AuthViewModel extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> signInWithApple() async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      debugPrint('🔥 AuthViewModel: Starting Apple sign-in');
+
+      // Check if the current user is anonymous
+      final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
+      final isAnonymous = firebaseUser != null && firebaseUser.isAnonymous;
+
+      // Call repository for Apple sign-in
+      final user = await _authRepository.signInWithApple();
+
+      // Set current user
+      _currentUser = user;
+
+      // Verify we have a valid user
+      if (_currentUser == null || _currentUser!.id.isEmpty) {
+        debugPrint('🔥 AuthViewModel: Invalid user returned from repository');
+        throw Exception('Authentication failed - Invalid user');
+      }
+
+      debugPrint(
+          '🔥 AuthViewModel: Apple sign-in successful - User ID: ${_currentUser!.id}');
+
+      // If we were previously anonymous, ensure we remove stored guest ID
+      if (isAnonymous) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('last_guest_user_id');
+        debugPrint(
+            '🔥 AuthViewModel: Removed stored guest user ID after upgrade to Apple account');
+      }
+
+      // Use the new user handling logic
+      await _handleUserLogin(_currentUser!.id);
+      debugPrint(
+          '🔥 AuthViewModel: Apple sign-in process completed for: ${_currentUser!.id}');
+    } catch (e) {
+      debugPrint('🔥 AuthViewModel: Apple sign-in error: $e');
+
+      // Set appropriate error message
+      if (e.toString().contains('network')) {
+        _error =
+            'Network connection issue. Please check your internet connection and try again.';
+      } else if (e.toString().contains('cancel')) {
+        _error = 'Sign-in was cancelled';
+      } else if (e.toString().contains('credential')) {
+        _error = 'Authentication failed. Please try again.';
+      } else {
+        _error = 'Failed to sign in with Apple: ${e.toString()}';
+      }
+
+      _currentUser = null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Sign in as guest (anonymous authentication)
+  Future<void> signInAsGuest() async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      debugPrint('🔥 AuthViewModel: Starting guest sign-in');
+
+      // Check if we have a stored guest user ID in local storage
+      final prefs = await SharedPreferences.getInstance();
+      final storedGuestUserId = prefs.getString('last_guest_user_id');
+
+      if (storedGuestUserId != null) {
+        debugPrint(
+            '🔥 AuthViewModel: Found stored guest user ID: $storedGuestUserId');
+
+        // Try to sign in with the stored guest credentials
+        try {
+          // We need to check if this anonymous user still exists in Firebase
+          // If the app was uninstalled and reinstalled, the local ID might be invalid
+          final isValid = await _checkIfAnonymousUserExists(storedGuestUserId);
+
+          if (isValid) {
+            debugPrint('🔥 AuthViewModel: Using existing guest account');
+            // Get user from local database
+            final localUser =
+                await _syncService.getLocalUser(storedGuestUserId);
+
+            if (localUser != null) {
+              _currentUser = localUser;
+              await _handleUserLogin(localUser.id);
+              debugPrint(
+                  '🔥 AuthViewModel: Successfully loaded existing guest user data');
+              _isLoading = false;
+              notifyListeners();
+              return;
+            }
+          } else {
+            debugPrint(
+                '🔥 AuthViewModel: Stored guest user is invalid, creating new one');
+            // Clear the stored ID since it's invalid
+            await prefs.remove('last_guest_user_id');
+          }
+        } catch (e) {
+          debugPrint('🔥 AuthViewModel: Error checking stored guest user: $e');
+          // Continue with creating a new guest user
+        }
+      }
+
+      // If we reach here, we need to create a new guest user
+      // Call repository for anonymous sign-in
+      final user = await _authRepository.signInAnonymously();
+
+      // Set current user
+      _currentUser = user;
+
+      // Verify we have a valid user
+      if (_currentUser == null || _currentUser!.id.isEmpty) {
+        debugPrint('🔥 AuthViewModel: Invalid user returned from repository');
+        throw Exception('Guest authentication failed - Invalid user');
+      }
+
+      // Store the guest user ID for future use
+      await prefs.setString('last_guest_user_id', user.id);
+
+      debugPrint(
+          '🔥 AuthViewModel: Guest sign-in successful - User ID: ${_currentUser!.id}');
+
+      // Use the same user handling logic as other auth methods
+      await _handleUserLogin(_currentUser!.id);
+
+      debugPrint(
+          '🔥 AuthViewModel: Guest sign-in process completed for: ${_currentUser!.id}');
+    } catch (e) {
+      debugPrint('🔥 AuthViewModel: Guest sign-in error: $e');
+      _error = 'Failed to sign in as guest: ${e.toString()}';
+      _currentUser = null;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Check if an anonymous user exists in Firebase
+  Future<bool> _checkIfAnonymousUserExists(String userId) async {
+    try {
+      // Get the currently signed-in Firebase user
+      final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
+
+      // If there's already a signed-in user with a different ID, it's likely invalid
+      if (firebaseUser != null && firebaseUser.uid != userId) {
+        debugPrint('🔥 AuthViewModel: Found different user ID than requested');
+        return false;
+      }
+
+      // Try to see if we have this user in Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      if (userDoc.exists) {
+        debugPrint('🔥 AuthViewModel: Found user document in Firestore');
+        // The user exists in Firestore, which means it's a valid user
+        return true;
+      }
+
+      // If we reach here, we couldn't verify the user exists
+      debugPrint('🔥 AuthViewModel: Could not verify user existence');
+      return false;
+    } catch (e) {
+      debugPrint(
+          '🔥 AuthViewModel: Error checking if anonymous user exists: $e');
+      return false;
+    }
+  }
+
+  /// Upgrade guest account to permanent account
+  Future<void> upgradeGuestAccount(
+      {required String email, required String password}) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+
+      // Check if current user is anonymous
+      final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
+      if (firebaseUser == null || !firebaseUser.isAnonymous) {
+        throw Exception('No guest account to upgrade');
+      }
+
+      // Store the guest user ID to ensure data continuity
+      final guestUserId = firebaseUser.uid;
+      debugPrint(
+          '🔥 AuthViewModel: Upgrading guest account to permanent account: $guestUserId');
+
+      // First ensure all local data is synced to Firebase
+      await _syncService.forceFullSync();
+      debugPrint('🔥 AuthViewModel: Forced data sync before account upgrade');
+
+      // Call repository to link anonymous account
+      final user = await _authRepository.linkAnonymousAccount(
+        email: email,
+        password: password,
+      );
+
+      // Update current user
+      _currentUser = user;
+
+      debugPrint('🔥 AuthViewModel: Guest account upgraded successfully');
+
+      // Remove the stored guest user ID since it's now a permanent account
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('last_guest_user_id');
+
+      // Refresh user data
+      await refreshAuthState();
+
+      // Trigger another sync to ensure all data is properly associated with the upgraded account
+      await _syncService.forceFullSync();
+      debugPrint('🔥 AuthViewModel: Final data sync after account upgrade');
+    } catch (e) {
+      debugPrint('🔥 AuthViewModel: Error upgrading guest account: $e');
+
+      // Set appropriate error message
+      if (e.toString().contains('email-already-in-use')) {
+        _error = 'This email is already in use by another account';
+      } else if (e.toString().contains('weak-password')) {
+        _error = 'The password is too weak';
+      } else if (e.toString().contains('invalid-email')) {
+        _error = 'The email address is not valid';
+      } else {
+        _error = 'Failed to upgrade account: ${e.toString()}';
+      }
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Check if current user is a guest
+  bool get isGuestUser {
+    final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
+    return firebaseUser != null && firebaseUser.isAnonymous;
   }
 
   Future<void> signOut() async {
@@ -423,22 +702,6 @@ class AuthViewModel extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
-    }
-  }
-
-  // Force refresh user settings (useful for debugging)
-  Future<void> forceRefreshUserSettings() async {
-    try {
-      if (_currentUser != null) {
-        debugPrint(
-            '🔥 AuthViewModel: Force refreshing user settings for: ${_currentUser!.id}');
-        await _settingsService.forceReloadFromFirebase();
-        debugPrint('🔥 AuthViewModel: Settings force refresh completed');
-      } else {
-        debugPrint('🔥 AuthViewModel: No current user for settings refresh');
-      }
-    } catch (e) {
-      debugPrint('🔥 AuthViewModel: Error refreshing user settings: $e');
     }
   }
 

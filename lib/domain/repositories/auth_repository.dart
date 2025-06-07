@@ -26,6 +26,16 @@ abstract class AuthRepository {
   /// Signs in a user with Google
   Future<User> signInWithGoogle();
 
+  /// Signs in a user with Apple
+  Future<User> signInWithApple();
+
   /// Updates user settings
   Future<void> updateUserSettings({String? currency, String? theme});
+
+  /// Signs in a user anonymously (as guest)
+  Future<User> signInAnonymously();
+
+  /// Links anonymous account to permanent credentials
+  Future<User> linkAnonymousAccount(
+      {required String email, required String password});
 }

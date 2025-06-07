@@ -82,9 +82,9 @@ class Users extends Table {
   TextColumn get displayName => text().nullable()();
   TextColumn get photoUrl => text().nullable()();
   TextColumn get currency => text().withDefault(const Constant('MYR'))();
-  TextColumn get theme => text().withDefault(const Constant('dark'))();
+  TextColumn get theme => text().withDefault(const Constant('light'))();
   BoolColumn get allowNotification =>
-      boolean().withDefault(const Constant(true))();
+      boolean().withDefault(const Constant(false))();
   BoolColumn get autoBudget => boolean().withDefault(const Constant(false))();
   BoolColumn get improveAccuracy =>
       boolean().withDefault(const Constant(false))();

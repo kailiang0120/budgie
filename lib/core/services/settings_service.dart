@@ -12,14 +12,15 @@ class SettingsService extends ChangeNotifier {
   final LocalDataSource _localDataSource;
   final ConnectivityService _connectivityService;
 
+  // Default values in constructor
   String _currency = 'MYR';
-  String _theme = 'dark';
+  String _theme = 'light';
   bool _allowNotification = false;
   bool _autoBudget = false;
   bool _improveAccuracy = false;
 
   // Flag to prevent notification loops in tests
-  final bool _notifyListenersEnabled = true;
+  final bool _notifyListenersEnabled = false;
 
   String get currency => _currency;
   String get theme => _theme;
@@ -91,25 +92,6 @@ class SettingsService extends ChangeNotifier {
     }
   }
 
-  // Force reload settings from Firebase (useful for debugging)
-  Future<void> forceReloadFromFirebase() async {
-    try {
-      final user = _auth.currentUser;
-      if (user != null) {
-        debugPrint(
-            '🔧 SettingsService: Force reloading settings from Firebase for user: ${user.uid}');
-        await _loadFromFirebaseAndSave(user.uid);
-        notifyListeners();
-        debugPrint('🔧 SettingsService: Force reload completed');
-      } else {
-        debugPrint(
-            '🔧 SettingsService: No authenticated user for force reload');
-      }
-    } catch (e) {
-      debugPrint('🔧 SettingsService: Error in force reload: $e');
-    }
-  }
-
   // Load settings from Firebase and save to local storage
   Future<void> _loadFromFirebaseAndSave(String userId) async {
     try {
@@ -129,14 +111,14 @@ class SettingsService extends ChangeNotifier {
         // Convert to the format expected by local storage
         final settingsForLocal = {
           'currency': userData['currency'] ?? 'MYR',
-          'theme': userData['theme'] ?? 'dark',
+          'theme': userData['theme'] ?? 'light',
           'settings': {
             // Handle both nested and root-level format in Firebase
             'allowNotification':
                 (userData['settings'] != null && userData['settings'] is Map)
                     ? (userData['settings']
                         as Map<String, dynamic>)['allowNotification']
-                    : userData['allowNotification'] ?? true,
+                    : userData['allowNotification'] ?? false,
             'autoBudget': (userData['settings'] != null &&
                     userData['settings'] is Map)
                 ? (userData['settings'] as Map<String, dynamic>)['autoBudget']
@@ -194,7 +176,7 @@ class SettingsService extends ChangeNotifier {
   Future<void> _loadUserSettings(Map<String, dynamic> userData) async {
     try {
       _currency = userData['currency'] ?? 'MYR';
-      _theme = userData['theme'] ?? 'dark';
+      _theme = userData['theme'] ?? 'light';
 
       // Handle both nested and root-level settings format for backward compatibility
       Map<String, dynamic> settings = {};
@@ -208,7 +190,7 @@ class SettingsService extends ChangeNotifier {
       // Priority: nested settings > root level > defaults
       _allowNotification = settings['allowNotification'] ??
           userData['allowNotification'] ??
-          true;
+          false;
       _autoBudget = settings['autoBudget'] ?? userData['autoBudget'] ?? false;
       _improveAccuracy =
           settings['improveAccuracy'] ?? userData['improveAccuracy'] ?? false;
@@ -226,8 +208,8 @@ class SettingsService extends ChangeNotifier {
     try {
       // Set the default values
       const defaultCurrency = 'MYR';
-      const defaultTheme = 'dark';
-      const defaultAllowNotification = true;
+      const defaultTheme = 'light';
+      const defaultAllowNotification = false;
       const defaultAutoBudget = false;
       const defaultImproveAccuracy = false;
 

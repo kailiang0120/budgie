@@ -5,7 +5,7 @@ class AuthButton extends StatelessWidget {
   final Widget leadingIcon;
   final Color backgroundColor;
   final Color textColor;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   const AuthButton({
     Key? key,
@@ -27,6 +27,8 @@ class AuthButton extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(45),
         ),
+        disabledBackgroundColor: backgroundColor.withOpacity(0.6),
+        disabledForegroundColor: textColor.withOpacity(0.6),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,

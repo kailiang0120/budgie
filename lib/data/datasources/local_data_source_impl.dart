@@ -91,11 +91,11 @@ class LocalDataSourceImpl implements LocalDataSource {
     final companion = UsersCompanion(
       id: Value(userId),
       currency: Value(settings['currency'] as String? ?? 'MYR'),
-      theme: Value(settings['theme'] as String? ?? 'dark'),
+      theme: Value(settings['theme'] as String? ?? 'light'),
       // Handle both nested and root-level format
       allowNotification: Value(settingsMap['allowNotification'] as bool? ??
           settings['allowNotification'] as bool? ??
-          true),
+          false),
       autoBudget: Value(settingsMap['autoBudget'] as bool? ??
           settings['autoBudget'] as bool? ??
           false),

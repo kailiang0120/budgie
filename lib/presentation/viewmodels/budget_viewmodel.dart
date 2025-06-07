@@ -8,6 +8,9 @@ import '../../core/utils/performance_monitor.dart';
 import '../../core/services/budget_calculation_service.dart';
 import '../../core/services/currency_conversion_service.dart';
 import '../../core/services/settings_service.dart';
+import '../../core/services/sync_service.dart';
+import '../../core/network/connectivity_service.dart';
+import '../../di/injection_container.dart' as di;
 
 class BudgetViewModel extends ChangeNotifier {
   final BudgetRepository _budgetRepository;
@@ -26,12 +29,57 @@ class BudgetViewModel extends ChangeNotifier {
   // Map to track pending budget saves by monthId
   final Map<String, Budget> _pendingSaves = {};
 
+  // Flag to track if we're offline
+  bool _isOffline = false;
+
   BudgetViewModel({
     required BudgetRepository budgetRepository,
     CurrencyConversionService? currencyConversionService,
   })  : _budgetRepository = budgetRepository,
         _currencyConversionService =
-            currencyConversionService ?? CurrencyConversionService();
+            currencyConversionService ?? CurrencyConversionService() {
+    _init();
+  }
+
+  /// Initialize the view model
+  Future<void> _init() async {
+    try {
+      // Check initial connectivity
+      final connectivityService = di.sl<ConnectivityService>();
+      _isOffline = !await connectivityService.isConnected;
+
+      // Listen for connectivity changes
+      connectivityService.connectionStatusStream.listen((isConnected) {
+        final wasOffline = _isOffline;
+        _isOffline = !isConnected;
+
+        // If we were offline and now we're online, trigger sync for any pending budgets
+        if (wasOffline && isConnected && budget != null) {
+          debugPrint(
+              '🔄 BudgetViewModel: Connection restored, triggering budget sync');
+          _triggerBudgetSync();
+        }
+      });
+    } catch (e) {
+      debugPrint('🔄 BudgetViewModel: Error initializing connectivity: $e');
+    }
+  }
+
+  /// Trigger budget synchronization
+  Future<void> _triggerBudgetSync() async {
+    try {
+      if (budget == null) return;
+
+      debugPrint('🔄 BudgetViewModel: Triggering budget synchronization');
+      final syncService = di.sl<SyncService>();
+
+      // Force a full sync that includes budgets
+      await syncService.syncData(fullSync: true, skipBudgets: false);
+      debugPrint('🔄 BudgetViewModel: Budget synchronization completed');
+    } catch (e) {
+      debugPrint('🔄 BudgetViewModel: Error during budget synchronization: $e');
+    }
+  }
 
   /// Load budget for a specific month and check if currency conversion is needed
   Future<void> loadBudget(String monthId, {bool checkCurrency = false}) async {
@@ -70,6 +118,12 @@ class BudgetViewModel extends ChangeNotifier {
                 monthId, settingsService.currency));
           }
         }
+
+        // If we're back online after being offline, trigger a sync
+        if (!_isOffline && budget != null) {
+          // Use microtask to avoid blocking the UI
+          Future.microtask(() => _triggerBudgetSync());
+        }
       } else {
         // No budget found
         budget = null;
@@ -84,6 +138,32 @@ class BudgetViewModel extends ChangeNotifier {
       if (error is AuthError) {
         budget = null;
       }
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Force refresh the budget data
+  Future<void> refreshBudget(String monthId) async {
+    try {
+      debugPrint('🔄 BudgetViewModel: Manual budget refresh requested');
+      isLoading = true;
+      notifyListeners();
+
+      // Check connectivity
+      final connectivityService = di.sl<ConnectivityService>();
+      final isConnected = await connectivityService.isConnected;
+
+      if (isConnected) {
+        // If online, trigger sync first
+        await _triggerBudgetSync();
+      }
+
+      // Then reload budget
+      await loadBudget(monthId, checkCurrency: true);
+    } catch (e) {
+      debugPrint('🔄 BudgetViewModel: Error refreshing budget: $e');
+      errorMessage = 'Failed to refresh budget: ${e.toString()}';
       isLoading = false;
       notifyListeners();
     }

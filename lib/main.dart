@@ -11,6 +11,7 @@ import 'core/router/app_router.dart';
 import 'core/services/settings_service.dart';
 import 'core/services/sync_service.dart';
 import 'core/services/recurring_expense_service.dart';
+import 'core/network/connectivity_service.dart';
 import 'presentation/viewmodels/expenses_viewmodel.dart';
 import 'presentation/viewmodels/auth_viewmodel.dart';
 import 'presentation/viewmodels/budget_viewmodel.dart';
@@ -92,16 +93,33 @@ Future<void> main() async {
     await di.init();
     debugPrint('Dependency injection initialized');
 
-    // Initialize SyncService only if a user is logged in
+    // Initialize ConnectivityService first to monitor network state
+    debugPrint('Initializing ConnectivityService...');
+    final connectivityService = di.sl<ConnectivityService>();
+
+    // Initialize SyncService for all users (logged in or not)
+    debugPrint('Initializing SyncService...');
+    final syncService = di.sl<SyncService>();
+    await syncService.initialize(startPeriodicSync: true);
+    debugPrint('SyncService initialized with automatic periodic sync');
+
+    // Initialize local data for logged in user
     if (currentUser != null) {
-      debugPrint('Initializing SyncService for logged in user...');
-      await di.sl<SyncService>().initialize(startPeriodicSync: false);
-      debugPrint('SyncService initialized without automatic periodic sync');
+      debugPrint('User is logged in, initializing local data...');
+
+      // Initialize SettingsService for the current user
+      final settingsService = di.sl<SettingsService>();
+      await settingsService.initializeForUser(currentUser.uid);
 
       // Start recurring expense service
       debugPrint('Starting RecurringExpenseService...');
       di.sl<RecurringExpenseService>().startProcessing();
       debugPrint('RecurringExpenseService started');
+
+      // Perform initial sync after a short delay to ensure everything is ready
+      Future.delayed(const Duration(seconds: 5), () {
+        syncService.forceFullSync();
+      });
     }
 
     // Disable Provider type checking in debug mode if needed
@@ -184,7 +202,18 @@ class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.detached) {
+    if (state == AppLifecycleState.resumed) {
+      // App is resumed from background, check for sync
+      final syncService = di.sl<SyncService>();
+      final auth = FirebaseAuth.instance;
+      if (auth.currentUser != null) {
+        // App is resumed and user is logged in, trigger sync
+        debugPrint('App resumed - checking for pending syncs');
+        Future.delayed(const Duration(seconds: 1), () {
+          syncService.syncData(fullSync: false);
+        });
+      }
+    } else if (state == AppLifecycleState.detached) {
       // App is being killed, clean up resources
       di.sl<SyncService>().dispose();
       di.sl<RecurringExpenseService>().stopProcessing();

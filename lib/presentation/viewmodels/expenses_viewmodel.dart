@@ -74,17 +74,28 @@ class ExpensesViewModel extends ChangeNotifier {
 
       // Reload data when going from offline to online
       if (wasOffline && isConnected) {
+        debugPrint(
+            '🔄 ExpensesViewModel: Network connection restored, triggering sync and reload');
+        // Trigger sync first
+        _triggerSync();
+        // Then reload data
         _startExpensesStream();
       } else if (!wasOffline && !isConnected) {
         // Load local data when going from online to offline
+        debugPrint(
+            '🔄 ExpensesViewModel: Network connection lost, loading from local database');
         _loadExpensesFromLocalDatabase();
       }
     });
 
     // Initial data load
     if (_isOffline) {
+      debugPrint(
+          '🔄 ExpensesViewModel: Starting in offline mode, loading from local database');
       _loadExpensesFromLocalDatabase();
     } else {
+      debugPrint(
+          '🔄 ExpensesViewModel: Starting in online mode, loading from server');
       _startExpensesStream();
     }
   }
@@ -572,10 +583,29 @@ class ExpensesViewModel extends ChangeNotifier {
 
   // 手动刷新数据（可从UI调用）
   Future<void> refreshData() async {
-    if (_isOffline) {
-      await _loadExpensesFromLocalDatabase();
-    } else {
-      _startExpensesStream();
+    debugPrint('🔄 ExpensesViewModel: Manual data refresh requested');
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // Check if we're online
+      final isConnected = await _connectivityService.isConnected;
+
+      if (isConnected) {
+        // If online, trigger sync first
+        await _triggerSync();
+        // Then reload data
+        await _loadExpensesFromLocalDatabase();
+      } else {
+        // If offline, just reload from local database
+        await _loadExpensesFromLocalDatabase();
+      }
+    } catch (e) {
+      debugPrint('🔄 ExpensesViewModel: Error refreshing data: $e');
+      _error = 'Failed to refresh data: ${e.toString()}';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -632,6 +662,18 @@ class ExpensesViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error getting current user ID: $e');
       return null;
+    }
+  }
+
+  // Trigger data synchronization
+  Future<void> _triggerSync() async {
+    try {
+      debugPrint('🔄 ExpensesViewModel: Triggering data synchronization');
+      final syncService = di.sl<SyncService>();
+      await syncService.syncData(fullSync: true);
+      debugPrint('🔄 ExpensesViewModel: Data synchronization completed');
+    } catch (e) {
+      debugPrint('🔄 ExpensesViewModel: Error during data synchronization: $e');
     }
   }
 
