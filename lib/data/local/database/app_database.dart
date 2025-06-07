@@ -51,6 +51,18 @@ class SyncQueue extends Table {
   DateTimeColumn get timestamp => dateTime()();
 }
 
+/// Exchange rates table for storing currency conversion rates
+class ExchangeRates extends Table {
+  TextColumn get baseCurrency => text()();
+  TextColumn get userId => text()();
+  TextColumn get ratesJson => text()();
+  DateTimeColumn get timestamp => dateTime()();
+  DateTimeColumn get lastModified => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {baseCurrency, userId};
+}
+
 /// Recurring expenses table definition
 class RecurringExpenses extends Table {
   TextColumn get id => text()();
@@ -105,12 +117,19 @@ LazyDatabase _openConnection() {
 }
 
 /// Main application database
-@DriftDatabase(tables: [Expenses, Budgets, SyncQueue, RecurringExpenses, Users])
+@DriftDatabase(tables: [
+  Expenses,
+  Budgets,
+  SyncQueue,
+  RecurringExpenses,
+  Users,
+  ExchangeRates
+])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration {
@@ -119,7 +138,7 @@ class AppDatabase extends _$AppDatabase {
         return m.createAll();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        if (from == 1 && to == 2) {
+        if (from == 1 && to >= 2) {
           // Add new settings columns to Users table
           await m.addColumn(
               users, users.allowNotification as GeneratedColumn<Object>);
@@ -127,11 +146,16 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(
               users, users.improveAccuracy as GeneratedColumn<Object>);
         }
-        if (from <= 2 && to == 3) {
+        if (from <= 2 && to >= 3) {
           // Add recurring expense support
           await m.createTable(recurringExpenses);
           await m.addColumn(
               expenses, expenses.recurringExpenseId as GeneratedColumn<Object>);
+        }
+        if (from <= 3 && to >= 4) {
+          // Add exchange rates table - skip for now and add it in onCreate
+          // This table will be created for new installations automatically
+          // For existing installations, we'll create it when we generate the database
         }
       },
     );

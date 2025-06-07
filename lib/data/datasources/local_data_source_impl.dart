@@ -511,9 +511,6 @@ class LocalDataSourceImpl implements LocalDataSource {
       // Only add to queue if no pending operation exists
       if (operations.isEmpty) {
         await addToSyncQueue('budget', monthId, userId, 'update');
-        debugPrint('Added budget to sync queue: $monthId');
-      } else {
-        debugPrint('Budget already in sync queue: $monthId');
       }
     }
   }
@@ -639,7 +636,8 @@ class LocalDataSourceImpl implements LocalDataSource {
 
   // Clean up resources
   void dispose() {
-    // Implementation will be added later when notification service is integrated
+    // Close the database connection
+    _database.close();
   }
 
   // Exchange rates operations
@@ -647,9 +645,25 @@ class LocalDataSourceImpl implements LocalDataSource {
   Future<Map<String, dynamic>?> getExchangeRates(
       String baseCurrency, String userId) async {
     try {
-      // Implementation will be added when exchange_rates table is defined
-      // For now, return null to use the default fallback rates
-      return null;
+      // Get the exchange rates from the database
+      final query = _database.select(_database.exchangeRates)
+        ..where((tbl) =>
+            tbl.baseCurrency.equals(baseCurrency) & tbl.userId.equals(userId));
+
+      final ratesRow = await query.getSingleOrNull();
+
+      if (ratesRow == null) {
+        return null;
+      }
+
+      // Parse rates JSON into a Map
+      final ratesMap = jsonDecode(ratesRow.ratesJson) as Map<String, dynamic>;
+
+      return {
+        'baseCurrency': ratesRow.baseCurrency,
+        'timestamp': ratesRow.timestamp.millisecondsSinceEpoch,
+        'rates': ratesMap,
+      };
     } catch (e) {
       debugPrint('Error getting exchange rates from local database: $e');
       return null;
@@ -660,12 +674,23 @@ class LocalDataSourceImpl implements LocalDataSource {
   Future<void> saveExchangeRates(String baseCurrency, Map<String, double> rates,
       String userId, DateTime timestamp) async {
     try {
-      // Implementation will be added when exchange_rates table is defined
-      debugPrint(
-          'Exchange rates will be saved when database schema is updated');
+      // Convert rates map to JSON string
+      final ratesJson = jsonEncode(rates);
+
+      // Insert or update the exchange rates
+      await _database.into(_database.exchangeRates).insertOnConflictUpdate(
+            ExchangeRatesCompanion.insert(
+              baseCurrency: baseCurrency,
+              userId: userId,
+              ratesJson: ratesJson,
+              timestamp: timestamp,
+              lastModified: DateTime.now(),
+            ),
+          );
+
+      debugPrint('Exchange rates saved for $baseCurrency');
     } catch (e) {
       debugPrint('Error saving exchange rates to local database: $e');
     }
   }
-
 }

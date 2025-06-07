@@ -1,10 +1,74 @@
 import 'package:flutter/material.dart';
 
 import 'page_transition.dart';
+import 'app_router.dart' show AppRouter, navigatorKey;
 import '../constants/routes.dart';
 
 /// Enhanced navigation helper with smooth transitions
 class NavigationHelper {
+  /// Navigate with specified transition type
+  static Future<T?> _navigateWithTransition<T extends Object?>(
+    BuildContext context,
+    String routeName, {
+    Object? arguments,
+    bool replace = false,
+    TransitionType transitionType = TransitionType.smoothSlideRight,
+    Duration duration = const Duration(milliseconds: 350),
+    Curve curve = Curves.easeInOutCubic,
+  }) async {
+    // Create route settings to pass to app router
+    final RouteSettings settings = RouteSettings(
+      name: routeName,
+      arguments: arguments,
+    );
+
+    // Get the route from app router to ensure correct screen is used
+    final route = AppRouter.generateRoute(settings);
+
+    // Apply custom transition
+    final pageRoute = PageTransition(
+      // Access the route's widget directly
+      child: _extractChildFromRoute(route),
+      type: transitionType,
+      duration: duration,
+      curve: curve,
+      settings: settings,
+    );
+
+    if (replace) {
+      return Navigator.pushReplacement<T, void>(context, pageRoute as Route<T>);
+    } else {
+      return Navigator.push<T>(context, pageRoute as Route<T>);
+    }
+  }
+
+  /// Extract child widget from a route
+  static Widget _extractChildFromRoute(Route<dynamic> route) {
+    // For MaterialPageRoute, PageRouteBuilder, and our custom PageTransition
+    if (route is MaterialPageRoute) {
+      return route.builder(navigatorKey.currentContext!);
+    } else if (route is PageRouteBuilder) {
+      return route.pageBuilder(
+        navigatorKey.currentContext!,
+        Animation<double>.fromValueListenable(
+          const AlwaysStoppedAnimation<double>(1.0),
+        ),
+        Animation<double>.fromValueListenable(
+          const AlwaysStoppedAnimation<double>(1.0),
+        ),
+      );
+    } else if (route is PageTransition) {
+      return route.child;
+    }
+
+    // Fallback for unknown route types
+    return const Scaffold(
+      body: Center(
+        child: Text('Screen not found'),
+      ),
+    );
+  }
+
   /// Navigate with smooth slide transition
   static Future<T?> navigateWithSlide<T extends Object?>(
     BuildContext context,
@@ -13,19 +77,15 @@ class NavigationHelper {
     bool replace = false,
     TransitionType? customTransition,
   }) async {
-    final route = PageTransition(
-      child: _getScreenWidget(routeName),
-      type: customTransition ?? TransitionType.smoothSlideRight,
+    return _navigateWithTransition<T>(
+      context,
+      routeName,
+      arguments: arguments,
+      replace: replace,
+      transitionType: customTransition ?? TransitionType.smoothSlideRight,
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeInOutCubic,
-      settings: RouteSettings(name: routeName, arguments: arguments),
     );
-
-    if (replace) {
-      return Navigator.pushReplacement<T, void>(context, route as Route<T>);
-    } else {
-      return Navigator.push<T>(context, route as Route<T>);
-    }
   }
 
   /// Navigate with fade transition for subtle changes
@@ -35,19 +95,15 @@ class NavigationHelper {
     Object? arguments,
     bool replace = false,
   }) async {
-    final route = PageTransition(
-      child: _getScreenWidget(routeName),
-      type: TransitionType.smoothFadeSlide,
+    return _navigateWithTransition<T>(
+      context,
+      routeName,
+      arguments: arguments,
+      replace: replace,
+      transitionType: TransitionType.smoothFadeSlide,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeOutQuart,
-      settings: RouteSettings(name: routeName, arguments: arguments),
     );
-
-    if (replace) {
-      return Navigator.pushReplacement<T, void>(context, route as Route<T>);
-    } else {
-      return Navigator.push<T>(context, route as Route<T>);
-    }
   }
 
   /// Navigate with scale transition for important screens
@@ -57,19 +113,15 @@ class NavigationHelper {
     Object? arguments,
     bool replace = false,
   }) async {
-    final route = PageTransition(
-      child: _getScreenWidget(routeName),
-      type: TransitionType.smoothScale,
+    return _navigateWithTransition<T>(
+      context,
+      routeName,
+      arguments: arguments,
+      replace: replace,
+      transitionType: TransitionType.smoothScale,
       duration: const Duration(milliseconds: 450),
       curve: Curves.easeInOutBack,
-      settings: RouteSettings(name: routeName, arguments: arguments),
     );
-
-    if (replace) {
-      return Navigator.pushReplacement<T, void>(context, route as Route<T>);
-    } else {
-      return Navigator.push<T>(context, route as Route<T>);
-    }
   }
 
   /// Navigate with modal-style transition (from bottom)
@@ -78,15 +130,15 @@ class NavigationHelper {
     String routeName, {
     Object? arguments,
   }) async {
-    final route = PageTransition(
-      child: _getScreenWidget(routeName),
-      type: TransitionType.slideAndFadeVertical,
+    return _navigateWithTransition<T>(
+      context,
+      routeName,
+      arguments: arguments,
+      replace: false,
+      transitionType: TransitionType.slideAndFadeVertical,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeOutCubic,
-      settings: RouteSettings(name: routeName, arguments: arguments),
     );
-
-    return Navigator.push<T>(context, route as Route<T>);
   }
 
   /// Navigate to home with special transition
@@ -135,15 +187,25 @@ class NavigationHelper {
     TO? result,
     TransitionType? transition,
   }) async {
-    final route = PageTransition(
-      child: _getScreenWidget(routeName),
+    // Create route settings
+    final RouteSettings settings = RouteSettings(
+      name: routeName,
+      arguments: arguments,
+    );
+
+    // Get the route from app router
+    final route = AppRouter.generateRoute(settings);
+
+    // Apply custom transition
+    final pageRoute = PageTransition(
+      child: _extractChildFromRoute(route),
       type: transition ?? TransitionType.smoothSlideRight,
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeInOutCubic,
-      settings: RouteSettings(name: routeName, arguments: arguments),
+      settings: settings,
     );
 
-    return Navigator.pushReplacement<T, TO>(context, route as Route<T>,
+    return Navigator.pushReplacement<T, TO>(context, pageRoute as Route<T>,
         result: result);
   }
 
@@ -154,44 +216,29 @@ class NavigationHelper {
     Object? arguments,
     TransitionType? transition,
   }) async {
-    final route = PageTransition(
-      child: _getScreenWidget(routeName),
+    // Create route settings
+    final RouteSettings settings = RouteSettings(
+      name: routeName,
+      arguments: arguments,
+    );
+
+    // Get the route from app router
+    final route = AppRouter.generateRoute(settings);
+
+    // Apply custom transition
+    final pageRoute = PageTransition(
+      child: _extractChildFromRoute(route),
       type: transition ?? TransitionType.smoothFadeSlide,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOut,
-      settings: RouteSettings(name: routeName, arguments: arguments),
+      settings: settings,
     );
 
     return Navigator.pushAndRemoveUntil<T>(
       context,
-      route as Route<T>,
+      pageRoute as Route<T>,
       (Route<dynamic> route) => false,
     );
-  }
-
-  /// Helper method to get screen widget by route name
-  /// Note: This is a placeholder implementation. In production,
-  /// you should use the actual screen widgets or route generation logic.
-  static Widget _getScreenWidget(String routeName) {
-    switch (routeName) {
-      case Routes.home:
-      case Routes.settings:
-      case Routes.profile:
-      case Routes.analytic:
-      case Routes.expenses:
-        // Return placeholder - actual implementation should use proper screens
-        return const Scaffold(
-          body: Center(
-            child: CircularProgressIndicator(),
-          ),
-        );
-      default:
-        return const Scaffold(
-          body: Center(
-            child: Text('Screen not found'),
-          ),
-        );
-    }
   }
 }
 

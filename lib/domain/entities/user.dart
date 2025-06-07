@@ -1,3 +1,5 @@
+import 'constants.dart';
+
 /// User entity representing a user in the application
 class User {
   /// Unique identifier for the user
@@ -12,10 +14,10 @@ class User {
   /// URL to user's profile photo
   final String? photoUrl;
 
-  /// User's preferred currency (default: MYR)
+  /// User's preferred currency
   final String currency;
 
-  /// User's preferred theme (default: light)
+  /// User's preferred theme
   final String theme;
 
   /// Creates a new User instance
@@ -24,9 +26,10 @@ class User {
     this.email,
     this.displayName,
     this.photoUrl,
-    this.currency = 'MYR',
-    this.theme = 'light',
-  });
+    String? currency,
+    String? theme,
+  })  : currency = currency ?? DomainConstants.defaultCurrency,
+        theme = theme ?? DomainConstants.defaultTheme;
 
   /// Creates a copy of this User with the given fields replaced with new values
   User copyWith({

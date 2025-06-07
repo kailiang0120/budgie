@@ -81,7 +81,6 @@ class CurrencyConversionService {
       'VND': 27153.50,
       'IDR': 17123.98
     },
-    // Add more default rates as needed
   };
 
   // Cache for exchange rates
@@ -95,132 +94,101 @@ class CurrencyConversionService {
   static const String _exchangeRateApiUrl =
       'https://open.er-api.com/v6/latest/';
 
+  /// Constants for cache expiration
+  static const int _cacheExpirationHours = 6;
+  static const int _localStorageExpirationHours = 24;
+
   /// Get the latest exchange rates from an API or Firestore
   Future<Map<String, double>> getExchangeRates(String baseCurrency) async {
     try {
-      // Check if we have cached rates that are less than 6 hours old
-      final now = DateTime.now();
-      if (_cachedRates.containsKey(baseCurrency) &&
-          now.difference(_lastFetchTime).inHours < 6) {
-        debugPrint('🔄 Using cached rates for $baseCurrency');
-        return _cachedRates[baseCurrency]!;
-      }
+      // 1. Check in-memory cache first (fastest)
+      final inMemoryRates = _getFromMemoryCache(baseCurrency);
+      if (inMemoryRates != null) return inMemoryRates;
 
-      // Check if we have locally stored rates from SharedPreferences
+      // 2. Try local storage next
       final localRates = await _getStoredRates(baseCurrency);
       if (localRates != null) {
-        // Update in-memory cache
-        if (!_cachedRates.containsKey(baseCurrency)) {
-          _cachedRates[baseCurrency] = {};
-        }
-        _cachedRates[baseCurrency] = localRates;
-        _lastFetchTime = now;
-
-        // Try to fetch newer rates in the background if we're online
+        _updateCachedRates(baseCurrency, localRates);
         _fetchFreshRatesInBackground(baseCurrency);
-
-        debugPrint('🔄 Using locally stored rates for $baseCurrency');
         return localRates;
       }
 
-      // Check network connectivity
-      bool isConnected = false;
-      if (_connectivityService != null) {
-        isConnected = await _connectivityService!.isConnected;
-      }
-
+      // 3. Try network sources if connected
+      final isConnected = await _isNetworkConnected();
       if (isConnected) {
-        // Try to get rates from Firestore first (shared across app users)
+        // Try Firestore first (shared across app users)
         final firestoreRates =
             await _getExchangeRatesFromFirestore(baseCurrency);
         if (firestoreRates != null) {
-          // Cache the rates
-          if (!_cachedRates.containsKey(baseCurrency)) {
-            _cachedRates[baseCurrency] = {};
-          }
-          _cachedRates[baseCurrency] = firestoreRates;
-          _lastFetchTime = now;
-
-          // Also save locally
-          _storeRatesLocally(baseCurrency, firestoreRates);
-
-          debugPrint('🔄 Using Firestore rates for $baseCurrency');
+          _saveRatesToAllCaches(baseCurrency, firestoreRates);
           return firestoreRates;
         }
 
-        // If not in Firestore, try to fetch from API
+        // Then try external API
         final apiRates = await _fetchExchangeRatesFromApi(baseCurrency);
         if (apiRates != null) {
-          // Cache the rates
-          if (!_cachedRates.containsKey(baseCurrency)) {
-            _cachedRates[baseCurrency] = {};
-          }
-          _cachedRates[baseCurrency] = apiRates;
-          _lastFetchTime = now;
-
-          // Store in Firestore for other users
-          _saveExchangeRatesToFirestore(baseCurrency, apiRates);
-
-          // Also save locally
-          _storeRatesLocally(baseCurrency, apiRates);
-
-          debugPrint('🔄 Using API rates for $baseCurrency');
+          _saveRatesToAllCaches(baseCurrency, apiRates);
           return apiRates;
         }
       }
 
-      // If all else fails, use default rates
+      // 4. Fall back to default rates
       if (_defaultRates.containsKey(baseCurrency)) {
-        // Also save locally for future use
-        _storeRatesLocally(baseCurrency, _defaultRates[baseCurrency]!);
-
-        debugPrint('🔄 Using default rates for $baseCurrency');
-        return _defaultRates[baseCurrency]!;
+        final defaultRates = _defaultRates[baseCurrency]!;
+        _storeRatesLocally(baseCurrency, defaultRates);
+        return defaultRates;
       }
 
-      // If no default rates for this currency, return empty map
+      // Last resort: empty map
       return {};
     } catch (e) {
-      debugPrint('🔄 Error getting exchange rates: $e');
+      debugPrint('Error getting exchange rates: $e');
       // Fallback to default rates
-      if (_defaultRates.containsKey(baseCurrency)) {
-        return _defaultRates[baseCurrency]!;
-      }
-      return {};
+      return _defaultRates[baseCurrency] ?? {};
     }
+  }
+
+  /// Check if device is connected to network
+  Future<bool> _isNetworkConnected() async {
+    if (_connectivityService == null) return false;
+    return await _connectivityService!.isConnected;
+  }
+
+  /// Get rates from memory cache if not expired
+  Map<String, double>? _getFromMemoryCache(String baseCurrency) {
+    final now = DateTime.now();
+    if (_cachedRates.containsKey(baseCurrency) &&
+        now.difference(_lastFetchTime).inHours < _cacheExpirationHours) {
+      return _cachedRates[baseCurrency];
+    }
+    return null;
+  }
+
+  /// Update the in-memory cache with new rates
+  void _updateCachedRates(String baseCurrency, Map<String, double> rates) {
+    _cachedRates[baseCurrency] = rates;
+    _lastFetchTime = DateTime.now();
+  }
+
+  /// Save rates to all caching mechanisms (memory, local storage, Firestore)
+  Future<void> _saveRatesToAllCaches(
+      String baseCurrency, Map<String, double> rates) async {
+    _updateCachedRates(baseCurrency, rates);
+    await _storeRatesLocally(baseCurrency, rates);
+    await _saveExchangeRatesToFirestore(baseCurrency, rates);
   }
 
   /// Fetch fresh rates in the background without blocking UI
   Future<void> _fetchFreshRatesInBackground(String baseCurrency) async {
     try {
-      // Check connectivity
-      bool isConnected = false;
-      if (_connectivityService != null) {
-        isConnected = await _connectivityService!.isConnected;
-      }
+      if (!await _isNetworkConnected()) return;
 
-      if (!isConnected) return;
-
-      debugPrint('🔄 Fetching fresh rates in background for $baseCurrency');
-
-      // Try API first
       final apiRates = await _fetchExchangeRatesFromApi(baseCurrency);
       if (apiRates != null) {
-        // Update in-memory cache
-        if (!_cachedRates.containsKey(baseCurrency)) {
-          _cachedRates[baseCurrency] = {};
-        }
-        _cachedRates[baseCurrency] = apiRates;
-        _lastFetchTime = DateTime.now();
-
-        // Store in Firestore and locally
-        _saveExchangeRatesToFirestore(baseCurrency, apiRates);
-        _storeRatesLocally(baseCurrency, apiRates);
-
-        debugPrint('🔄 Updated rates in background for $baseCurrency');
+        _saveRatesToAllCaches(baseCurrency, apiRates);
       }
     } catch (e) {
-      debugPrint('🔄 Error updating rates in background: $e');
+      debugPrint('Error updating rates in background: $e');
     }
   }
 
@@ -236,9 +204,8 @@ class CurrencyConversionService {
 
       await prefs.setString(
           'exchange_rates_$baseCurrency', jsonEncode(ratesData));
-      debugPrint('🔄 Stored rates locally for $baseCurrency');
     } catch (e) {
-      debugPrint('🔄 Error storing rates locally: $e');
+      debugPrint('Error storing rates locally: $e');
     }
   }
 
@@ -255,7 +222,8 @@ class CurrencyConversionService {
           DateTime.fromMillisecondsSinceEpoch(ratesData['timestamp'] as int);
 
       // Check if rates are less than 24 hours old
-      if (DateTime.now().difference(timestamp).inHours < 24) {
+      if (DateTime.now().difference(timestamp).inHours <
+          _localStorageExpirationHours) {
         final ratesMap = ratesData['rates'] as Map<String, dynamic>;
         return ratesMap
             .map((key, value) => MapEntry(key, (value as num).toDouble()));
@@ -263,7 +231,7 @@ class CurrencyConversionService {
 
       return null;
     } catch (e) {
-      debugPrint('🔄 Error getting stored rates: $e');
+      debugPrint('Error getting stored rates: $e');
       return null;
     }
   }
@@ -283,7 +251,7 @@ class CurrencyConversionService {
       }
       return null;
     } catch (e) {
-      debugPrint('🔄 Error fetching exchange rates from API: $e');
+      debugPrint('Error fetching exchange rates from API: $e');
       return null;
     }
   }
@@ -304,7 +272,8 @@ class CurrencyConversionService {
         final timestamp = data['timestamp'] as Timestamp?;
         if (timestamp != null) {
           final updateTime = timestamp.toDate();
-          if (DateTime.now().difference(updateTime).inHours < 24) {
+          if (DateTime.now().difference(updateTime).inHours <
+              _localStorageExpirationHours) {
             final rates = data['rates'] as Map<String, dynamic>?;
             if (rates != null) {
               return rates.map(
@@ -315,7 +284,7 @@ class CurrencyConversionService {
       }
       return null;
     } catch (e) {
-      debugPrint('🔄 Error getting exchange rates from Firestore: $e');
+      debugPrint('Error getting exchange rates from Firestore: $e');
       return null;
     }
   }
@@ -336,7 +305,7 @@ class CurrencyConversionService {
         'updatedBy': user.uid,
       });
     } catch (e) {
-      debugPrint('🔄 Error saving exchange rates to Firestore: $e');
+      debugPrint('Error saving exchange rates to Firestore: $e');
     }
   }
 
@@ -344,6 +313,9 @@ class CurrencyConversionService {
   /// Returns the direct conversion rate or null if not available
   Future<double?> getExchangeRate(
       String fromCurrency, String toCurrency) async {
+    // If currencies are the same, rate is 1
+    if (fromCurrency == toCurrency) return 1.0;
+
     // Check if we already have a saved rate for consistency
     if (_usedRates.containsKey(fromCurrency) &&
         _usedRates[fromCurrency]!.containsKey(toCurrency)) {
@@ -351,39 +323,37 @@ class CurrencyConversionService {
     }
 
     try {
-      // If currencies are the same, rate is 1
-      if (fromCurrency == toCurrency) {
-        return 1.0;
-      }
-
       // Get exchange rates for the base currency
       final rates = await getExchangeRates(fromCurrency);
 
       // If we have a direct conversion rate
       if (rates.containsKey(toCurrency)) {
         final rate = rates[toCurrency]!;
-
-        // Save the rate for future consistency
-        if (!_usedRates.containsKey(fromCurrency)) {
-          _usedRates[fromCurrency] = {};
-        }
-        _usedRates[fromCurrency]![toCurrency] = rate;
-
-        // Also save the inverse rate for consistency
-        if (!_usedRates.containsKey(toCurrency)) {
-          _usedRates[toCurrency] = {};
-        }
-        _usedRates[toCurrency]![fromCurrency] = 1.0 / rate;
-
+        _saveRateForConsistency(fromCurrency, toCurrency, rate);
         return rate;
       }
 
-      // If no direct rate, return null
       return null;
     } catch (e) {
-      debugPrint('🔄 Error getting exchange rate: $e');
+      debugPrint('Error getting exchange rate: $e');
       return null;
     }
+  }
+
+  /// Save rate and its inverse for future consistency
+  void _saveRateForConsistency(
+      String fromCurrency, String toCurrency, double rate) {
+    // Save direct rate
+    if (!_usedRates.containsKey(fromCurrency)) {
+      _usedRates[fromCurrency] = {};
+    }
+    _usedRates[fromCurrency]![toCurrency] = rate;
+
+    // Save inverse rate
+    if (!_usedRates.containsKey(toCurrency)) {
+      _usedRates[toCurrency] = {};
+    }
+    _usedRates[toCurrency]![fromCurrency] = 1.0 / rate;
   }
 
   /// Convert amount from one currency to another with improved consistency
@@ -391,75 +361,55 @@ class CurrencyConversionService {
       double amount, String fromCurrency, String toCurrency) async {
     // If currencies are the same, no conversion needed
     if (fromCurrency == toCurrency) {
-      return double.parse(amount.toStringAsFixed(2));
+      return _formatAmount(amount);
     }
 
     try {
-      // First check if we already have a saved rate for consistency
-      double? savedRate;
-      if (_usedRates.containsKey(fromCurrency) &&
-          _usedRates[fromCurrency]!.containsKey(toCurrency)) {
-        savedRate = _usedRates[fromCurrency]![toCurrency];
-        debugPrint(
-            '🔄 Using saved rate for consistency: $savedRate ($fromCurrency to $toCurrency)');
-        // Make sure to handle null case even though it's unlikely
-        if (savedRate != null) {
-          return double.parse((amount * savedRate).toStringAsFixed(2));
-        }
+      // Try using a saved rate first for consistency
+      double? savedRate = _getSavedRate(fromCurrency, toCurrency);
+      if (savedRate != null) {
+        return _formatAmount(amount * savedRate);
       }
 
-      // Get exchange rates for the base currency
+      // Get fresh rates and convert
       final rates = await getExchangeRates(fromCurrency);
 
       // If we have a direct conversion rate
       if (rates.containsKey(toCurrency)) {
         final rate = rates[toCurrency]!;
-
-        // Save the rate for future consistency
-        if (!_usedRates.containsKey(fromCurrency)) {
-          _usedRates[fromCurrency] = {};
-        }
-        _usedRates[fromCurrency]![toCurrency] = rate;
-
-        // Also save the inverse rate for consistency
-        if (!_usedRates.containsKey(toCurrency)) {
-          _usedRates[toCurrency] = {};
-        }
-        _usedRates[toCurrency]![fromCurrency] = 1.0 / rate;
-
-        final convertedAmount = amount * rate;
-        return double.parse(convertedAmount.toStringAsFixed(2));
+        _saveRateForConsistency(fromCurrency, toCurrency, rate);
+        return _formatAmount(amount * rate);
       }
 
-      // If still no conversion path found, use default rates
+      // Try default rates as fallback
       if (_defaultRates.containsKey(fromCurrency) &&
           _defaultRates[fromCurrency]!.containsKey(toCurrency)) {
         final rate = _defaultRates[fromCurrency]![toCurrency]!;
-
-        // Save the rate for future consistency
-        if (!_usedRates.containsKey(fromCurrency)) {
-          _usedRates[fromCurrency] = {};
-        }
-        _usedRates[fromCurrency]![toCurrency] = rate;
-
-        // Also save the inverse rate for consistency
-        if (!_usedRates.containsKey(toCurrency)) {
-          _usedRates[toCurrency] = {};
-        }
-        _usedRates[toCurrency]![fromCurrency] = 1.0 / rate;
-
-        final convertedAmount = amount * rate;
-        return double.parse(convertedAmount.toStringAsFixed(2));
+        _saveRateForConsistency(fromCurrency, toCurrency, rate);
+        return _formatAmount(amount * rate);
       }
 
       // If all else fails, return the original amount with 2 decimal places
-      debugPrint(
-          '🔄 No conversion rate found for $fromCurrency to $toCurrency');
-      return double.parse(amount.toStringAsFixed(2));
+      debugPrint('No conversion rate found for $fromCurrency to $toCurrency');
+      return _formatAmount(amount);
     } catch (e) {
-      debugPrint('🔄 Error converting currency: $e');
-      return double.parse(amount.toStringAsFixed(2));
+      debugPrint('Error converting currency: $e');
+      return _formatAmount(amount);
     }
+  }
+
+  /// Get saved rate if available
+  double? _getSavedRate(String fromCurrency, String toCurrency) {
+    if (_usedRates.containsKey(fromCurrency) &&
+        _usedRates[fromCurrency]!.containsKey(toCurrency)) {
+      return _usedRates[fromCurrency]![toCurrency];
+    }
+    return null;
+  }
+
+  /// Format amount to 2 decimal places
+  double _formatAmount(double amount) {
+    return double.parse(amount.toStringAsFixed(2));
   }
 
   /// Convert amount back using the saved exchange rate for consistency
@@ -467,48 +417,35 @@ class CurrencyConversionService {
       double amount, String fromCurrency, String toCurrency) async {
     // If currencies are the same, no conversion needed
     if (fromCurrency == toCurrency) {
-      return double.parse(amount.toStringAsFixed(2));
+      return _formatAmount(amount);
     }
 
     try {
-      // Check if we have the saved rate in the opposite direction
-      if (_usedRates.containsKey(toCurrency) &&
-          _usedRates[toCurrency]!.containsKey(fromCurrency)) {
-        final rate = _usedRates[toCurrency]![fromCurrency]!;
-        debugPrint(
-            '🔄 Converting back with saved rate: $rate ($fromCurrency to $toCurrency)');
-        return double.parse((amount * rate).toStringAsFixed(2));
+      // Check for direct saved rate (toCurrency -> fromCurrency)
+      double? directRate = _getSavedRate(toCurrency, fromCurrency);
+      if (directRate != null) {
+        return _formatAmount(amount * directRate);
       }
 
-      // If not, we need to check the forward rate and use its inverse
-      if (_usedRates.containsKey(fromCurrency) &&
-          _usedRates[fromCurrency]!.containsKey(toCurrency)) {
-        final forwardRate = _usedRates[fromCurrency]![toCurrency]!;
-        final inverseRate = 1.0 / forwardRate;
-
-        // Save the inverse rate for future consistency
-        if (!_usedRates.containsKey(toCurrency)) {
-          _usedRates[toCurrency] = {};
-        }
-        _usedRates[toCurrency]![fromCurrency] = inverseRate;
-
-        debugPrint(
-            '🔄 Converting back with calculated inverse rate: $inverseRate');
-        return double.parse((amount * inverseRate).toStringAsFixed(2));
+      // Check for inverse of saved rate (fromCurrency -> toCurrency)
+      double? inverseSourceRate = _getSavedRate(fromCurrency, toCurrency);
+      if (inverseSourceRate != null) {
+        double inverseRate = 1.0 / inverseSourceRate;
+        _saveRateForConsistency(toCurrency, fromCurrency, inverseRate);
+        return _formatAmount(amount * inverseRate);
       }
 
-      // If we don't have a saved rate in either direction, fetch a new one
+      // Get a fresh rate
       final exchangeRate = await getExchangeRate(toCurrency, fromCurrency);
       if (exchangeRate != null) {
-        final convertedAmount = amount * exchangeRate;
-        return double.parse(convertedAmount.toStringAsFixed(2));
+        return _formatAmount(amount * exchangeRate);
       }
 
       // Fall back to regular conversion if no inverse found
       return await convertCurrency(amount, toCurrency, fromCurrency);
     } catch (e) {
-      debugPrint('🔄 Error converting currency back: $e');
-      return double.parse(amount.toStringAsFixed(2));
+      debugPrint('Error converting currency back: $e');
+      return _formatAmount(amount);
     }
   }
 }

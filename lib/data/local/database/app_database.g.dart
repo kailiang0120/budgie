@@ -44,14 +44,6 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
   late final GeneratedColumn<String> method = GeneratedColumn<String>(
       'method', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _paymentFrequencyMeta =
-      const VerificationMeta('paymentFrequency');
-  @override
-  late final GeneratedColumn<String> paymentFrequency = GeneratedColumn<String>(
-      'payment_frequency', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('one-time'));
   static const VerificationMeta _descriptionMeta =
       const VerificationMeta('description');
   @override
@@ -97,7 +89,6 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
         date,
         category,
         method,
-        paymentFrequency,
         description,
         currency,
         recurringExpenseId,
@@ -155,12 +146,6 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
     } else if (isInserting) {
       context.missing(_methodMeta);
     }
-    if (data.containsKey('payment_frequency')) {
-      context.handle(
-          _paymentFrequencyMeta,
-          paymentFrequency.isAcceptableOrUnknown(
-              data['payment_frequency']!, _paymentFrequencyMeta));
-    }
     if (data.containsKey('description')) {
       context.handle(
           _descriptionMeta,
@@ -212,8 +197,6 @@ class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
           .read(DriftSqlType.string, data['${effectivePrefix}category'])!,
       method: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}method'])!,
-      paymentFrequency: attachedDatabase.typeMapping.read(
-          DriftSqlType.string, data['${effectivePrefix}payment_frequency'])!,
       description: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}description']),
       currency: attachedDatabase.typeMapping
@@ -241,7 +224,6 @@ class Expense extends DataClass implements Insertable<Expense> {
   final DateTime date;
   final String category;
   final String method;
-  final String paymentFrequency;
   final String? description;
   final String currency;
   final String? recurringExpenseId;
@@ -255,7 +237,6 @@ class Expense extends DataClass implements Insertable<Expense> {
       required this.date,
       required this.category,
       required this.method,
-      required this.paymentFrequency,
       this.description,
       required this.currency,
       this.recurringExpenseId,
@@ -271,7 +252,6 @@ class Expense extends DataClass implements Insertable<Expense> {
     map['date'] = Variable<DateTime>(date);
     map['category'] = Variable<String>(category);
     map['method'] = Variable<String>(method);
-    map['payment_frequency'] = Variable<String>(paymentFrequency);
     if (!nullToAbsent || description != null) {
       map['description'] = Variable<String>(description);
     }
@@ -293,7 +273,6 @@ class Expense extends DataClass implements Insertable<Expense> {
       date: Value(date),
       category: Value(category),
       method: Value(method),
-      paymentFrequency: Value(paymentFrequency),
       description: description == null && nullToAbsent
           ? const Value.absent()
           : Value(description),
@@ -317,7 +296,6 @@ class Expense extends DataClass implements Insertable<Expense> {
       date: serializer.fromJson<DateTime>(json['date']),
       category: serializer.fromJson<String>(json['category']),
       method: serializer.fromJson<String>(json['method']),
-      paymentFrequency: serializer.fromJson<String>(json['paymentFrequency']),
       description: serializer.fromJson<String?>(json['description']),
       currency: serializer.fromJson<String>(json['currency']),
       recurringExpenseId:
@@ -337,7 +315,6 @@ class Expense extends DataClass implements Insertable<Expense> {
       'date': serializer.toJson<DateTime>(date),
       'category': serializer.toJson<String>(category),
       'method': serializer.toJson<String>(method),
-      'paymentFrequency': serializer.toJson<String>(paymentFrequency),
       'description': serializer.toJson<String?>(description),
       'currency': serializer.toJson<String>(currency),
       'recurringExpenseId': serializer.toJson<String?>(recurringExpenseId),
@@ -354,7 +331,6 @@ class Expense extends DataClass implements Insertable<Expense> {
           DateTime? date,
           String? category,
           String? method,
-          String? paymentFrequency,
           Value<String?> description = const Value.absent(),
           String? currency,
           Value<String?> recurringExpenseId = const Value.absent(),
@@ -368,7 +344,6 @@ class Expense extends DataClass implements Insertable<Expense> {
         date: date ?? this.date,
         category: category ?? this.category,
         method: method ?? this.method,
-        paymentFrequency: paymentFrequency ?? this.paymentFrequency,
         description: description.present ? description.value : this.description,
         currency: currency ?? this.currency,
         recurringExpenseId: recurringExpenseId.present
@@ -386,9 +361,6 @@ class Expense extends DataClass implements Insertable<Expense> {
       date: data.date.present ? data.date.value : this.date,
       category: data.category.present ? data.category.value : this.category,
       method: data.method.present ? data.method.value : this.method,
-      paymentFrequency: data.paymentFrequency.present
-          ? data.paymentFrequency.value
-          : this.paymentFrequency,
       description:
           data.description.present ? data.description.value : this.description,
       currency: data.currency.present ? data.currency.value : this.currency,
@@ -412,7 +384,6 @@ class Expense extends DataClass implements Insertable<Expense> {
           ..write('date: $date, ')
           ..write('category: $category, ')
           ..write('method: $method, ')
-          ..write('paymentFrequency: $paymentFrequency, ')
           ..write('description: $description, ')
           ..write('currency: $currency, ')
           ..write('recurringExpenseId: $recurringExpenseId, ')
@@ -431,7 +402,6 @@ class Expense extends DataClass implements Insertable<Expense> {
       date,
       category,
       method,
-      paymentFrequency,
       description,
       currency,
       recurringExpenseId,
@@ -448,7 +418,6 @@ class Expense extends DataClass implements Insertable<Expense> {
           other.date == this.date &&
           other.category == this.category &&
           other.method == this.method &&
-          other.paymentFrequency == this.paymentFrequency &&
           other.description == this.description &&
           other.currency == this.currency &&
           other.recurringExpenseId == this.recurringExpenseId &&
@@ -464,7 +433,6 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
   final Value<DateTime> date;
   final Value<String> category;
   final Value<String> method;
-  final Value<String> paymentFrequency;
   final Value<String?> description;
   final Value<String> currency;
   final Value<String?> recurringExpenseId;
@@ -479,7 +447,6 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     this.date = const Value.absent(),
     this.category = const Value.absent(),
     this.method = const Value.absent(),
-    this.paymentFrequency = const Value.absent(),
     this.description = const Value.absent(),
     this.currency = const Value.absent(),
     this.recurringExpenseId = const Value.absent(),
@@ -495,7 +462,6 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     required DateTime date,
     required String category,
     required String method,
-    this.paymentFrequency = const Value.absent(),
     this.description = const Value.absent(),
     this.currency = const Value.absent(),
     this.recurringExpenseId = const Value.absent(),
@@ -518,7 +484,6 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     Expression<DateTime>? date,
     Expression<String>? category,
     Expression<String>? method,
-    Expression<String>? paymentFrequency,
     Expression<String>? description,
     Expression<String>? currency,
     Expression<String>? recurringExpenseId,
@@ -534,7 +499,6 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       if (date != null) 'date': date,
       if (category != null) 'category': category,
       if (method != null) 'method': method,
-      if (paymentFrequency != null) 'payment_frequency': paymentFrequency,
       if (description != null) 'description': description,
       if (currency != null) 'currency': currency,
       if (recurringExpenseId != null)
@@ -553,7 +517,6 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       Value<DateTime>? date,
       Value<String>? category,
       Value<String>? method,
-      Value<String>? paymentFrequency,
       Value<String?>? description,
       Value<String>? currency,
       Value<String?>? recurringExpenseId,
@@ -568,7 +531,6 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
       date: date ?? this.date,
       category: category ?? this.category,
       method: method ?? this.method,
-      paymentFrequency: paymentFrequency ?? this.paymentFrequency,
       description: description ?? this.description,
       currency: currency ?? this.currency,
       recurringExpenseId: recurringExpenseId ?? this.recurringExpenseId,
@@ -602,9 +564,6 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
     if (method.present) {
       map['method'] = Variable<String>(method.value);
     }
-    if (paymentFrequency.present) {
-      map['payment_frequency'] = Variable<String>(paymentFrequency.value);
-    }
     if (description.present) {
       map['description'] = Variable<String>(description.value);
     }
@@ -636,7 +595,6 @@ class ExpensesCompanion extends UpdateCompanion<Expense> {
           ..write('date: $date, ')
           ..write('category: $category, ')
           ..write('method: $method, ')
-          ..write('paymentFrequency: $paymentFrequency, ')
           ..write('description: $description, ')
           ..write('currency: $currency, ')
           ..write('recurringExpenseId: $recurringExpenseId, ')
@@ -2790,6 +2748,325 @@ class UsersCompanion extends UpdateCompanion<User> {
   }
 }
 
+class $ExchangeRatesTable extends ExchangeRates
+    with TableInfo<$ExchangeRatesTable, ExchangeRate> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ExchangeRatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _baseCurrencyMeta =
+      const VerificationMeta('baseCurrency');
+  @override
+  late final GeneratedColumn<String> baseCurrency = GeneratedColumn<String>(
+      'base_currency', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+      'user_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _ratesJsonMeta =
+      const VerificationMeta('ratesJson');
+  @override
+  late final GeneratedColumn<String> ratesJson = GeneratedColumn<String>(
+      'rates_json', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _timestampMeta =
+      const VerificationMeta('timestamp');
+  @override
+  late final GeneratedColumn<DateTime> timestamp = GeneratedColumn<DateTime>(
+      'timestamp', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _lastModifiedMeta =
+      const VerificationMeta('lastModified');
+  @override
+  late final GeneratedColumn<DateTime> lastModified = GeneratedColumn<DateTime>(
+      'last_modified', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [baseCurrency, userId, ratesJson, timestamp, lastModified];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'exchange_rates';
+  @override
+  VerificationContext validateIntegrity(Insertable<ExchangeRate> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('base_currency')) {
+      context.handle(
+          _baseCurrencyMeta,
+          baseCurrency.isAcceptableOrUnknown(
+              data['base_currency']!, _baseCurrencyMeta));
+    } else if (isInserting) {
+      context.missing(_baseCurrencyMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('rates_json')) {
+      context.handle(_ratesJsonMeta,
+          ratesJson.isAcceptableOrUnknown(data['rates_json']!, _ratesJsonMeta));
+    } else if (isInserting) {
+      context.missing(_ratesJsonMeta);
+    }
+    if (data.containsKey('timestamp')) {
+      context.handle(_timestampMeta,
+          timestamp.isAcceptableOrUnknown(data['timestamp']!, _timestampMeta));
+    } else if (isInserting) {
+      context.missing(_timestampMeta);
+    }
+    if (data.containsKey('last_modified')) {
+      context.handle(
+          _lastModifiedMeta,
+          lastModified.isAcceptableOrUnknown(
+              data['last_modified']!, _lastModifiedMeta));
+    } else if (isInserting) {
+      context.missing(_lastModifiedMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {baseCurrency, userId};
+  @override
+  ExchangeRate map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ExchangeRate(
+      baseCurrency: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}base_currency'])!,
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
+      ratesJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}rates_json'])!,
+      timestamp: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}timestamp'])!,
+      lastModified: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}last_modified'])!,
+    );
+  }
+
+  @override
+  $ExchangeRatesTable createAlias(String alias) {
+    return $ExchangeRatesTable(attachedDatabase, alias);
+  }
+}
+
+class ExchangeRate extends DataClass implements Insertable<ExchangeRate> {
+  final String baseCurrency;
+  final String userId;
+  final String ratesJson;
+  final DateTime timestamp;
+  final DateTime lastModified;
+  const ExchangeRate(
+      {required this.baseCurrency,
+      required this.userId,
+      required this.ratesJson,
+      required this.timestamp,
+      required this.lastModified});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['base_currency'] = Variable<String>(baseCurrency);
+    map['user_id'] = Variable<String>(userId);
+    map['rates_json'] = Variable<String>(ratesJson);
+    map['timestamp'] = Variable<DateTime>(timestamp);
+    map['last_modified'] = Variable<DateTime>(lastModified);
+    return map;
+  }
+
+  ExchangeRatesCompanion toCompanion(bool nullToAbsent) {
+    return ExchangeRatesCompanion(
+      baseCurrency: Value(baseCurrency),
+      userId: Value(userId),
+      ratesJson: Value(ratesJson),
+      timestamp: Value(timestamp),
+      lastModified: Value(lastModified),
+    );
+  }
+
+  factory ExchangeRate.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ExchangeRate(
+      baseCurrency: serializer.fromJson<String>(json['baseCurrency']),
+      userId: serializer.fromJson<String>(json['userId']),
+      ratesJson: serializer.fromJson<String>(json['ratesJson']),
+      timestamp: serializer.fromJson<DateTime>(json['timestamp']),
+      lastModified: serializer.fromJson<DateTime>(json['lastModified']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'baseCurrency': serializer.toJson<String>(baseCurrency),
+      'userId': serializer.toJson<String>(userId),
+      'ratesJson': serializer.toJson<String>(ratesJson),
+      'timestamp': serializer.toJson<DateTime>(timestamp),
+      'lastModified': serializer.toJson<DateTime>(lastModified),
+    };
+  }
+
+  ExchangeRate copyWith(
+          {String? baseCurrency,
+          String? userId,
+          String? ratesJson,
+          DateTime? timestamp,
+          DateTime? lastModified}) =>
+      ExchangeRate(
+        baseCurrency: baseCurrency ?? this.baseCurrency,
+        userId: userId ?? this.userId,
+        ratesJson: ratesJson ?? this.ratesJson,
+        timestamp: timestamp ?? this.timestamp,
+        lastModified: lastModified ?? this.lastModified,
+      );
+  ExchangeRate copyWithCompanion(ExchangeRatesCompanion data) {
+    return ExchangeRate(
+      baseCurrency: data.baseCurrency.present
+          ? data.baseCurrency.value
+          : this.baseCurrency,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      ratesJson: data.ratesJson.present ? data.ratesJson.value : this.ratesJson,
+      timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
+      lastModified: data.lastModified.present
+          ? data.lastModified.value
+          : this.lastModified,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExchangeRate(')
+          ..write('baseCurrency: $baseCurrency, ')
+          ..write('userId: $userId, ')
+          ..write('ratesJson: $ratesJson, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('lastModified: $lastModified')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(baseCurrency, userId, ratesJson, timestamp, lastModified);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ExchangeRate &&
+          other.baseCurrency == this.baseCurrency &&
+          other.userId == this.userId &&
+          other.ratesJson == this.ratesJson &&
+          other.timestamp == this.timestamp &&
+          other.lastModified == this.lastModified);
+}
+
+class ExchangeRatesCompanion extends UpdateCompanion<ExchangeRate> {
+  final Value<String> baseCurrency;
+  final Value<String> userId;
+  final Value<String> ratesJson;
+  final Value<DateTime> timestamp;
+  final Value<DateTime> lastModified;
+  final Value<int> rowid;
+  const ExchangeRatesCompanion({
+    this.baseCurrency = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.ratesJson = const Value.absent(),
+    this.timestamp = const Value.absent(),
+    this.lastModified = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ExchangeRatesCompanion.insert({
+    required String baseCurrency,
+    required String userId,
+    required String ratesJson,
+    required DateTime timestamp,
+    required DateTime lastModified,
+    this.rowid = const Value.absent(),
+  })  : baseCurrency = Value(baseCurrency),
+        userId = Value(userId),
+        ratesJson = Value(ratesJson),
+        timestamp = Value(timestamp),
+        lastModified = Value(lastModified);
+  static Insertable<ExchangeRate> custom({
+    Expression<String>? baseCurrency,
+    Expression<String>? userId,
+    Expression<String>? ratesJson,
+    Expression<DateTime>? timestamp,
+    Expression<DateTime>? lastModified,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (baseCurrency != null) 'base_currency': baseCurrency,
+      if (userId != null) 'user_id': userId,
+      if (ratesJson != null) 'rates_json': ratesJson,
+      if (timestamp != null) 'timestamp': timestamp,
+      if (lastModified != null) 'last_modified': lastModified,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ExchangeRatesCompanion copyWith(
+      {Value<String>? baseCurrency,
+      Value<String>? userId,
+      Value<String>? ratesJson,
+      Value<DateTime>? timestamp,
+      Value<DateTime>? lastModified,
+      Value<int>? rowid}) {
+    return ExchangeRatesCompanion(
+      baseCurrency: baseCurrency ?? this.baseCurrency,
+      userId: userId ?? this.userId,
+      ratesJson: ratesJson ?? this.ratesJson,
+      timestamp: timestamp ?? this.timestamp,
+      lastModified: lastModified ?? this.lastModified,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (baseCurrency.present) {
+      map['base_currency'] = Variable<String>(baseCurrency.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (ratesJson.present) {
+      map['rates_json'] = Variable<String>(ratesJson.value);
+    }
+    if (timestamp.present) {
+      map['timestamp'] = Variable<DateTime>(timestamp.value);
+    }
+    if (lastModified.present) {
+      map['last_modified'] = Variable<DateTime>(lastModified.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ExchangeRatesCompanion(')
+          ..write('baseCurrency: $baseCurrency, ')
+          ..write('userId: $userId, ')
+          ..write('ratesJson: $ratesJson, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('lastModified: $lastModified, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2799,12 +3076,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $RecurringExpensesTable recurringExpenses =
       $RecurringExpensesTable(this);
   late final $UsersTable users = $UsersTable(this);
+  late final $ExchangeRatesTable exchangeRates = $ExchangeRatesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [expenses, budgets, syncQueue, recurringExpenses, users];
+      [expenses, budgets, syncQueue, recurringExpenses, users, exchangeRates];
 }
 
 typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
@@ -2815,7 +3093,6 @@ typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
   required DateTime date,
   required String category,
   required String method,
-  Value<String> paymentFrequency,
   Value<String?> description,
   Value<String> currency,
   Value<String?> recurringExpenseId,
@@ -2831,7 +3108,6 @@ typedef $$ExpensesTableUpdateCompanionBuilder = ExpensesCompanion Function({
   Value<DateTime> date,
   Value<String> category,
   Value<String> method,
-  Value<String> paymentFrequency,
   Value<String?> description,
   Value<String> currency,
   Value<String?> recurringExpenseId,
@@ -2864,7 +3140,6 @@ class $$ExpensesTableTableManager extends RootTableManager<
             Value<DateTime> date = const Value.absent(),
             Value<String> category = const Value.absent(),
             Value<String> method = const Value.absent(),
-            Value<String> paymentFrequency = const Value.absent(),
             Value<String?> description = const Value.absent(),
             Value<String> currency = const Value.absent(),
             Value<String?> recurringExpenseId = const Value.absent(),
@@ -2880,7 +3155,6 @@ class $$ExpensesTableTableManager extends RootTableManager<
             date: date,
             category: category,
             method: method,
-            paymentFrequency: paymentFrequency,
             description: description,
             currency: currency,
             recurringExpenseId: recurringExpenseId,
@@ -2896,7 +3170,6 @@ class $$ExpensesTableTableManager extends RootTableManager<
             required DateTime date,
             required String category,
             required String method,
-            Value<String> paymentFrequency = const Value.absent(),
             Value<String?> description = const Value.absent(),
             Value<String> currency = const Value.absent(),
             Value<String?> recurringExpenseId = const Value.absent(),
@@ -2912,7 +3185,6 @@ class $$ExpensesTableTableManager extends RootTableManager<
             date: date,
             category: category,
             method: method,
-            paymentFrequency: paymentFrequency,
             description: description,
             currency: currency,
             recurringExpenseId: recurringExpenseId,
@@ -2958,11 +3230,6 @@ class $$ExpensesTableFilterComposer
 
   ColumnFilters<String> get method => $state.composableBuilder(
       column: $state.table.method,
-      builder: (column, joinBuilders) =>
-          ColumnFilters(column, joinBuilders: joinBuilders));
-
-  ColumnFilters<String> get paymentFrequency => $state.composableBuilder(
-      column: $state.table.paymentFrequency,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
@@ -3027,11 +3294,6 @@ class $$ExpensesTableOrderingComposer
 
   ColumnOrderings<String> get method => $state.composableBuilder(
       column: $state.table.method,
-      builder: (column, joinBuilders) =>
-          ColumnOrderings(column, joinBuilders: joinBuilders));
-
-  ColumnOrderings<String> get paymentFrequency => $state.composableBuilder(
-      column: $state.table.paymentFrequency,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 
@@ -3898,6 +4160,134 @@ class $$UsersTableOrderingComposer
           ColumnOrderings(column, joinBuilders: joinBuilders));
 }
 
+typedef $$ExchangeRatesTableCreateCompanionBuilder = ExchangeRatesCompanion
+    Function({
+  required String baseCurrency,
+  required String userId,
+  required String ratesJson,
+  required DateTime timestamp,
+  required DateTime lastModified,
+  Value<int> rowid,
+});
+typedef $$ExchangeRatesTableUpdateCompanionBuilder = ExchangeRatesCompanion
+    Function({
+  Value<String> baseCurrency,
+  Value<String> userId,
+  Value<String> ratesJson,
+  Value<DateTime> timestamp,
+  Value<DateTime> lastModified,
+  Value<int> rowid,
+});
+
+class $$ExchangeRatesTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ExchangeRatesTable,
+    ExchangeRate,
+    $$ExchangeRatesTableFilterComposer,
+    $$ExchangeRatesTableOrderingComposer,
+    $$ExchangeRatesTableCreateCompanionBuilder,
+    $$ExchangeRatesTableUpdateCompanionBuilder> {
+  $$ExchangeRatesTableTableManager(_$AppDatabase db, $ExchangeRatesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer:
+              $$ExchangeRatesTableFilterComposer(ComposerState(db, table)),
+          orderingComposer:
+              $$ExchangeRatesTableOrderingComposer(ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<String> baseCurrency = const Value.absent(),
+            Value<String> userId = const Value.absent(),
+            Value<String> ratesJson = const Value.absent(),
+            Value<DateTime> timestamp = const Value.absent(),
+            Value<DateTime> lastModified = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ExchangeRatesCompanion(
+            baseCurrency: baseCurrency,
+            userId: userId,
+            ratesJson: ratesJson,
+            timestamp: timestamp,
+            lastModified: lastModified,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String baseCurrency,
+            required String userId,
+            required String ratesJson,
+            required DateTime timestamp,
+            required DateTime lastModified,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ExchangeRatesCompanion.insert(
+            baseCurrency: baseCurrency,
+            userId: userId,
+            ratesJson: ratesJson,
+            timestamp: timestamp,
+            lastModified: lastModified,
+            rowid: rowid,
+          ),
+        ));
+}
+
+class $$ExchangeRatesTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $ExchangeRatesTable> {
+  $$ExchangeRatesTableFilterComposer(super.$state);
+  ColumnFilters<String> get baseCurrency => $state.composableBuilder(
+      column: $state.table.baseCurrency,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get userId => $state.composableBuilder(
+      column: $state.table.userId,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get ratesJson => $state.composableBuilder(
+      column: $state.table.ratesJson,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get timestamp => $state.composableBuilder(
+      column: $state.table.timestamp,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get lastModified => $state.composableBuilder(
+      column: $state.table.lastModified,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$ExchangeRatesTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $ExchangeRatesTable> {
+  $$ExchangeRatesTableOrderingComposer(super.$state);
+  ColumnOrderings<String> get baseCurrency => $state.composableBuilder(
+      column: $state.table.baseCurrency,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get userId => $state.composableBuilder(
+      column: $state.table.userId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get ratesJson => $state.composableBuilder(
+      column: $state.table.ratesJson,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get timestamp => $state.composableBuilder(
+      column: $state.table.timestamp,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get lastModified => $state.composableBuilder(
+      column: $state.table.lastModified,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
@@ -3911,4 +4301,6 @@ class $AppDatabaseManager {
       $$RecurringExpensesTableTableManager(_db, _db.recurringExpenses);
   $$UsersTableTableManager get users =>
       $$UsersTableTableManager(_db, _db.users);
+  $$ExchangeRatesTableTableManager get exchangeRates =>
+      $$ExchangeRatesTableTableManager(_db, _db.exchangeRates);
 }

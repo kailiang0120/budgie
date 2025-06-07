@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'constants.dart';
 
 /// Budget allocation for a specific category
 class CategoryBudget {
@@ -28,10 +29,9 @@ class CategoryBudget {
     if (identical(this, other)) return true;
     if (other is! CategoryBudget) return false;
 
-    // Use a small epsilon for double comparison to handle floating point precision issues
-    const epsilon = 0.001;
-    return (other.budget - budget).abs() < epsilon &&
-        (other.left - left).abs() < epsilon;
+    // Use epsilon for double comparison to handle floating point precision issues
+    return (other.budget - budget).abs() < DomainConstants.epsilon &&
+        (other.left - left).abs() < DomainConstants.epsilon;
   }
 
   @override
@@ -49,7 +49,7 @@ class Budget {
   /// Budget allocations by category ID
   final Map<String, CategoryBudget> categories;
 
-  /// Currency code (default: MYR)
+  /// Currency code
   final String currency;
 
   /// Creates a new Budget instance
@@ -57,8 +57,8 @@ class Budget {
     required this.total,
     required this.left,
     required this.categories,
-    this.currency = 'MYR',
-  });
+    String? currency,
+  }) : currency = currency ?? DomainConstants.defaultCurrency;
 
   /// Converts the Budget to a Map for serialization
   Map<String, dynamic> toMap() => {
@@ -74,7 +74,7 @@ class Budget {
         left: (map['left'] as num?)?.toDouble() ?? 0,
         categories: (map['categories'] as Map<String, dynamic>? ?? {})
             .map((k, v) => MapEntry(k, CategoryBudget.fromMap(v))),
-        currency: map['currency'] as String? ?? 'MYR',
+        currency: map['currency'] as String?,
       );
 
   /// Creates a copy of this Budget with the given fields replaced with new values
@@ -95,29 +95,23 @@ class Budget {
   /// Creates a new Budget with all amounts converted to a different currency
   Budget convertCurrency(
       String newCurrency, Map<String, double> conversionRates) {
-    debugPrint(
-        '💱 [Budget] Starting currency conversion: $currency → $newCurrency');
-    debugPrint('💱 [Budget] Original total: $total $currency');
-
     // If currency is the same, return the same budget
     if (newCurrency == currency) {
-      debugPrint('💱 [Budget] Currencies are the same, no conversion needed');
       return this;
     }
 
     // Get conversion rate from current currency to new currency
     final conversionRate = conversionRates[newCurrency] ?? 1.0;
-    debugPrint(
-        '💱 [Budget] Using conversion rate: $conversionRate ($currency to $newCurrency)');
+
+    // Log only if in debug mode
+    if (kDebugMode) {
+      debugPrint(
+          '💱 Converting budget: $currency → $newCurrency (rate: $conversionRate)');
+    }
 
     // Convert total and left amounts with 2 decimal precision
     final newTotal = double.parse((total * conversionRate).toStringAsFixed(2));
     final newLeft = double.parse((left * conversionRate).toStringAsFixed(2));
-
-    debugPrint(
-        '💱 [Budget] Converted total: $total $currency → $newTotal $newCurrency');
-    debugPrint(
-        '💱 [Budget] Converted left: $left $currency → $newLeft $newCurrency');
 
     // Convert each category budget
     final newCategories = <String, CategoryBudget>{};
@@ -131,9 +125,6 @@ class Budget {
       final newCategoryLeft = double.parse(
           (categoryBudget.left * conversionRate).toStringAsFixed(2));
 
-      debugPrint(
-          '💱 [Budget] Category "$categoryId": Budget ${categoryBudget.budget} → $newCategoryBudget, Left ${categoryBudget.left} → $newCategoryLeft');
-
       newCategories[categoryId] = CategoryBudget(
         budget: newCategoryBudget,
         left: newCategoryLeft,
@@ -141,16 +132,12 @@ class Budget {
     }
 
     // Create new budget with converted amounts
-    final convertedBudget = Budget(
+    return Budget(
       total: newTotal,
       left: newLeft,
       categories: newCategories,
       currency: newCurrency,
     );
-
-    debugPrint(
-        '💱 [Budget] Currency conversion completed: $currency → $newCurrency');
-    return convertedBudget;
   }
 
   @override
@@ -158,10 +145,9 @@ class Budget {
     if (identical(this, other)) return true;
     if (other is! Budget) return false;
 
-    // Use a small epsilon for double comparison
-    const epsilon = 0.001;
-    if ((other.total - total).abs() >= epsilon ||
-        (other.left - left).abs() >= epsilon ||
+    // Use epsilon for double comparison
+    if ((other.total - total).abs() >= DomainConstants.epsilon ||
+        (other.left - left).abs() >= DomainConstants.epsilon ||
         other.currency != currency) {
       return false;
     }

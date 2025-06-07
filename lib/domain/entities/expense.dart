@@ -1,4 +1,5 @@
 import 'category.dart';
+import 'constants.dart';
 
 /// Available payment methods for expenses
 enum PaymentMethod {
@@ -30,7 +31,7 @@ class Expense {
   /// Optional detailed description
   final String? description;
 
-  /// Currency code (default: MYR)
+  /// Currency code
   final String currency;
 
   /// Reference to recurring expense if this expense was auto-generated
@@ -45,9 +46,9 @@ class Expense {
     required this.category,
     required this.method,
     this.description,
-    this.currency = 'MYR',
+    String? currency,
     this.recurringExpenseId,
-  });
+  }) : currency = currency ?? DomainConstants.defaultCurrency;
 
   /// Creates a copy of this Expense with the given fields replaced with new values
   Expense copyWith({

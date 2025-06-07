@@ -16,7 +16,6 @@ import '../widgets/bottom_nav_bar.dart';
 import '../widgets/animated_float_button.dart';
 import '../utils/app_constants.dart';
 import '../utils/currency_formatter.dart';
-import '../utils/auth_utils.dart';
 import 'add_expense_screen.dart';
 import 'notification_test_screen.dart';
 import '../viewmodels/budget_viewmodel.dart';
