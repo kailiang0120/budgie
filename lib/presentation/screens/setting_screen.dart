@@ -56,7 +56,15 @@ class _SettingScreenState extends State<SettingScreen> {
 
   Future<void> _loadSettings() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+
+    if (user == null) {
+      // Handle non-signed-in user
+      setState(() {
+        _loading = false;
+        // We'll show a placeholder in the build method when no user is signed in
+      });
+      return;
+    }
 
     try {
       // Settings are already loaded by AuthViewModel, just update the UI
@@ -412,6 +420,104 @@ class _SettingScreenState extends State<SettingScreen> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
+
+    // Check if user is signed in
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return Scaffold(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          automaticallyImplyLeading: false,
+          title: Text(
+            'Setting',
+            style:
+                TextStyle(color: Theme.of(context).textTheme.titleLarge?.color),
+          ),
+          centerTitle: true,
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(
+              color: Theme.of(context).dividerColor,
+              height: 0.5,
+            ),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.account_circle_outlined,
+                size: 80,
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withAlpha((255 * 0.7).toInt()),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Sign in to access settings',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Please log in to view and customize your settings',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey,
+                ),
+              ),
+              const SizedBox(height: 30),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pushReplacementNamed(context, Routes.login);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                ),
+                child: const Text('Sign In'),
+              ),
+            ],
+          ),
+        ),
+        extendBody: true,
+        floatingActionButton: AnimatedFloatButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              PageTransition(
+                child: const AddExpenseScreen(),
+                type: TransitionType.fadeAndSlideUp,
+                settings: const RouteSettings(name: Routes.expenses),
+              ),
+            );
+          },
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          shape: const CircleBorder(),
+          enableFeedback: true,
+          reactToRouteChange: true,
+          child:
+              Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        bottomNavigationBar: BottomNavBar(
+          currentIndex: 2, // Settings tab
+          onTap: (idx) {
+            // Navigation is handled in BottomNavBar
+          },
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(

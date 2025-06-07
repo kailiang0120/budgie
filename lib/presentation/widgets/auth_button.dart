@@ -27,8 +27,8 @@ class AuthButton extends StatelessWidget {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(45),
         ),
-        disabledBackgroundColor: backgroundColor.withOpacity(0.6),
-        disabledForegroundColor: textColor.withOpacity(0.6),
+        disabledBackgroundColor: backgroundColor.withAlpha((255 * 0.6).toInt()),
+        disabledForegroundColor: textColor.withAlpha((255 * 0.6).toInt()),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,

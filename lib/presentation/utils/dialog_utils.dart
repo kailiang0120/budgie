@@ -111,12 +111,12 @@ class DialogUtils {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.link, size: 18),
-                  const SizedBox(width: 8),
-                  const Text(
+                  Icon(Icons.link, size: 18),
+                  SizedBox(width: 8),
+                  Text(
                     'Link Account & Save Data',
                     style: TextStyle(
                       color: Colors.white,
@@ -132,40 +132,48 @@ class DialogUtils {
               onPressed: () async {
                 Navigator.of(dialogContext).pop(); // Close dialog
 
+                // Store context-related variables before async operations
+                final navigator = Navigator.of(context);
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                final authViewModel =
+                    Provider.of<AuthViewModel>(context, listen: false);
+
                 try {
                   // Show loading indicator
                   showLoadingDialog(context, message: 'Deleting data...');
 
-                  // Get AuthViewModel to handle secure sign out
-                  final authViewModel =
-                      Provider.of<AuthViewModel>(context, listen: false);
-
                   // Call the secure sign out method which handles data deletion
                   await authViewModel.secureSignOutAnonymousUser();
 
-                  // Remove loading indicator
-                  if (Navigator.canPop(context)) {
-                    Navigator.of(context).pop();
-                  }
+                  // Check if the widget is still mounted before using navigator
+                  if (navigator.mounted) {
+                    // Remove loading indicator
+                    if (navigator.canPop()) {
+                      navigator.pop();
+                    }
 
-                  // Navigate to login screen
-                  Navigator.of(context).pushNamedAndRemoveUntil(
-                    Routes.login,
-                    (route) => false,
-                  );
+                    // Navigate to login screen
+                    navigator.pushNamedAndRemoveUntil(
+                      Routes.login,
+                      (route) => false,
+                    );
+                  }
                 } catch (e) {
-                  // Remove loading indicator if showing
-                  if (Navigator.canPop(context)) {
-                    Navigator.of(context).pop();
-                  }
+                  // Check if the widget is still mounted before using navigator
+                  if (navigator.mounted) {
+                    // Remove loading indicator if showing
+                    if (navigator.canPop()) {
+                      navigator.pop();
+                    }
 
-                  // Show error message
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error signing out: ${e.toString()}'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                    // Show error message
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(
+                        content: Text('Error signing out: ${e.toString()}'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 }
               },
               style: TextButton.styleFrom(
@@ -173,12 +181,12 @@ class DialogUtils {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.delete_outline, size: 18),
-                  const SizedBox(width: 8),
-                  const Text(
+                  Icon(Icons.delete_outline, size: 18),
+                  SizedBox(width: 8),
+                  Text(
                     'Delete & Sign Out',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
@@ -209,7 +217,7 @@ class DialogUtils {
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withAlpha((255 * 0.1).toInt()),
                     blurRadius: 10,
                     spreadRadius: 2,
                   ),

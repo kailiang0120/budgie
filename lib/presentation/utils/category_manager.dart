@@ -48,17 +48,35 @@ class CategoryManager {
   /// Get all available categories
   static List<Category> get allCategories => Category.values;
 
-  /// Get the color for a specified category
-  static Color getColor(Category category) =>
-      categoryColors[category] ?? const Color(0xFF607D8B);
+  /// Get the color for a specified category or string ID
+  static Color getColor(dynamic category) {
+    if (category is Category) {
+      return categoryColors[category] ?? const Color(0xFF607D8B);
+    } else if (category is String) {
+      return getColorFromId(category);
+    }
+    return const Color(0xFF607D8B);
+  }
 
-  /// Get the icon for a specified category
-  static IconData getIcon(Category category) =>
-      categoryIcons[category] ?? Icons.more_horiz;
+  /// Get the icon for a specified category or string ID
+  static IconData getIcon(dynamic category) {
+    if (category is Category) {
+      return categoryIcons[category] ?? Icons.more_horiz;
+    } else if (category is String) {
+      return getIconFromId(category);
+    }
+    return Icons.more_horiz;
+  }
 
-  /// Get the name for a specified category
-  static String getName(Category category) =>
-      categoryNames[category] ?? 'Unknown';
+  /// Get the name for a specified category or string ID
+  static String getName(dynamic category) {
+    if (category is Category) {
+      return categoryNames[category] ?? 'Unknown';
+    } else if (category is String) {
+      return getNameFromId(category);
+    }
+    return 'Unknown';
+  }
 
   /// Get detailed information for all categories
   static List<Map<String, dynamic>> getAllCategoriesDetails() {

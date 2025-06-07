@@ -228,6 +228,9 @@ class ExpensesViewModel extends ChangeNotifier {
         ? '${_selectedMonth.year}-${_selectedMonth.month}-${_selectedMonth.day}'
         : '${_selectedMonth.year}-${_selectedMonth.month}';
 
+    // Clear cache when forcing a filter to ensure we get fresh data
+    // _cache.remove(cacheKey);
+
     // Use cached data if available
     if (_cache.containsKey(cacheKey)) {
       _filteredExpenses = _cache[cacheKey]!;
@@ -241,6 +244,7 @@ class ExpensesViewModel extends ChangeNotifier {
 
     // Filter synchronously to avoid state inconsistency
     try {
+      debugPrint('Filtering expenses for ${_selectedMonth.toString()}');
       if (_isDayFiltering) {
         // Filter by exact date (day level)
         _filteredExpenses = _expenses.where((expense) {
@@ -256,6 +260,9 @@ class ExpensesViewModel extends ChangeNotifier {
         }).toList();
       }
 
+      debugPrint(
+          'Filtered ${_filteredExpenses.length} expenses for ${_selectedMonth.year}-${_selectedMonth.month}');
+
       // Update cache
       _cache[cacheKey] = _filteredExpenses;
     } catch (e) {
@@ -269,6 +276,23 @@ class ExpensesViewModel extends ChangeNotifier {
     Future.microtask(() {
       notifyListeners();
     });
+  }
+
+  /// Force filtering by month (public method for external components)
+  void forceFilterByMonth(DateTime month) {
+    debugPrint('Forcing filter by month: ${month.toString()}');
+
+    // Clear relevant cache to ensure fresh filtering
+    final cacheKey = '${month.year}-${month.month}';
+    _cache.remove(cacheKey);
+
+    // Set filter parameters
+    _selectedMonth = month;
+    _isFiltering = true;
+    _isDayFiltering = false;
+
+    // Perform filtering
+    _filterExpensesByMonth();
   }
 
   void _startExpensesStream() {
@@ -400,8 +424,8 @@ class ExpensesViewModel extends ChangeNotifier {
     appError.log();
   }
 
-  // Get total expenses for the selected month by category - 优化使用compute函数
-  Map<app_category.Category, double> getCategoryTotals() {
+  // Get total expenses for the selected month by category with currency conversion
+  Map<String, double> getCategoryTotals() {
     final expensesToUse = _isFiltering ? _filteredExpenses : _expenses;
 
     if (expensesToUse.isEmpty) {
@@ -409,18 +433,56 @@ class ExpensesViewModel extends ChangeNotifier {
     }
 
     return PerformanceMonitor.measure('calculate_category_totals', () {
-      final Map<app_category.Category, double> result = {};
+      final Map<String, double> result = {};
+      final String targetCurrency =
+          _settingsService.currency; // Use user's preferred currency
 
+      // Use a converter to handle currency conversion
       for (var expense in expensesToUse) {
-        result[expense.category] =
-            (result[expense.category] ?? 0) + expense.amount;
+        final String categoryId = expense.category.id;
+        double convertedAmount = expense.amount;
+
+        // If expense currency doesn't match target currency, convert it
+        if (expense.currency != targetCurrency) {
+          // Since currency conversion is async, we use cached rates or defaults
+          // This is a simplified approach - in a real app, pre-convert currencies when loading data
+          final conversionRate =
+              _getApproximateConversionRate(expense.currency, targetCurrency);
+          convertedAmount = expense.amount * conversionRate;
+        }
+
+        result[categoryId] = (result[categoryId] ?? 0) + convertedAmount;
       }
 
       return result;
     });
   }
 
-  // Get total expenses for the selected month - 优化计算
+  // Get approximate conversion rate for synchronous operations
+  double _getApproximateConversionRate(String from, String to) {
+    // If currencies are the same, no conversion needed
+    if (from == to) return 1.0;
+
+    // Simple hardcoded conversion rates for common currencies
+    // In a production app, these should be loaded from a service
+    final Map<String, Map<String, double>> rates = {
+      'MYR': {'USD': 0.21, 'EUR': 0.19, 'GBP': 0.17},
+      'USD': {'MYR': 4.73, 'EUR': 0.92, 'GBP': 0.79},
+      'EUR': {'MYR': 5.26, 'USD': 1.09, 'GBP': 0.86},
+      'GBP': {'MYR': 6.12, 'USD': 1.26, 'EUR': 1.16},
+    };
+
+    // Check if we have the conversion rate
+    if (rates.containsKey(from) && rates[from]!.containsKey(to)) {
+      return rates[from]![to]!;
+    }
+
+    // Fallback to default rate of 1.0
+    debugPrint('No conversion rate found for $from to $to, using 1.0');
+    return 1.0;
+  }
+
+  // Get total expenses for the selected month with currency conversion
   double getTotalExpenses() {
     final expensesToUse = _isFiltering ? _filteredExpenses : _expenses;
 
@@ -429,8 +491,22 @@ class ExpensesViewModel extends ChangeNotifier {
     }
 
     return PerformanceMonitor.measure('calculate_total_expenses', () {
-      return expensesToUse.fold<double>(
-          0.0, (sum, expense) => sum + expense.amount);
+      final String targetCurrency = _settingsService.currency;
+      double total = 0.0;
+
+      for (var expense in expensesToUse) {
+        if (expense.currency == targetCurrency) {
+          // No conversion needed
+          total += expense.amount;
+        } else {
+          // Convert currency
+          final conversionRate =
+              _getApproximateConversionRate(expense.currency, targetCurrency);
+          total += expense.amount * conversionRate;
+        }
+      }
+
+      return total;
     });
   }
 
@@ -562,7 +638,6 @@ class ExpensesViewModel extends ChangeNotifier {
         await _loadExpensesFromLocalDatabase();
       }
 
-      // 更新相关月份的预算
       await _updateBudgetAfterExpenseChange(expenseToDelete);
     } catch (e, stackTrace) {
       _handleError(e, stackTrace);
@@ -579,7 +654,6 @@ class ExpensesViewModel extends ChangeNotifier {
     });
   }
 
-  // 手动刷新数据（可从UI调用）
   Future<void> refreshData() async {
     debugPrint('🔄 ExpensesViewModel: Manual data refresh requested');
     _isLoading = true;

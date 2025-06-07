@@ -95,7 +95,7 @@ Future<void> main() async {
 
     // Initialize ConnectivityService first to monitor network state
     debugPrint('Initializing ConnectivityService...');
-    final connectivityService = di.sl<ConnectivityService>();
+    di.sl<ConnectivityService>();
 
     // Initialize SyncService for all users (logged in or not)
     debugPrint('Initializing SyncService...');

@@ -81,7 +81,8 @@ class _LoginScreenState extends State<LoginScreen>
                               decoration: const BoxDecoration(
                                 shape: BoxShape.rectangle,
                                 image: DecorationImage(
-                                  image: AssetImage('assets/images/budgie_logo.png'),
+                                  image: AssetImage(
+                                      'assets/images/budgie_logo.png'),
                                   fit: BoxFit.cover,
                                 ),
                               ),
@@ -388,13 +389,22 @@ class _LoginScreenState extends State<LoginScreen>
     });
 
     try {
-      await _authViewModel.signIn(
+      final user = await _authViewModel.signIn(
         _emailController.text.trim(),
         _passwordController.text,
       );
 
-      if (mounted) {
+      if (mounted && user != null) {
         Navigator.pushReplacementNamed(context, Routes.home);
+      } else if (mounted) {
+        // Show error from AuthViewModel if available
+        final error = _authViewModel.error ?? 'Sign-in failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -419,13 +429,22 @@ class _LoginScreenState extends State<LoginScreen>
     });
 
     try {
-      await _authViewModel.signUp(
+      final user = await _authViewModel.signUp(
         _emailController.text.trim(),
         _passwordController.text,
       );
 
-      if (mounted) {
+      if (mounted && user != null) {
         Navigator.pushReplacementNamed(context, Routes.home);
+      } else if (mounted) {
+        // Show error from AuthViewModel if available
+        final error = _authViewModel.error ?? 'Account creation failed';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -446,10 +465,20 @@ class _LoginScreenState extends State<LoginScreen>
     });
 
     try {
-      await _authViewModel.signInWithGoogle();
+      // Capture the result of the Google sign-in
+      final bool signInResult = await _authViewModel.signInWithGoogle();
 
-      if (mounted) {
+      // Only navigate to home if sign-in was successful
+      if (signInResult && mounted) {
         Navigator.pushReplacementNamed(context, Routes.home);
+      } else if (mounted) {
+        // User canceled the Google sign-in flow
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Google sign-in was canceled'),
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -470,9 +499,10 @@ class _LoginScreenState extends State<LoginScreen>
     });
 
     try {
-      await _authViewModel.signInAsGuest();
+      final result = await _authViewModel.signInAsGuest();
 
-      if (mounted) {
+      // Only navigate to home if sign-in was successful
+      if (mounted && result != null) {
         Navigator.pushReplacementNamed(context, Routes.home);
       }
     } catch (e) {

@@ -8,7 +8,6 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import '../../domain/entities/user.dart' as domain;
 import '../../domain/repositories/auth_repository.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Implementation of AuthRepository using Firebase Authentication
@@ -517,7 +516,7 @@ class AuthRepositoryImpl implements AuthRepository {
           // No existing budget, create a new one
           await _firestore
               .collection('budgets')
-              .doc('${monthId}_${toUserId}')
+              .doc('${monthId}_$toUserId')
               .set(data);
         } else {
           debugPrint('Budget already exists for month $monthId, merging data');
@@ -1139,8 +1138,7 @@ class AuthRepositoryImpl implements AuthRepository {
 
       debugPrint('Linking anonymous account to email: $email');
 
-      // Store the anonymous user ID for potential error handling
-      final anonymousUserId = currentUser.uid;
+      // We have the current user's ID already in currentUser.uid
 
       // Create email credential
       final credential = firebase_auth.EmailAuthProvider.credential(

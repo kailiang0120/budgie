@@ -223,11 +223,11 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> signIn(String email, String password) async {
+  Future<domain.User?> signIn(String email, String password) async {
     if (email.isEmpty || password.isEmpty) {
       _error = 'Email and password cannot be empty';
       notifyListeners();
-      return;
+      return null;
     }
 
     try {
@@ -244,20 +244,23 @@ class AuthViewModel extends ChangeNotifier {
       // Use the new user handling logic
       await _handleUserLogin(user.id);
       // debugPrint('🔥 AuthViewModel: Sign-in process completed for: ${user.id}');
+
+      return _currentUser;
     } catch (e) {
       // debugPrint('🔥 AuthViewModel: Sign in error: $e');
       _error = 'Failed to sign in: ${e.toString()}';
+      return null;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> signUp(String email, String password) async {
+  Future<domain.User?> signUp(String email, String password) async {
     if (email.isEmpty || password.isEmpty) {
       _error = 'Email and password cannot be empty';
       notifyListeners();
-      return;
+      return null;
     }
 
     try {
@@ -274,16 +277,19 @@ class AuthViewModel extends ChangeNotifier {
       // Use the new user handling logic (will detect this as a new user)
       await _handleUserLogin(user.id);
       //debugPrint('🔥 AuthViewModel: Sign-up process completed for: ${user.id}');
+
+      return _currentUser;
     } catch (e) {
       //debugPrint('🔥 AuthViewModel: Sign up error: $e');
       _error = 'Failed to create account: ${e.toString()}';
+      return null;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> signInWithGoogle() async {
+  Future<bool> signInWithGoogle() async {
     try {
       _isLoading = true;
       _error = null;
@@ -299,32 +305,45 @@ class AuthViewModel extends ChangeNotifier {
       // The repository will handle the linking automatically
 
       // Call repository for Google sign-in
-      final user = await _authRepository.signInWithGoogle();
+      try {
+        final user = await _authRepository.signInWithGoogle();
 
-      // Set current user
-      _currentUser = user;
+        // Set current user
+        _currentUser = user;
 
-      // Verify we have a valid user
-      if (_currentUser == null || _currentUser!.id.isEmpty) {
-        //debugPrint('🔥 AuthViewModel: Invalid user returned from repository');
-        throw Exception('Authentication failed - Invalid user');
+        // Verify we have a valid user
+        if (_currentUser == null || _currentUser!.id.isEmpty) {
+          //debugPrint('🔥 AuthViewModel: Invalid user returned from repository');
+          throw Exception('Authentication failed - Invalid user');
+        }
+
+        //debugPrint(
+        //    '🔥 AuthViewModel: Google sign-in successful - User ID: ${_currentUser!.id}');
+
+        // If we were previously anonymous, ensure we remove stored guest ID
+        if (isAnonymous) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('last_guest_user_id');
+          debugPrint(
+              '🔥 AuthViewModel: Removed stored guest user ID after upgrade to Google account');
+        }
+
+        // Use the new user handling logic
+        await _handleUserLogin(_currentUser!.id);
+        //debugPrint(
+        //    '🔥 AuthViewModel: Google sign-in process completed for: ${_currentUser!.id}');
+
+        return true; // Sign-in successful
+      } catch (e) {
+        if (e.toString().contains('cancel') ||
+            e.toString().contains('Sign-in canceled')) {
+          _error = 'Sign-in was cancelled';
+          debugPrint('🔥 AuthViewModel: Google sign-in was cancelled by user');
+          return false; // User cancelled
+        }
+        // Rethrow other errors to be caught by the outer catch block
+        rethrow;
       }
-
-      //debugPrint(
-      //    '🔥 AuthViewModel: Google sign-in successful - User ID: ${_currentUser!.id}');
-
-      // If we were previously anonymous, ensure we remove stored guest ID
-      if (isAnonymous) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('last_guest_user_id');
-        debugPrint(
-            '🔥 AuthViewModel: Removed stored guest user ID after upgrade to Google account');
-      }
-
-      // Use the new user handling logic
-      await _handleUserLogin(_currentUser!.id);
-      //debugPrint(
-      //    '🔥 AuthViewModel: Google sign-in process completed for: ${_currentUser!.id}');
     } catch (e) {
       //debugPrint('🔥 AuthViewModel: Google sign-in error: $e');
 
@@ -341,6 +360,7 @@ class AuthViewModel extends ChangeNotifier {
       }
 
       _currentUser = null;
+      return false; // Sign-in failed
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -409,7 +429,8 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   /// Sign in as guest (anonymous authentication)
-  Future<void> signInAsGuest() async {
+  /// Returns the user object if successful, or null if failed
+  Future<domain.User?> signInAsGuest() async {
     try {
       _isLoading = true;
       _error = null;
@@ -444,7 +465,7 @@ class AuthViewModel extends ChangeNotifier {
                   '🔥 AuthViewModel: Successfully loaded existing guest user data');
               _isLoading = false;
               notifyListeners();
-              return;
+              return _currentUser;
             }
           } else {
             debugPrint(
@@ -482,10 +503,13 @@ class AuthViewModel extends ChangeNotifier {
 
       debugPrint(
           '🔥 AuthViewModel: Guest sign-in process completed for: ${_currentUser!.id}');
+
+      return _currentUser;
     } catch (e) {
       debugPrint('🔥 AuthViewModel: Guest sign-in error: $e');
       _error = 'Failed to sign in as guest: ${e.toString()}';
       _currentUser = null;
+      return null;
     } finally {
       _isLoading = false;
       notifyListeners();

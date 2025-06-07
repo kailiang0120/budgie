@@ -114,40 +114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _handleAppleSignIn(BuildContext context) async {
-    setState(() {
-      _isUpgrading = true;
-    });
-
-    try {
-      final viewModel = Provider.of<AuthViewModel>(context, listen: false);
-      await viewModel.signInWithApple();
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account upgraded successfully with Apple!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUpgrading = false;
-        });
-      }
-    }
-  }
+  // Apple sign-in functionality is currently handled in other locations
 
   Future<void> _handleGuestUpgrade(BuildContext context) async {
     if (!_formKey.currentState!.validate()) {
@@ -241,7 +208,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               margin: const EdgeInsets.only(bottom: 24),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.1),
+                color: Colors.amber.withAlpha((255 * 0.1).toInt()),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: Colors.amber.shade300),
               ),
@@ -358,8 +325,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             width: 24,
                             color: Colors.white,
                           ),
-                          backgroundColor: Colors.black.withOpacity(
-                              0.5), // Dimmed to indicate it's disabled
+                          backgroundColor: Colors.black.withAlpha((255 * 0.5)
+                              .toInt()), // Dimmed to indicate it's disabled
                           onPressed:
                               null, // Disabled because Apple developer account is required
                         ),

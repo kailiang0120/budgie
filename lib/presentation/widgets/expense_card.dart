@@ -6,6 +6,7 @@ import '../utils/category_manager.dart';
 import '../viewmodels/expenses_viewmodel.dart';
 import '../../core/constants/routes.dart';
 import '../utils/app_theme.dart';
+import '../viewmodels/budget_viewmodel.dart';
 
 class ExpenseCard extends StatefulWidget {
   final Expense expense;
@@ -65,6 +66,14 @@ class _ExpenseCardState extends State<ExpenseCard>
 
     if (result == true && widget.onExpenseUpdated != null) {
       widget.onExpenseUpdated!();
+
+      if (!mounted) return;
+
+      // Refresh budget data after expense update
+      final budgetVM = Provider.of<BudgetViewModel>(context, listen: false);
+      final monthId =
+          '${widget.expense.date.year}-${widget.expense.date.month.toString().padLeft(2, '0')}';
+      budgetVM.refreshBudget(monthId);
     }
   }
 
@@ -101,9 +110,16 @@ class _ExpenseCardState extends State<ExpenseCard>
   void _deleteExpense() async {
     try {
       final viewModel = Provider.of<ExpensesViewModel>(context, listen: false);
+      final budgetVM = Provider.of<BudgetViewModel>(context, listen: false);
+      final monthId =
+          '${widget.expense.date.year}-${widget.expense.date.month.toString().padLeft(2, '0')}';
+
       await viewModel.deleteExpense(widget.expense.id);
 
+      // Refresh budget data after expense deletion
       if (mounted) {
+        budgetVM.refreshBudget(monthId);
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Expense deleted successfully'),

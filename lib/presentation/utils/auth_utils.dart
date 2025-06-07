@@ -11,6 +11,11 @@ class AuthUtils {
   /// Handle sign-out with special handling for anonymous users
   /// This is the main entry point for sign-out actions in the UI
   static Future<void> handleSignOut(BuildContext context) async {
+    // Store context-related variables before async operations
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
+
     // Get the current user from Firebase
     final user = FirebaseAuth.instance.currentUser;
 
@@ -24,34 +29,38 @@ class AuthUtils {
         // Show loading indicator
         DialogUtils.showLoadingDialog(context, message: 'Signing out...');
 
-        // Get AuthViewModel to handle sign out
-        final authViewModel =
-            Provider.of<AuthViewModel>(context, listen: false);
+        // Sign out using the stored authViewModel reference
         await authViewModel.signOut();
 
-        // Remove loading indicator
-        if (Navigator.canPop(context)) {
-          Navigator.of(context).pop();
-        }
+        // We need to check if the widget is still in the tree before using navigator
+        if (navigator.mounted) {
+          // Remove loading indicator
+          if (navigator.canPop()) {
+            navigator.pop();
+          }
 
-        // Navigate to login screen
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          Routes.login,
-          (route) => false,
-        );
+          // Navigate to login screen
+          navigator.pushNamedAndRemoveUntil(
+            Routes.login,
+            (route) => false,
+          );
+        }
       } catch (e) {
-        // Remove loading indicator if showing
-        if (Navigator.canPop(context)) {
-          Navigator.of(context).pop();
-        }
+        // We need to check if the widget is still in the tree before using navigator
+        if (navigator.mounted) {
+          // Remove loading indicator if showing
+          if (navigator.canPop()) {
+            navigator.pop();
+          }
 
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error signing out: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+          // Show error message using the stored scaffoldMessenger reference
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text('Error signing out: ${e.toString()}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }

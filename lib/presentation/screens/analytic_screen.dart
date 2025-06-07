@@ -1,13 +1,15 @@
-import 'package:budgie/presentation/screens/add_budget_screen.dart';
+// Add budget screen no longer needed
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:fl_chart/fl_chart.dart';
 
-import '../viewmodels/budget_viewmodel.dart';
+// Budget ViewModel no longer needed
 import '../viewmodels/expenses_viewmodel.dart';
 import '../widgets/bottom_nav_bar.dart';
-import '../widgets/budget_card.dart';
+// Budget card no longer needed
 import '../widgets/date_picker_button.dart';
 import '../widgets/animated_float_button.dart';
+import '../utils/category_manager.dart';
 import 'add_expense_screen.dart';
 
 import '../../core/constants/routes.dart';
@@ -84,21 +86,29 @@ class _AnalyticScreenState extends State<AnalyticScreen>
       _selectedDate = expensesViewModel.getScreenFilterDate('analytics');
       _currentMonthId = formatMonthId(_selectedDate);
 
-      // Apply the filter
+      debugPrint(
+          'Initializing filters with date: ${_selectedDate.year}-${_selectedDate.month}');
+      debugPrint('Set current month ID to: $_currentMonthId');
+
+      // Apply the filter explicitly
       expensesViewModel.setSelectedMonth(_selectedDate,
           persist: true, screenKey: 'analytics');
+
+      // Force filter application to ensure data is filtered properly
+      expensesViewModel.forceFilterByMonth(_selectedDate);
 
       setState(() {
         _isInitialized = true;
       });
 
-      // Load the budget data with the selected month
-      _loadBudgetData();
+      // Load data with the selected month
+      _loadData();
     } catch (e) {
       debugPrint('Error retrieving analytic screen filter: $e');
       _selectedDate = DateTime.now();
       _currentMonthId = formatMonthId(_selectedDate);
-      _loadBudgetData();
+      debugPrint('Fallback to current date: $_currentMonthId');
+      _loadData();
     }
   }
 
@@ -106,7 +116,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // When the app is resumed, refresh the data
     if (state == AppLifecycleState.resumed && mounted) {
-      _loadBudgetData();
+      _loadData();
       Provider.of<ExpensesViewModel>(context, listen: false).refreshData();
     }
   }
@@ -120,7 +130,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
     super.dispose();
   }
 
-  Future<void> _loadBudgetData() async {
+  Future<void> _loadData() async {
     if (!mounted) return;
 
     setState(() {
@@ -130,8 +140,6 @@ class _AnalyticScreenState extends State<AnalyticScreen>
 
     try {
       // Get view models
-      final budgetViewModel =
-          Provider.of<BudgetViewModel>(context, listen: false);
       final expensesViewModel =
           Provider.of<ExpensesViewModel>(context, listen: false);
 
@@ -145,36 +153,31 @@ class _AnalyticScreenState extends State<AnalyticScreen>
         debugPrint('Updating to user currency: $_currentCurrency');
       }
 
+      debugPrint(
+          'Loading data for month ID: $_currentMonthId (${_selectedDate.year}-${_selectedDate.month})');
+
       // Set selected month for expenses, ensure we persist the filter
       expensesViewModel.setSelectedMonth(_selectedDate,
           persist: true, screenKey: 'analytics');
 
-      // Explicitly update budget for this month to ensure it's current
-      await expensesViewModel.updateBudgetForMonth(
-          _selectedDate.year, _selectedDate.month);
+      // Explicitly force filtering by selected month
+      expensesViewModel.forceFilterByMonth(_selectedDate);
 
-      // Load budget data from database (now updated)
-      // Pass checkCurrency=true to automatically check if currency conversion is needed
-      await budgetViewModel.loadBudget(_currentMonthId, checkCurrency: true);
+      // Refresh expenses data
+      await expensesViewModel.refreshData();
 
-      // Make sure budget is using the right currency
-      if (budgetViewModel.budget != null &&
-          budgetViewModel.budget!.currency != _currentCurrency) {
-        debugPrint(
-            'Budget currency (${budgetViewModel.budget!.currency}) needs conversion to $_currentCurrency');
-        await budgetViewModel.checkAndConvertBudgetCurrency(
-            _currentMonthId, _currentCurrency!);
-      }
+      // Verify filtering was applied correctly
+      final filteredExpenses = expensesViewModel.filteredExpenses;
+      debugPrint(
+          'After filtering: ${filteredExpenses.length} expenses for month $_currentMonthId');
 
-      // Check for errors
-      if (budgetViewModel.errorMessage != null) {
-        setState(() {
-          _errorMessage = budgetViewModel.errorMessage;
-        });
-      }
+      // Force data refresh for dashboard cards
+      setState(() {
+        // Trigger rebuild with fresh data
+      });
     } catch (e) {
       setState(() {
-        _errorMessage = 'Failed to load budgets: ${e.toString()}';
+        _errorMessage = 'Failed to load data: ${e.toString()}';
       });
     } finally {
       if (mounted) {
@@ -271,6 +274,9 @@ class _AnalyticScreenState extends State<AnalyticScreen>
   }
 
   void _onDateChanged(DateTime newDate) {
+    debugPrint(
+        'Date changed from ${_selectedDate.year}-${_selectedDate.month} to ${newDate.year}-${newDate.month}');
+
     setState(() {
       _selectedDate = newDate;
       _currentMonthId = formatMonthId(_selectedDate);
@@ -279,13 +285,32 @@ class _AnalyticScreenState extends State<AnalyticScreen>
       _predictionResponse = null;
     });
 
-    // Save to screen-specific filter
+    debugPrint('Updated current month ID to: $_currentMonthId');
+
+    // Save to screen-specific filter and force reload
     final expensesViewModel =
         Provider.of<ExpensesViewModel>(context, listen: false);
+
+    // Make sure we're setting the filter AND applying it immediately
     expensesViewModel.setSelectedMonth(_selectedDate,
         persist: true, screenKey: 'analytics');
 
-    _loadBudgetData();
+    // Explicitly force filtering - important step to ensure data is filtered correctly
+    expensesViewModel.forceFilterByMonth(_selectedDate);
+
+    debugPrint('Forced filtering by month: $_currentMonthId');
+
+    // Load data with the new date filter
+    _loadData();
+
+    // Force UI refresh for dashboard cards
+    setState(() {
+      // Trigger rebuild with fresh data
+    });
+
+    // Log filtered expenses count
+    final filteredCount = expensesViewModel.filteredExpenses.length;
+    debugPrint('Filtered expenses count after date change: $filteredCount');
   }
 
   void _navigateToLogin() {
@@ -301,14 +326,14 @@ class _AnalyticScreenState extends State<AnalyticScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            isAuthError ? Icons.login : Icons.error_outline,
+            isAuthError ? Icons.analytics_rounded : Icons.error_outline,
             color: Colors.red[300],
             size: 48,
           ),
           const SizedBox(height: 16),
           Text(
             isAuthError
-                ? 'Login to view your Budgets'
+                ? 'Login to analyze your spending habits'
                 : _errorMessage ?? 'Error occurred',
             style: TextStyle(color: Colors.red[300]),
             textAlign: TextAlign.center,
@@ -324,7 +349,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
             ),
           if (!isAuthError)
             ElevatedButton(
-              onPressed: _loadBudgetData,
+              onPressed: _loadData,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFF57C00),
               ),
@@ -609,10 +634,19 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                     final expensesViewModel =
                         Provider.of<ExpensesViewModel>(context, listen: false);
 
-                    // Refresh budget data
-                    await _loadBudgetData();
+                    // Make sure we're using the current selected month
+                    expensesViewModel.forceFilterByMonth(_selectedDate);
+
+                    // Refresh data
+                    await _loadData();
+
                     // Refresh expense data
                     await expensesViewModel.refreshData();
+
+                    // Rebuild dashboard cards with new data
+                    if (mounted) {
+                      setState(() {});
+                    }
                   },
                   child: CustomScrollView(
                     slivers: [
@@ -633,10 +667,28 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                           child: DatePickerButton(
                             date: _selectedDate,
                             themeColor: Theme.of(context).colorScheme.primary,
-                            prefix: 'Budget for',
+                            prefix: 'Filter by',
                             onDateChanged: _onDateChanged,
                             showDaySelection: false,
                           ),
+                        ),
+                      ),
+
+                      // Category Distribution Pie Chart
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 16.0),
+                        sliver: SliverToBoxAdapter(
+                          child: _buildCategoryDistributionCard(context),
+                        ),
+                      ),
+
+                      // Spending Trends Visualization
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16.0, vertical: 8.0),
+                        sliver: SliverToBoxAdapter(
+                          child: _buildSpendingTrendsCard(context),
                         ),
                       ),
 
@@ -677,32 +729,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                         ),
                       ),
 
-                      SliverPadding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                        sliver: SliverToBoxAdapter(
-                          child: Consumer<BudgetViewModel>(
-                            builder: (context, vm, _) {
-                              return BudgetCard(
-                                budget: vm.budget,
-                                onTap: () async {
-                                  if (!mounted) return;
-                                  Navigator.push(
-                                    context,
-                                    PageTransition(
-                                      child: AddBudgetScreen(
-                                        monthId: _currentMonthId,
-                                      ),
-                                      type: TransitionType.slideRight,
-                                    ),
-                                  ).then((_) {
-                                    _loadBudgetData();
-                                  });
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                      ),
+                      // Budget card has been removed from the analytics screen
 
                       const SliverPadding(
                         padding: EdgeInsets.only(bottom: 80.0),
@@ -735,6 +762,620 @@ class _AnalyticScreenState extends State<AnalyticScreen>
         onTap: (idx) {
           // Navigation is handled in BottomNavBar
         },
+      ),
+    );
+  }
+
+  // Build category distribution card with pie chart
+  Widget _buildCategoryDistributionCard(BuildContext context) {
+    final expensesViewModel = Provider.of<ExpensesViewModel>(context);
+
+    // Ensure we're getting data for the selected month
+    expensesViewModel.forceFilterByMonth(_selectedDate);
+    final categoryTotals = expensesViewModel.getCategoryTotals();
+
+    // If there's no data, show a placeholder
+    if (categoryTotals.isEmpty) {
+      return Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.pie_chart,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Category Distribution',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const Spacer(),
+                  // Show the filter date
+                  Text(
+                    '${_selectedDate.year}-${_selectedDate.month}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 40),
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.pie_chart_outline,
+                      size: 48,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No expense data for this period',
+                      style: TextStyle(color: Colors.grey[600]),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Try selecting a different month or adding expenses',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Calculate total amount with currency conversion already applied
+    // The getCategoryTotals() method now returns values in the user's preferred currency
+    final totalAmount =
+        categoryTotals.values.fold<double>(0, (sum, value) => sum + value);
+
+    debugPrint(
+        'Total amount for pie chart: $totalAmount in ${expensesViewModel.currentCurrency}');
+    debugPrint('Categories: ${categoryTotals.keys.join(", ")}');
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.pie_chart,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Category Distribution',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const Spacer(),
+                // Show the filter date
+                Text(
+                  '${_selectedDate.year}-${_selectedDate.month}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // Pie chart with fixed height and proper container
+            Container(
+              height: 250,
+              alignment: Alignment.center,
+              child: _buildCustomPieChart(categoryTotals),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Total amount - now using currency-converted values
+            Center(
+              child: RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: 'Total: ',
+                      style: TextStyle(
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                        fontSize: 16,
+                      ),
+                    ),
+                    TextSpan(
+                      text:
+                          '${expensesViewModel.currentCurrency} ${totalAmount.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Category legend with better wrapping
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 12,
+                alignment: WrapAlignment.center,
+                children: categoryTotals.entries.map((entry) {
+                  final categoryId = entry.key;
+                  final percentage =
+                      (entry.value / totalAmount * 100).toStringAsFixed(1);
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          decoration: BoxDecoration(
+                            color: CategoryManager.getColorFromId(categoryId),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${CategoryManager.getNameFromId(categoryId)} ($percentage%)',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Build spending trends visualization
+  Widget _buildSpendingTrendsCard(BuildContext context) {
+    final expensesViewModel = Provider.of<ExpensesViewModel>(context);
+
+    // Ensure we're getting data for the selected month
+    expensesViewModel.forceFilterByMonth(_selectedDate);
+    final hasExpenses = expensesViewModel.filteredExpenses.isNotEmpty;
+
+    // If there's no data, show a placeholder
+    if (!hasExpenses) {
+      return Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.trending_up,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Spending Trends',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  const Spacer(),
+                  // Show the filter date
+                  Text(
+                    '${_selectedDate.year}-${_selectedDate.month}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 40),
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.show_chart,
+                      size: 48,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No trend data available',
+                      style: TextStyle(color: Colors.grey[600]),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Add more expenses to see spending patterns',
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 40),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.trending_up,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 24,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Spending Trends',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+                const Spacer(),
+                // Show the filter date
+                Text(
+                  '${_selectedDate.year}-${_selectedDate.month}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Top Categories Spending Bar Chart
+            _buildTopCategoriesChart(expensesViewModel),
+
+            const SizedBox(height: 16),
+
+            // Daily Spending Pattern
+            _buildDailySpendingPattern(context, expensesViewModel),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Build top categories chart
+  Widget _buildTopCategoriesChart(ExpensesViewModel viewModel) {
+    // Ensure we're getting data for the selected month
+    viewModel.forceFilterByMonth(_selectedDate);
+    final categoryTotals = viewModel.getCategoryTotals();
+
+    if (categoryTotals.isEmpty) {
+      return SizedBox(
+        height: 120,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.category_outlined, size: 28, color: Colors.grey[400]),
+              const SizedBox(height: 8),
+              Text(
+                'No category data for this period',
+                style: TextStyle(color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Sort categories by amount
+    final sortedCategories = categoryTotals.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    // Take top 5 categories
+    final topCategories = sortedCategories.take(5).toList();
+
+    // Get the highest amount for scaling
+    final highestAmount = topCategories.first.value;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Top Categories',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...topCategories.map((entry) {
+          final percentage = entry.value / highestAmount;
+          final category = entry.key;
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      CategoryManager.getIcon(category),
+                      size: 16,
+                      color: CategoryManager.getColor(category),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      CategoryManager.getName(category),
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${viewModel.currentCurrency} ${entry.value.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                // Bar chart
+                Stack(
+                  children: [
+                    // Background bar
+                    Container(
+                      height: 8,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    // Filled bar
+                    FractionallySizedBox(
+                      widthFactor: percentage,
+                      child: Container(
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: CategoryManager.getColor(category),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  // Build daily spending pattern visualization
+  Widget _buildDailySpendingPattern(
+      BuildContext context, ExpensesViewModel viewModel) {
+    // Ensure we're getting data for the selected month
+    viewModel.forceFilterByMonth(_selectedDate);
+    final expenses = viewModel.filteredExpenses;
+
+    if (expenses.isEmpty) {
+      return SizedBox(
+        height: 150,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.date_range_outlined,
+                  size: 28, color: Colors.grey[400]),
+              const SizedBox(height: 8),
+              Text(
+                'No daily spending data for ${_selectedDate.year}-${_selectedDate.month}',
+                style: TextStyle(color: Colors.grey[600]),
+                textAlign: TextAlign.center,
+              ),
+              Text(
+                'Add expenses to see daily patterns',
+                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Group expenses by day
+    final Map<int, double> dailyTotals = {};
+
+    // Get all days in the selected month
+    final daysInMonth =
+        DateTime(_selectedDate.year, _selectedDate.month + 1, 0).day;
+
+    // Initialize all days with zero
+    for (int day = 1; day <= daysInMonth; day++) {
+      dailyTotals[day] = 0;
+    }
+
+    // Sum expenses by day
+    for (final expense in expenses) {
+      final day = expense.date.day;
+      dailyTotals[day] = (dailyTotals[day] ?? 0) + expense.amount;
+    }
+
+    // Find the highest daily total for scaling
+    final highestDaily = dailyTotals.values.reduce((a, b) => a > b ? a : b);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Daily Spending Pattern',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 120,
+          child: Row(
+            children: List.generate(daysInMonth, (index) {
+              final day = index + 1;
+              final amount = dailyTotals[day] ?? 0;
+              final percentage = highestDaily > 0 ? amount / highestDaily : 0;
+
+              // Determine if this is today
+              final isToday = DateTime.now().day == day &&
+                  DateTime.now().month == _selectedDate.month &&
+                  DateTime.now().year == _selectedDate.year;
+
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 1),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      // Bar
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        height: (100 * percentage).toDouble(),
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: isToday
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withAlpha((255 * 0.7).toInt()),
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(4)),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      // Day number
+                      Text(
+                        day.toString(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight:
+                              isToday ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Custom pie chart builder that works with string category IDs
+  Widget _buildCustomPieChart(Map<String, double> data) {
+    if (data.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.pie_chart_outline,
+              size: 48,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'No data available',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Calculate total for percentages
+    final total = data.values.fold<double>(0, (sum, value) => sum + value);
+
+    return PieChart(
+      PieChartData(
+        sections: data.entries.map((entry) {
+          final categoryId = entry.key;
+          final value = entry.value;
+          final percent = total > 0 ? (value / total * 100) : 0;
+
+          return PieChartSectionData(
+            value: value,
+            title: '${percent.toStringAsFixed(0)}%',
+            color: CategoryManager.getColorFromId(categoryId),
+            radius: 100,
+            titleStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          );
+        }).toList(),
+        sectionsSpace: 2,
+        centerSpaceRadius: 40,
+        startDegreeOffset: 180,
       ),
     );
   }
