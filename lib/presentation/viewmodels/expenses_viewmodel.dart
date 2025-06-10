@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../domain/entities/expense.dart';
 import '../../domain/entities/category.dart' as app_category;
@@ -117,8 +118,12 @@ class ExpensesViewModel extends ChangeNotifier {
 
       // Apply default filtering for current month
       _isFiltering = true;
-      _selectedMonth = _screenFilters['home'] ?? DateTime.now();
-      _isDayFiltering = _screenDayFilters['home'] ?? false;
+      // Use the current _selectedMonth instead of forcing to 'home' screen filter
+      // This ensures we respect any previously set filters
+      if (_selectedMonth == DateTime.now() || !_isFiltering) {
+        // Only set to default if we haven't already set a specific filter
+        _selectedMonth = DateTime.now();
+      }
       _filterExpensesByMonth();
 
       // Set initial load flag to false after first load
@@ -185,12 +190,12 @@ class ExpensesViewModel extends ChangeNotifier {
       _filteredExpenses = [];
 
       _filterExpensesByMonth();
-      // _filterExpensesByMonth already calls notifyListeners
+      // _filterExpensesByMonth already calls notifyListeners via post frame callback
     } catch (e) {
       debugPrint('Error setting selected month: $e');
       _error = 'Failed to set selected month';
-      // Use microtask to avoid build phase issues
-      Future.microtask(() {
+      // Use post frame callback to avoid build phase issues
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         notifyListeners();
       });
     }
@@ -234,9 +239,11 @@ class ExpensesViewModel extends ChangeNotifier {
     // Use cached data if available
     if (_cache.containsKey(cacheKey)) {
       _filteredExpenses = _cache[cacheKey]!;
+      debugPrint(
+          'Using cached data for {cacheKey}: ${_filteredExpenses.length} expenses');
       PerformanceMonitor.stopTimer('filter_expenses', logResult: true);
       // Schedule notification for next event loop to avoid build phase issues
-      Future.microtask(() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
         notifyListeners();
       });
       return;
@@ -245,23 +252,34 @@ class ExpensesViewModel extends ChangeNotifier {
     // Filter synchronously to avoid state inconsistency
     try {
       debugPrint('Filtering expenses for ${_selectedMonth.toString()}');
+      debugPrint('Total expenses available: ${_expenses.length}');
+      debugPrint(
+          'Filtering for year: ${_selectedMonth.year}, month: ${_selectedMonth.month}');
+
       if (_isDayFiltering) {
         // Filter by exact date (day level)
         _filteredExpenses = _expenses.where((expense) {
-          return expense.date.year == _selectedMonth.year &&
+          final matches = expense.date.year == _selectedMonth.year &&
               expense.date.month == _selectedMonth.month &&
               expense.date.day == _selectedMonth.day;
+          return matches;
         }).toList();
+        debugPrint(
+            'Day filtering result: ${_filteredExpenses.length} expenses for ${_selectedMonth.year}-${_selectedMonth.month}-${_selectedMonth.day}');
       } else {
         // Filter by month only
         _filteredExpenses = _expenses.where((expense) {
-          return expense.date.year == _selectedMonth.year &&
+          final matches = expense.date.year == _selectedMonth.year &&
               expense.date.month == _selectedMonth.month;
+          if (matches) {
+            debugPrint(
+                'Expense matches filter: ${expense.remark} - ${expense.date} (${expense.date.year}-${expense.date.month})');
+          }
+          return matches;
         }).toList();
+        debugPrint(
+            'Month filtering result: ${_filteredExpenses.length} expenses for ${_selectedMonth.year}-${_selectedMonth.month}');
       }
-
-      debugPrint(
-          'Filtered ${_filteredExpenses.length} expenses for ${_selectedMonth.year}-${_selectedMonth.month}');
 
       // Update cache
       _cache[cacheKey] = _filteredExpenses;
@@ -273,7 +291,7 @@ class ExpensesViewModel extends ChangeNotifier {
 
     PerformanceMonitor.stopTimer('filter_expenses');
     // Schedule notification for next event loop to avoid build phase issues
-    Future.microtask(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       notifyListeners();
     });
   }
@@ -281,6 +299,7 @@ class ExpensesViewModel extends ChangeNotifier {
   /// Force filtering by month (public method for external components)
   void forceFilterByMonth(DateTime month) {
     debugPrint('Forcing filter by month: ${month.toString()}');
+    debugPrint('Previous selected month: ${_selectedMonth.toString()}');
 
     // Clear relevant cache to ensure fresh filtering
     final cacheKey = '${month.year}-${month.month}';
@@ -290,6 +309,10 @@ class ExpensesViewModel extends ChangeNotifier {
     _selectedMonth = month;
     _isFiltering = true;
     _isDayFiltering = false;
+
+    debugPrint('Set new selected month: ${_selectedMonth.toString()}');
+    debugPrint(
+        'Filtering enabled: $_isFiltering, Day filtering: $_isDayFiltering');
 
     // Perform filtering
     _filterExpensesByMonth();
@@ -351,11 +374,14 @@ class ExpensesViewModel extends ChangeNotifier {
       // Clear expired cache
       _cache.clear();
 
-      // Apply default filtering for current month when loading for the first time
+      // Apply filtering based on current state
       if (_isInitialLoad) {
-        _isFiltering = true;
-        _selectedMonth = _screenFilters['home'] ?? DateTime.now();
-        _isDayFiltering = _screenDayFilters['home'] ?? false;
+        // For initial load, only set filtering if not already configured
+        if (!_isFiltering) {
+          _isFiltering = true;
+          _selectedMonth = DateTime.now();
+          _isDayFiltering = false;
+        }
         _filterExpensesByMonth();
       }
       // Apply existing filter if active

@@ -19,10 +19,12 @@ import '../data/datasources/local_data_source.dart';
 import '../data/datasources/local_data_source_impl.dart';
 import '../core/network/connectivity_service.dart';
 import '../core/services/sync_service.dart';
-import '../core/services/notification_service.dart';
+import '../core/services/notification_manager.dart';
 import '../core/services/settings_service.dart';
 import '../core/services/currency_conversion_service.dart';
 import '../core/services/recurring_expense_service.dart';
+import '../core/services/data_collector.dart';
+import '../core/services/google_ai_expense_prediction_service.dart';
 
 /// Service locator instance
 final sl = GetIt.instance;
@@ -50,8 +52,8 @@ Future<void> init() async {
     () => ConnectivityServiceImpl(),
   );
 
-  // Notification service
-  sl.registerLazySingleton(() => NotificationService());
+  // Notification manager (replaces NotificationService)
+  sl.registerLazySingleton(() => NotificationManager());
 
   // Settings service
   sl.registerLazySingleton(() => SettingsService(
@@ -59,9 +61,19 @@ Future<void> init() async {
         connectivityService: sl(),
       ));
 
+  // Data collector (replaces ModelImprovementService and NotificationRecordService)
+  sl.registerLazySingleton(() => DataCollector());
+
   // Currency conversion service
   sl.registerLazySingleton(() {
     final service = CurrencyConversionService();
+    service.setConnectivityService(sl<ConnectivityService>());
+    return service;
+  });
+
+  // Google AI expense prediction service
+  sl.registerLazySingleton(() {
+    final service = GoogleAIExpensePredictionService();
     service.setConnectivityService(sl<ConnectivityService>());
     return service;
   });

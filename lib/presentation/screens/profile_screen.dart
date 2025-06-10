@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import '../viewmodels/theme_viewmodel.dart';
 import '../../core/constants/routes.dart';
 import '../../core/router/page_transition.dart';
 import '../widgets/auth_button.dart';
@@ -20,15 +23,460 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _displayNameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
   bool _isUpgrading = false;
   bool _showPassword = false;
+  bool _isEditingProfile = false;
+  bool _isUpdatingProfile = false;
+  String? _selectedPhotoUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    final viewModel = Provider.of<AuthViewModel>(context, listen: false);
+    final user = viewModel.currentUser;
+    _displayNameController.text = user?.displayName ?? '';
+  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _displayNameController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).cardColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(context).dividerColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Choose Profile Photo',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).textTheme.titleLarge?.color,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildImageSourceOption(
+                  icon: Icons.camera_alt,
+                  label: 'Camera',
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final image = await picker.pickImage(
+                      source: ImageSource.camera,
+                      maxWidth: 512,
+                      maxHeight: 512,
+                      imageQuality: 75,
+                    );
+                    if (image != null) {
+                      setState(() {
+                        _selectedPhotoUrl = image.path;
+                      });
+                    }
+                  },
+                ),
+                _buildImageSourceOption(
+                  icon: Icons.photo_library,
+                  label: 'Gallery',
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final image = await picker.pickImage(
+                      source: ImageSource.gallery,
+                      maxWidth: 512,
+                      maxHeight: 512,
+                      imageQuality: 75,
+                    );
+                    if (image != null) {
+                      setState(() {
+                        _selectedPhotoUrl = image.path;
+                      });
+                    }
+                  },
+                ),
+                _buildImageSourceOption(
+                  icon: Icons.delete_outline,
+                  label: 'Remove',
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      _selectedPhotoUrl = '';
+                    });
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageSourceOption({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color:
+                  Theme.of(context).primaryColor.withAlpha((255 * 0.1).round()),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(
+              icon,
+              size: 28,
+              color: Theme.of(context).primaryColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader() {
+    final viewModel = Provider.of<AuthViewModel>(context);
+    final themeViewModel = Provider.of<ThemeViewModel>(context);
+    final user = viewModel.currentUser;
+    final isGuest = viewModel.isGuestUser;
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Theme.of(context).primaryColor.withAlpha((255 * 0.1).round()),
+            Colors.transparent,
+          ],
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
+      child: Column(
+        children: [
+          Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha((255 * 0.1).round()),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: CircleAvatar(
+                  radius: 60,
+                  backgroundColor: themeViewModel.isDarkMode
+                      ? Colors.grey[800]
+                      : Colors.grey[200],
+                  backgroundImage: _selectedPhotoUrl != null &&
+                          _selectedPhotoUrl!.isNotEmpty
+                      ? (_selectedPhotoUrl!.startsWith('http')
+                          ? NetworkImage(_selectedPhotoUrl!)
+                          : FileImage(File(_selectedPhotoUrl!))
+                              as ImageProvider)
+                      : (user?.photoUrl != null && user!.photoUrl!.isNotEmpty
+                          ? NetworkImage(user.photoUrl!)
+                          : null),
+                  child: ((_selectedPhotoUrl == null ||
+                              _selectedPhotoUrl!.isEmpty) &&
+                          (user?.photoUrl == null || user!.photoUrl!.isEmpty))
+                      ? Icon(
+                          Icons.person,
+                          size: 60,
+                          color: themeViewModel.isDarkMode
+                              ? Colors.grey[500]
+                              : Colors.grey[400],
+                        )
+                      : null,
+                ),
+              ),
+              if (!isGuest && _isEditingProfile)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: GestureDetector(
+                    onTap: _pickImage,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Theme.of(context).scaffoldBackgroundColor,
+                          width: 2,
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (_isEditingProfile && !isGuest)
+            Container(
+              width: 250,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                color: themeViewModel.isDarkMode
+                    ? Theme.of(context).cardColor
+                    : Colors.white.withAlpha((255 * 0.8).round()),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha((255 * 0.05).round()),
+                    blurRadius: 10,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: TextFormField(
+                controller: _displayNameController,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).textTheme.titleLarge?.color,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Enter display name',
+                  hintStyle: TextStyle(
+                    color: Theme.of(context).hintColor,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(15),
+                    borderSide: BorderSide.none,
+                  ),
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              ),
+            )
+          else
+            Text(
+              isGuest ? 'Guest User' : (user?.displayName ?? 'User'),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).textTheme.titleLarge?.color,
+              ),
+            ),
+          const SizedBox(height: 8),
+          Text(
+            isGuest ? 'Signed in as guest' : (user?.email ?? ''),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: isGuest
+                  ? Colors.amber.shade800
+                  : Theme.of(context).textTheme.bodyMedium?.color,
+              fontStyle: isGuest ? FontStyle.italic : FontStyle.normal,
+            ),
+          ),
+          if (!isGuest) ...[
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_isEditingProfile) ...[
+                  ElevatedButton.icon(
+                    onPressed: _isUpdatingProfile ? null : _saveProfileChanges,
+                    icon: _isUpdatingProfile
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Icon(Icons.save, size: 18),
+                    label: Text(_isUpdatingProfile ? 'Saving...' : 'Save'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  OutlinedButton.icon(
+                    onPressed: _isUpdatingProfile ? null : _cancelEdit,
+                    icon: const Icon(Icons.close, size: 18),
+                    label: const Text('Cancel'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor:
+                          Theme.of(context).textTheme.bodyLarge?.color,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      side: BorderSide(
+                        color: Theme.of(context).dividerColor,
+                      ),
+                    ),
+                  ),
+                ] else
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _isEditingProfile = true;
+                        _displayNameController.text = user?.displayName ?? '';
+                        _selectedPhotoUrl = user?.photoUrl;
+                      });
+                    },
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Edit Profile'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveProfileChanges() async {
+    setState(() {
+      _isUpdatingProfile = true;
+    });
+
+    try {
+      final viewModel = Provider.of<AuthViewModel>(context, listen: false);
+      final displayName = _displayNameController.text.trim();
+
+      // Update both Firebase Auth profile and Firestore document
+      await viewModel.updateProfile(
+        displayName: displayName.isEmpty ? null : displayName,
+        photoUrl: _selectedPhotoUrl,
+      );
+
+      // Also update the user settings in Firestore
+      if (displayName.isNotEmpty) {
+        await viewModel.updateUserSettings(
+          theme: null, // Keep current theme
+          displayName: displayName,
+        );
+      }
+
+      setState(() {
+        _isEditingProfile = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profile updated successfully!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error updating profile: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingProfile = false;
+        });
+      }
+    }
+  }
+
+  void _cancelEdit() {
+    final viewModel = Provider.of<AuthViewModel>(context, listen: false);
+    final user = viewModel.currentUser;
+
+    setState(() {
+      _isEditingProfile = false;
+      _displayNameController.text = user?.displayName ?? '';
+      _selectedPhotoUrl = user?.photoUrl;
+    });
   }
 
   // Custom password field with visibility toggle
@@ -71,15 +519,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _handleLogout(BuildContext context) async {
-    // Use the new secure sign-out handler from AuthUtils
     await AuthUtils.handleSignOut(context);
   }
 
-  void _handleSwitchAccount(BuildContext context) {
-    Navigator.of(context).pushReplacementNamed(Routes.login);
+  void _handleSwitchAccount(BuildContext context) async {
+    await AuthUtils.handleSwitchAccount(context);
   }
 
   Future<void> _handleGoogleSignIn(BuildContext context) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     setState(() {
       _isUpgrading = true;
     });
@@ -88,20 +536,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final viewModel = Provider.of<AuthViewModel>(context, listen: false);
       await viewModel.signInWithGoogle();
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
           const SnackBar(
             content: Text('Account upgraded successfully with Google!'),
             backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString()}'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -114,13 +564,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // Apple sign-in functionality is currently handled in other locations
-
   Future<void> _handleGuestUpgrade(BuildContext context) async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     setState(() {
       _isUpgrading = true;
     });
@@ -132,20 +581,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         password: _passwordController.text,
       );
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
           const SnackBar(
             content: Text('Account upgraded successfully!'),
             backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) {
+        scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text('Error: ${e.toString()}'),
             backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
           ),
         );
       }
@@ -161,174 +612,281 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final viewModel = Provider.of<AuthViewModel>(context);
-    final user = viewModel.currentUser;
+    final themeViewModel = Provider.of<ThemeViewModel>(context);
     final isGuest = viewModel.isGuestUser;
 
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Profile'),
+        title: Text(
+          'Profile',
+          style: TextStyle(
+            color: Theme.of(context).textTheme.titleLarge?.color,
+          ),
+        ),
         centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          CircleAvatar(
-            radius: 50,
-            backgroundImage:
-                user?.photoUrl != null ? NetworkImage(user!.photoUrl!) : null,
-            child: user?.photoUrl == null
-                ? const Icon(Icons.person, size: 50)
-                : null,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            isGuest ? 'Guest User' : (user?.displayName ?? 'User'),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            isGuest ? 'Signed in as guest' : (user?.email ?? ''),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              color: isGuest ? Colors.amber.shade800 : Colors.grey,
-              fontStyle: isGuest ? FontStyle.italic : FontStyle.normal,
-            ),
-          ),
-          const SizedBox(height: 32),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildProfileHeader(),
+            const SizedBox(height: 20),
 
-          // Guest account upgrade section
-          if (isGuest) ...[
-            Container(
-              margin: const EdgeInsets.only(bottom: 24),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.amber.withAlpha((255 * 0.1).toInt()),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.amber.shade300),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.info_outline, color: Colors.amber.shade800),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Guest Account',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'You are currently using a guest account. Your data is stored locally and will be lost if you uninstall the app or clear app data.',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Upgrade to a permanent account to:',
-                    style: TextStyle(fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text('• Save your data securely in the cloud'),
-                  const Text('• Access your budget across multiple devices'),
-                  const Text('• Protect your data from being lost'),
-                  const SizedBox(height: 16),
-
-                  // Upgrade form
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+            // Guest account upgrade section
+            if (isGuest) ...[
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha((255 * 0.05).round()),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        CustomTextField(
-                          controller: _emailController,
-                          labelText: 'Email',
-                          hintText: 'Enter your email',
-                          prefixIcon: Icons.email,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter an email';
-                            }
-                            if (!value.contains('@') || !value.contains('.')) {
-                              return 'Please enter a valid email';
-                            }
-                            return null;
-                          },
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withAlpha((255 * 0.1).round()),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            Icons.info_outline,
+                            color: Colors.amber.shade800,
+                            size: 24,
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        _buildPasswordField(),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _isUpgrading
-                              ? null
-                              : () => _handleGuestUpgrade(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.amber.shade800,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Guest Account',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  Theme.of(context).textTheme.titleLarge?.color,
                             ),
                           ),
-                          child: _isUpgrading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white),
-                                  ),
-                                )
-                              : const Text('Upgrade Account'),
                         ),
-                        const SizedBox(height: 24),
-                        const Text(
-                          'Or connect with:',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'You are currently using a guest account. Your data is stored locally and will be lost if you uninstall the app or clear app data.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withAlpha((255 * 0.05).round()),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                            color: Colors.green.withAlpha((255 * 0.2).round())),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Upgrade to a permanent account to:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green.shade800,
+                            ),
                           ),
-                          textAlign: TextAlign.center,
+                          const SizedBox(height: 8),
+                          ...[
+                            '• Save your data securely in the cloud',
+                            '• Access your budget across multiple devices',
+                            '• Protect your data from being lost',
+                          ].map((text) => Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text(
+                                  text,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                              )),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Upgrade form
+                    Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          CustomTextField(
+                            controller: _emailController,
+                            labelText: 'Email',
+                            hintText: 'Enter your email',
+                            prefixIcon: Icons.email,
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter an email';
+                              }
+                              if (!value.contains('@') ||
+                                  !value.contains('.')) {
+                                return 'Please enter a valid email';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          _buildPasswordField(),
+                          const SizedBox(height: 20),
+                          ElevatedButton(
+                            onPressed: _isUpgrading
+                                ? null
+                                : () => _handleGuestUpgrade(context),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.amber.shade800,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              disabledBackgroundColor: Colors.amber.shade800
+                                  .withAlpha((255 * 0.5).round()),
+                            ),
+                            child: _isUpgrading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white),
+                                    ),
+                                  )
+                                : const Text(
+                                    'Upgrade Account',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                          ),
+                          const SizedBox(height: 24),
+                          Row(
+                            children: [
+                              Expanded(
+                                  child: Divider(
+                                      color: Theme.of(context).dividerColor)),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  'Or connect with',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.color,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                  child: Divider(
+                                      color: Theme.of(context).dividerColor)),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          AuthButton(
+                            label: 'Continue with Google',
+                            leadingIcon: Image.asset(
+                              'assets/icons/google_logo.png',
+                              height: 24,
+                              width: 24,
+                            ),
+                            backgroundColor: themeViewModel.isDarkMode
+                                ? Colors.grey[800]!
+                                : Colors.white,
+                            textColor: themeViewModel.isDarkMode
+                                ? Colors.white
+                                : Colors.black87,
+                            onPressed: () => _handleGoogleSignIn(context),
+                          ),
+                          const SizedBox(height: 12),
+                          AuthButton(
+                            label: 'Continue with Apple',
+                            leadingIcon: Image.asset(
+                              'assets/icons/apple_logo.png',
+                              height: 24,
+                              width: 24,
+                              color: Colors.white,
+                            ),
+                            backgroundColor:
+                                Colors.black.withAlpha((255 * 0.7).round()),
+                            onPressed: null,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+
+            // Action buttons
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha((255 * 0.05).round()),
+                          blurRadius: 10,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        AuthButton(
+                          label: 'Log out',
+                          leadingIcon:
+                              const Icon(Icons.logout, color: Colors.white),
+                          backgroundColor: const Color(0xff1A1A19),
+                          onPressed: () => _handleLogout(context),
                         ),
                         const SizedBox(height: 16),
-                        // Google Sign In Button
                         AuthButton(
-                          label: 'Continue with Google',
-                          leadingIcon: Image.asset(
-                            'assets/icons/google_logo.png',
-                            height: 24,
-                            width: 24,
-                          ),
-                          backgroundColor: Colors.white,
-                          textColor: Colors.black87,
-                          onPressed: () => _handleGoogleSignIn(context),
-                        ),
-                        const SizedBox(height: 12),
-                        // Apple Sign In Button
-                        AuthButton(
-                          label: 'Continue with Apple',
-                          leadingIcon: Image.asset(
-                            'assets/icons/apple_logo.png',
-                            height: 24,
-                            width: 24,
-                            color: Colors.white,
-                          ),
-                          backgroundColor: Colors.black.withAlpha((255 * 0.5)
-                              .toInt()), // Dimmed to indicate it's disabled
-                          onPressed:
-                              null, // Disabled because Apple developer account is required
+                          label: 'Switch Account',
+                          leadingIcon: const Icon(Icons.switch_account,
+                              color: Colors.white),
+                          backgroundColor: Colors.grey.shade700,
+                          onPressed: () => _handleSwitchAccount(context),
                         ),
                       ],
                     ),
@@ -336,30 +894,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 100), // Space for bottom navigation
           ],
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Column(
-              children: [
-                AuthButton(
-                  label: 'Log out',
-                  leadingIcon: const Icon(Icons.logout),
-                  backgroundColor: const Color(0xff1A1A19),
-                  onPressed: () => _handleLogout(context),
-                ),
-                const SizedBox(height: 12),
-                AuthButton(
-                  label: 'Switch Account',
-                  leadingIcon: const Icon(Icons.switch_account),
-                  backgroundColor: const Color(0xff1A1A19),
-                  onPressed: () => _handleSwitchAccount(context),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 90),
-        ],
+        ),
       ),
       extendBody: true,
       floatingActionButton: AnimatedFloatButton(

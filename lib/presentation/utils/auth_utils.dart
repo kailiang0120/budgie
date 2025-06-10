@@ -8,6 +8,30 @@ import '../../core/constants/routes.dart';
 
 /// Utility class for common authentication operations
 class AuthUtils {
+  /// Handle account switching with special handling for anonymous users
+  /// This is called when user wants to switch to a different account
+  static Future<void> handleSwitchAccount(BuildContext context) async {
+    // Store context-related variables before async operations
+    final navigator = Navigator.of(context);
+
+    // Get the current user from Firebase
+    final user = FirebaseAuth.instance.currentUser;
+
+    // Check if the user is anonymous
+    if (user != null && user.isAnonymous) {
+      // Show warning dialog for guest users
+      await DialogUtils.showAnonymousSignOutDialog(context);
+    } else {
+      // For non-anonymous users, just navigate to login
+      if (navigator.mounted) {
+        navigator.pushNamedAndRemoveUntil(
+          Routes.login,
+          (route) => false,
+        );
+      }
+    }
+  }
+
   /// Handle sign-out with special handling for anonymous users
   /// This is the main entry point for sign-out actions in the UI
   static Future<void> handleSignOut(BuildContext context) async {

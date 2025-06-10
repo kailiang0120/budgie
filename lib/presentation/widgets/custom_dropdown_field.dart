@@ -1,33 +1,23 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 
-/// 自定义下拉选择器组件
 class CustomDropdownField<T> extends StatelessWidget {
-  /// 当前选择的值
   final T value;
 
-  /// 可选项列表
   final List<T> items;
 
-  /// 标签文本
   final String labelText;
 
-  /// 值变更回调
   final Function(T?) onChanged;
 
-  /// 项目标签构建器
   final String Function(T) itemLabelBuilder;
 
-  /// 前缀图标
   final IconData? prefixIcon;
 
-  /// 是否必填
   final bool isRequired;
 
-  /// 验证器
   final String? Function(T?)? validator;
 
-  /// 边框圆角
   final double borderRadius;
 
   const CustomDropdownField({

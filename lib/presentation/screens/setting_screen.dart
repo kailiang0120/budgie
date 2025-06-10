@@ -7,7 +7,7 @@ import 'package:flutter_background/flutter_background.dart';
 import '../viewmodels/theme_viewmodel.dart';
 import '../../core/constants/routes.dart';
 import '../../core/router/page_transition.dart';
-import '../../core/services/notification_service.dart';
+import '../../core/services/notification_manager.dart';
 import '../../core/services/settings_service.dart';
 import '../../di/injection_container.dart' as di;
 import '../widgets/switch_tile.dart';
@@ -31,7 +31,7 @@ class _SettingScreenState extends State<SettingScreen> {
   bool _loading = true;
 
   // Get services
-  final _notificationService = di.sl<NotificationService>();
+  final _notificationManager = di.sl<NotificationManager>();
   final _settingsService = di.sl<SettingsService>();
 
   @override
@@ -84,7 +84,7 @@ class _SettingScreenState extends State<SettingScreen> {
 
   Future<void> _checkNotificationPermissionStatus() async {
     final hasNotificationPermission =
-        await _notificationService.checkNotificationPermission();
+        await _notificationManager.checkNotificationPermission();
 
     // Only show a warning if app setting is ON but OS permission is OFF
     if (_settingsService.allowNotification && !hasNotificationPermission) {
@@ -150,12 +150,12 @@ class _SettingScreenState extends State<SettingScreen> {
         bool hasListenerPermission = true;
         if (Platform.isAndroid) {
           hasListenerPermission =
-              await _notificationService.checkNotificationListenerPermission();
+              await _notificationManager.checkNotificationListenerPermission();
         }
 
         // Request basic notification permissions first
         final granted =
-            await _notificationService.requestLocalNotificationPermissions();
+            await _notificationManager.requestLocalNotificationPermissions();
 
         if (!granted) {
           if (mounted) {
@@ -231,7 +231,7 @@ class _SettingScreenState extends State<SettingScreen> {
             }
 
             // Open system settings for notification listener permission
-            await _notificationService.requestNotificationAccessPermission();
+            await _notificationManager.requestNotificationAccessPermission();
 
             // Show follow-up guidance
             if (mounted) {
@@ -255,17 +255,17 @@ class _SettingScreenState extends State<SettingScreen> {
         if (Platform.isAndroid) {
           // Check if permission was granted
           final hasPermissionNow =
-              await _notificationService.checkNotificationListenerPermission();
+              await _notificationManager.checkNotificationListenerPermission();
 
           if (hasPermissionNow) {
             // Make multiple attempts to start the listener
             bool listenerStarted = false;
             for (int i = 0; i < 3; i++) {
-              await _notificationService.startNotificationListener();
+              await _notificationManager.startNotificationListener();
 
               // Verify if listener is active
               await Future.delayed(const Duration(milliseconds: 500));
-              if (_notificationService.isListening) {
+              if (_notificationManager.isListening) {
                 listenerStarted = true;
                 break;
               }
@@ -291,8 +291,7 @@ class _SettingScreenState extends State<SettingScreen> {
 
               // Test the listener with a simple notification
               await Future.delayed(const Duration(seconds: 1));
-              await _notificationService
-                  .testNotificationListenerWithBackground();
+              await _notificationManager.sendTestNotification();
             } else {
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -319,19 +318,19 @@ class _SettingScreenState extends State<SettingScreen> {
           }
         } else {
           // Non-Android platforms
-          await _notificationService.startNotificationListener();
+          await _notificationManager.startNotificationListener();
         }
       } else {
         // User wants to disable notifications
         await _settingsService.updateNotificationSetting(false);
 
         // Stop notification listener
-        await _notificationService.stopNotificationListener();
+        await _notificationManager.stopNotificationListener();
 
         // For Android, prompt user to also revoke notification access permission
         if (Platform.isAndroid) {
           final hasListenerAccess =
-              await _notificationService.checkNotificationListenerPermission();
+              await _notificationManager.checkNotificationListenerPermission();
 
           if (hasListenerAccess && mounted) {
             // Prompt the user to also revoke the notification access in system settings
@@ -357,7 +356,7 @@ class _SettingScreenState extends State<SettingScreen> {
                 false;
 
             if (shouldRevokeAccess) {
-              await _notificationService.requestNotificationAccessPermission();
+              await _notificationManager.requestNotificationAccessPermission();
               // Show guidance
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -399,8 +398,31 @@ class _SettingScreenState extends State<SettingScreen> {
 
   Future<void> _updateImproveAccuracy(bool value) async {
     try {
+      // If user is trying to enable the setting, show consent dialog
+      if (value && !_settingsService.improveAccuracy) {
+        final shouldEnable = await _showImproveAccuracyDialog();
+        if (!shouldEnable) {
+          return; // User declined, don't update the setting
+        }
+      }
+
       await _settingsService.updateImproveAccuracySetting(value);
       debugPrint('Improve accuracy updated to: $value');
+
+      // Show confirmation message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              value
+                  ? 'Thank you for helping improve our expense detection model!'
+                  : 'Model improvement has been disabled.',
+            ),
+            backgroundColor: value ? Colors.green : Colors.grey,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     } catch (e) {
       debugPrint('Error updating improve accuracy: $e');
       if (mounted) {
@@ -409,6 +431,152 @@ class _SettingScreenState extends State<SettingScreen> {
         );
       }
     }
+  }
+
+  Future<bool> _showImproveAccuracyDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false, // User must choose an option
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Row(
+                children: [
+                  Icon(
+                    Icons.psychology,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Help Improve Our AI Model',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                  ),
+                ],
+              ),
+              content: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.6,
+                  maxWidth: MediaQuery.of(context).size.width * 0.9,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'We would like to use your anonymized user data to improve our AI model for better performance.',
+                        style: TextStyle(fontSize: 15),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withAlpha((255 * 0.1).toInt()),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.blue.withAlpha((255 * 0.3).toInt()),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.security,
+                                  color: Colors.blue.shade700,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Data Privacy & Usage',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue.shade700,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              '• Your data will be completely anonymized\n'
+                              '• No personal information will be shared\n'
+                              '• Data is used solely for AI model training\n'
+                              '• You can disable this anytime in settings\n'
+                              '• Data helps improve model output accuracy',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'By enabling this feature, you consent to share anonymized data to help us build better AI models for all users.',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.grey[600],
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(color: Colors.grey.shade300),
+                          ),
+                        ),
+                        child: const Text(
+                          'No, Keep Disabled',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          'Agree & Enable',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+            );
+          },
+        ) ??
+        false; // Return false if dialog is dismissed without selection
   }
 
   @override

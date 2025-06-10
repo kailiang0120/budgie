@@ -227,9 +227,7 @@ class _LoginScreenState extends State<LoginScreen>
         const Spacer(),
 
         TextButton(
-          onPressed: () {
-            // TODO: contact us action
-          },
+          onPressed: () {},
           child: const Text(
             '2025 Budgie',
             style: TextStyle(

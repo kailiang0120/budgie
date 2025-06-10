@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import '../../domain/entities/category.dart';
 import '../utils/category_manager.dart';
 import '../../core/services/settings_service.dart';
+import '../../core/services/data_collector.dart';
+import '../../di/injection_container.dart' as di;
 
 enum ExpenseCardStep { confirm, category, remark, saving }
 
@@ -114,9 +116,10 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
         'currency': currency,
         'date': Timestamp.fromDate(DateTime.now()),
         'category': _selectedCategory?.id ?? Category.others.id,
-        'description': remarkText, // Main description field
+        'description': "One-time Payment", // Main description field
         'method': 'eWallet', // Payment method matching the enum
         'remark': remarkText, // Additional remark field
+        'recurringExpenseId': null,
       };
 
       debugPrint('Expense document structure matches main app format');
@@ -140,6 +143,7 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
 
       // Save to Firestore expenses collection with detailed error handling
       // Use the same structure as the main app: users/{userId}/expenses
+      String? savedExpenseId;
       try {
         final userId = widget.expenseData['userId'];
         final docRef = await FirebaseFirestore.instance
@@ -149,6 +153,7 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
             .add(expenseDoc)
             .timeout(const Duration(seconds: 10)); // Add timeout
 
+        savedExpenseId = docRef.id; // Capture the expense ID
         debugPrint(
             'Expense saved successfully with ID: ${docRef.id} for user: $userId');
       } catch (firestoreError) {
@@ -172,6 +177,35 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
         }
 
         rethrow; // Re-throw the original error
+      }
+
+      // Record data for notification record service
+      try {
+        final dataCollector = di.sl<DataCollector>();
+        await dataCollector.recordNotificationExpense({
+          'amount': amount,
+          'currency': currency,
+          'category': (_selectedCategory ?? Category.others).id,
+          'merchant': merchant,
+          'isAutoDetected': true,
+          'detectionMethod': 'notification_parsing',
+          'source': widget.expenseData['source']?.toString() ?? 'Unknown App',
+          'confidence': widget.expenseData['confidence'],
+          'originalText':
+              widget.expenseData['notificationContent']?.toString() ??
+                  widget.expenseData['originalNotification']?.toString() ??
+                  widget.expenseData['fullNotification']?.toString() ??
+                  'Unknown notification',
+          'userRemark': _remarkController.text.trim(),
+          'expenseId': savedExpenseId,
+          'expenseTimestamp': DateTime.now().toIso8601String(),
+          'originalNotificationData': widget.expenseData,
+        });
+        debugPrint('📊 Notification record data recorded successfully');
+      } catch (recordError) {
+        // Don't fail the expense saving if notification record fails
+        debugPrint(
+            '📊 Failed to record notification record data: $recordError');
       }
 
       // Remove from auto-detected collection if it exists

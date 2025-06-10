@@ -30,7 +30,8 @@ abstract class AuthRepository {
   Future<User> signInWithApple();
 
   /// Updates user settings
-  Future<void> updateUserSettings({String? currency, String? theme});
+  Future<void> updateUserSettings(
+      {String? currency, String? theme, String? displayName});
 
   /// Signs in a user anonymously (as guest)
   Future<User> signInAnonymously();

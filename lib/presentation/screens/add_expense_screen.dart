@@ -15,6 +15,7 @@ import '../widgets/date_time_picker_field.dart';
 import '../widgets/recurring_expense_config.dart';
 import '../../core/errors/app_error.dart';
 import '../../core/services/settings_service.dart';
+import '../../core/services/data_collector.dart';
 import '../../di/injection_container.dart' as di;
 
 class AddExpenseScreen extends StatefulWidget {
@@ -164,6 +165,32 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         );
 
         await viewModel.addExpense(expense);
+
+        // Record data for model improvement if user has consented
+        try {
+          final dataCollector = di.sl<DataCollector>();
+          await dataCollector.recordManualExpense(
+            amount: amount,
+            currency: _currency.value,
+            selectedCategory: _selectedCategory.value,
+            userRemark: remarkText,
+            entryMethod: 'manual_form',
+            additionalMetadata: {
+              'paymentMethod': _selectedPaymentMethod.value,
+              'isRecurring':
+                  _recurringFrequency.value != RecurringFrequency.oneTime,
+              'recurringFrequency': _recurringFrequency.value.name,
+              'entryTimestamp': DateTime.now().toIso8601String(),
+              'hasDescription': _descriptionController.text.trim().isNotEmpty,
+            },
+          );
+          debugPrint(
+              '📊 Model improvement data recorded successfully for manual expense');
+        } catch (modelError) {
+          // Don't fail the expense saving if model improvement fails
+          debugPrint(
+              '📊 Failed to record model improvement data for manual expense: $modelError');
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

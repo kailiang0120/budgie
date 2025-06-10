@@ -1,10 +1,12 @@
 // Add budget screen no longer needed
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 // Budget ViewModel no longer needed
 import '../viewmodels/expenses_viewmodel.dart';
+import '../viewmodels/budget_viewmodel.dart';
 import '../widgets/bottom_nav_bar.dart';
 // Budget card no longer needed
 import '../widgets/date_picker_button.dart';
@@ -15,7 +17,9 @@ import 'add_expense_screen.dart';
 import '../../core/constants/routes.dart';
 import '../../core/router/page_transition.dart';
 import '../../core/services/settings_service.dart';
-import '../../core/services/financial_prediction_api_service.dart';
+import '../../core/services/google_ai_expense_prediction_service.dart';
+import '../../core/services/ai_models.dart';
+import '../../di/injection_container.dart' as di;
 
 String formatMonthId(DateTime date) {
   return '${date.year}-${date.month.toString().padLeft(2, '0')}';
@@ -36,15 +40,16 @@ class _AnalyticScreenState extends State<AnalyticScreen>
   String? _errorMessage;
   bool _isInitialized = false;
 
-  // Financial prediction related state
-  bool _isPredictionLoading = false;
-  LLMPredictionApiResponse? _predictionResponse;
-
-  // Financial prediction service
-  final _financialPredictionService = FinancialPredictionApiService();
-
   // To track currency changes
   String? _currentCurrency;
+
+  // Flag to prevent redundant refreshes
+  bool _isDataLoaded = false;
+
+  // AI Prediction state
+  bool _isLoadingPrediction = false;
+  ExpensePredictionResponse? _predictionResult;
+  String? _predictionError;
 
   @override
   void initState() {
@@ -78,6 +83,8 @@ class _AnalyticScreenState extends State<AnalyticScreen>
   }
 
   void _initializeFilters() {
+    if (_isInitialized) return;
+
     try {
       final expensesViewModel =
           Provider.of<ExpensesViewModel>(context, listen: false);
@@ -87,28 +94,40 @@ class _AnalyticScreenState extends State<AnalyticScreen>
       _currentMonthId = formatMonthId(_selectedDate);
 
       debugPrint(
-          'Initializing filters with date: ${_selectedDate.year}-${_selectedDate.month}');
-      debugPrint('Set current month ID to: $_currentMonthId');
+          'Analytics: Initializing filters with date: ${_selectedDate.year}-${_selectedDate.month}');
+      debugPrint('Analytics: Set current month ID to: $_currentMonthId');
+      debugPrint('Analytics: Selected date details: $_selectedDate');
 
-      // Apply the filter explicitly
+      // Apply the filter explicitly - only need to call this once
       expensesViewModel.setSelectedMonth(_selectedDate,
           persist: true, screenKey: 'analytics');
 
-      // Force filter application to ensure data is filtered properly
-      expensesViewModel.forceFilterByMonth(_selectedDate);
+      debugPrint('Analytics: Filter applied for analytics screen');
 
-      setState(() {
-        _isInitialized = true;
+      // Set initialized flag without calling setState during build
+      _isInitialized = true;
+
+      // Defer data loading to after build is complete
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadData();
+        }
       });
-
-      // Load data with the selected month
-      _loadData();
     } catch (e) {
       debugPrint('Error retrieving analytic screen filter: $e');
       _selectedDate = DateTime.now();
       _currentMonthId = formatMonthId(_selectedDate);
       debugPrint('Fallback to current date: $_currentMonthId');
-      _loadData();
+
+      // Set initialized flag without calling setState during build
+      _isInitialized = true;
+
+      // Defer data loading to after build is complete
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadData();
+        }
+      });
     }
   }
 
@@ -116,22 +135,32 @@ class _AnalyticScreenState extends State<AnalyticScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // When the app is resumed, refresh the data
     if (state == AppLifecycleState.resumed && mounted) {
+      // Only refresh data when app is resumed from background
       _loadData();
-      Provider.of<ExpensesViewModel>(context, listen: false).refreshData();
     }
   }
 
   @override
   void dispose() {
-    // Dispose prediction service resources
-    _financialPredictionService.dispose();
-
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   Future<void> _loadData() async {
     if (!mounted) return;
+
+    // Use post frame callback to ensure we're not in build phase
+    if (WidgetsBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _loadData();
+        }
+      });
+      return;
+    }
+
+    if (_isLoading) return;
 
     setState(() {
       _isLoading = true;
@@ -150,35 +179,51 @@ class _AnalyticScreenState extends State<AnalyticScreen>
       // Update current currency if needed
       if (_currentCurrency != userCurrency) {
         _currentCurrency = userCurrency;
-        debugPrint('Updating to user currency: $_currentCurrency');
+        debugPrint('Analytics: Updating to user currency: $_currentCurrency');
       }
 
       debugPrint(
-          'Loading data for month ID: $_currentMonthId (${_selectedDate.year}-${_selectedDate.month})');
+          'Analytics: Loading data for month ID: $_currentMonthId (${_selectedDate.year}-${_selectedDate.month})');
+      debugPrint('Analytics: Selected date details: $_selectedDate');
 
-      // Set selected month for expenses, ensure we persist the filter
-      expensesViewModel.setSelectedMonth(_selectedDate,
-          persist: true, screenKey: 'analytics');
+      // Only set the filter if it's not already set to avoid redundant operations
+      if (!_isDataLoaded) {
+        debugPrint('Analytics: Setting filter for first time');
+        // Apply the filter explicitly - only set it once
+        expensesViewModel.setSelectedMonth(_selectedDate,
+            persist: true, screenKey: 'analytics');
 
-      // Explicitly force filtering by selected month
-      expensesViewModel.forceFilterByMonth(_selectedDate);
+        debugPrint('Analytics: Filter set, refreshing data...');
+        // Refresh expenses data
+        await expensesViewModel.refreshData();
 
-      // Refresh expenses data
-      await expensesViewModel.refreshData();
+        _isDataLoaded = true;
+        debugPrint('Analytics: Data loaded successfully');
+      }
 
       // Verify filtering was applied correctly
       final filteredExpenses = expensesViewModel.filteredExpenses;
+      final selectedMonth = expensesViewModel.selectedMonth;
       debugPrint(
-          'After filtering: ${filteredExpenses.length} expenses for month $_currentMonthId');
+          'Analytics: After filtering: ${filteredExpenses.length} expenses for month $_currentMonthId');
+      debugPrint(
+          'Analytics: ViewModel selected month: ${selectedMonth.year}-${selectedMonth.month}');
+      debugPrint(
+          'Analytics: Screen selected date: ${_selectedDate.year}-${_selectedDate.month}');
 
       // Force data refresh for dashboard cards
-      setState(() {
-        // Trigger rebuild with fresh data
-      });
+      if (mounted) {
+        setState(() {
+          // Trigger rebuild with fresh data
+        });
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = 'Failed to load data: ${e.toString()}';
-      });
+      debugPrint('Analytics: Error loading data: $e');
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'Failed to load data: ${e.toString()}';
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -188,133 +233,112 @@ class _AnalyticScreenState extends State<AnalyticScreen>
     }
   }
 
-  Future<void> _performExpensePrediction() async {
-    setState(() {
-      _isPredictionLoading = true;
-      _predictionResponse = null;
-    });
-
-    try {
-      // Step 1: Check API server health
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Checking API server health...'),
-            duration: Duration(seconds: 2),
-          ),
-        );
-      }
-
-      final isHealthy = await _financialPredictionService.checkHealth();
-
-      if (!isHealthy) {
-        throw Exception(
-            'API server is not available. Please ensure the backend server is running at http://10.0.2.2:8000');
-      }
-
-      // Step 2: Show success for health check
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('API server is healthy. Getting expense prediction...'),
-            duration: Duration(seconds: 2),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-
-      // Step 3: Build request data and call prediction API
-      final response =
-          await _financialPredictionService.getPredictionForCurrentUser();
-
-      // Step 4: Update UI with successful response
-      if (mounted) {
-        setState(() {
-          _predictionResponse = response;
-        });
-
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Expense prediction completed successfully!'),
-            duration: Duration(seconds: 3),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _predictionResponse = null;
-        });
-
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Prediction failed: ${e.toString()}'),
-            duration: const Duration(seconds: 5),
-            backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'Retry',
-              textColor: Colors.white,
-              onPressed: _performExpensePrediction,
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isPredictionLoading = false;
-        });
-      }
-    }
-  }
-
   void _onDateChanged(DateTime newDate) {
     debugPrint(
-        'Date changed from ${_selectedDate.year}-${_selectedDate.month} to ${newDate.year}-${newDate.month}');
+        'Analytics: Date changed from ${_selectedDate.year}-${_selectedDate.month} to ${newDate.year}-${newDate.month}');
+
+    // Avoid redundant operations if date hasn't changed
+    if (_selectedDate.year == newDate.year &&
+        _selectedDate.month == newDate.month) {
+      debugPrint('Analytics: Date unchanged, skipping refresh');
+      return;
+    }
 
     setState(() {
       _selectedDate = newDate;
       _currentMonthId = formatMonthId(_selectedDate);
       _errorMessage = null;
-      // Clear prediction data when date changes
-      _predictionResponse = null;
+      _isDataLoaded = false; // Reset data loaded flag when date changes
     });
 
-    debugPrint('Updated current month ID to: $_currentMonthId');
+    debugPrint('Analytics: Updated current month ID to: $_currentMonthId');
+    debugPrint('Analytics: New selected date details: $_selectedDate');
 
     // Save to screen-specific filter and force reload
     final expensesViewModel =
         Provider.of<ExpensesViewModel>(context, listen: false);
 
-    // Make sure we're setting the filter AND applying it immediately
+    debugPrint('Analytics: Setting filter for new date');
+    // Make sure we're setting the filter
     expensesViewModel.setSelectedMonth(_selectedDate,
         persist: true, screenKey: 'analytics');
 
-    // Explicitly force filtering - important step to ensure data is filtered correctly
-    expensesViewModel.forceFilterByMonth(_selectedDate);
-
-    debugPrint('Forced filtering by month: $_currentMonthId');
-
+    debugPrint('Analytics: Filter set, loading data...');
     // Load data with the new date filter
     _loadData();
-
-    // Force UI refresh for dashboard cards
-    setState(() {
-      // Trigger rebuild with fresh data
-    });
-
-    // Log filtered expenses count
-    final filteredCount = expensesViewModel.filteredExpenses.length;
-    debugPrint('Filtered expenses count after date change: $filteredCount');
   }
 
   void _navigateToLogin() {
     Navigator.pushReplacementNamed(context, Routes.login);
+  }
+
+  /// Get AI prediction for the selected month
+  Future<void> _getAIPrediction() async {
+    setState(() {
+      _isLoadingPrediction = true;
+      _predictionError = null;
+    });
+
+    try {
+      final expensesViewModel =
+          Provider.of<ExpensesViewModel>(context, listen: false);
+      final budgetViewModel =
+          Provider.of<BudgetViewModel>(context, listen: false);
+
+      // Get the AI service
+      final aiService = di.sl<GoogleAIExpensePredictionService>();
+
+      // Initialize the service if needed
+      await aiService.initialize();
+
+      // Check if we have sufficient data
+      final expenses = expensesViewModel.filteredExpenses;
+      final budget = budgetViewModel.budget;
+
+      if (expenses.isEmpty) {
+        setState(() {
+          _predictionError = 'Need expense history to generate predictions';
+          _isLoadingPrediction = false;
+        });
+        return;
+      }
+
+      if (budget == null) {
+        setState(() {
+          _predictionError = 'Budget data required for predictions';
+          _isLoadingPrediction = false;
+        });
+        return;
+      }
+
+      // Calculate target date (tomorrow)
+      final targetMonth = DateTime.now().add(const Duration(days: 1));
+
+      // Get prediction
+      final result = await aiService.predictExpenses(
+        pastExpenses: expenses,
+        currentBudget: budget,
+        targetMonth: targetMonth,
+        userProfile: {
+          'location': 'Malaysia',
+          'currency': budget.currency,
+        },
+      );
+
+      setState(() {
+        _predictionResult = result;
+        _isLoadingPrediction = false;
+      });
+
+      debugPrint('🤖 AI Prediction completed successfully');
+    } catch (e) {
+      setState(() {
+        _predictionError = e.toString();
+        _isLoadingPrediction = false;
+      });
+
+      debugPrint('🤖 AI Prediction failed: $e');
+    }
   }
 
   Widget _buildErrorWidget() {
@@ -360,257 +384,6 @@ class _AnalyticScreenState extends State<AnalyticScreen>
     );
   }
 
-  Widget _buildPredictionResultsCard() {
-    if (_predictionResponse == null) return const SizedBox.shrink();
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.psychology,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 24,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'AI Expense Prediction',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Prediction for: ${_predictionResponse!.predictionForDate}',
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Predicted expenses
-            if (_predictionResponse!.predictedNextDayExpenses.isNotEmpty) ...[
-              Text(
-                'Predicted Tomorrow Expenses:',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ..._predictionResponse!.predictedNextDayExpenses
-                  .map(
-                    (expense) => Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withAlpha((255 * 0.1).toInt()),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                expense.category.toUpperCase(),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              Text(
-                                '${expense.currency} ${expense.estimatedAmount.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (expense.predictedRemark.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              expense.predictedRemark,
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ],
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: expense.likelihood == 'high'
-                                      ? Colors.red
-                                          .withAlpha((255 * 0.2).toInt())
-                                      : expense.likelihood == 'medium'
-                                          ? Colors.orange
-                                              .withAlpha((255 * 0.2).toInt())
-                                          : Colors.green
-                                              .withAlpha((255 * 0.2).toInt()),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  '${expense.likelihood.toUpperCase()} likelihood',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                    color: expense.likelihood == 'high'
-                                        ? Colors.red.shade700
-                                        : expense.likelihood == 'medium'
-                                            ? Colors.orange.shade700
-                                            : Colors.green.shade700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          if (expense.reasoning.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              expense.reasoning,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade600,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
-              const SizedBox(height: 16),
-            ],
-
-            // Budget advice
-            if (_predictionResponse!
-                .budgetReallocationAdvice.analysisSummary.isNotEmpty) ...[
-              Text(
-                'Budget Analysis:',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.withAlpha((255 * 0.1).toInt()),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _predictionResponse!.budgetReallocationAdvice.analysisSummary,
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-
-            // Overspending alerts
-            if (_predictionResponse!.budgetReallocationAdvice
-                .overspendingAlertsForNextDay.isNotEmpty) ...[
-              Text(
-                'Overspending Alerts:',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.red.shade700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ..._predictionResponse!
-                  .budgetReallocationAdvice.overspendingAlertsForNextDay
-                  .map(
-                    (alert) => Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withAlpha((255 * 0.1).toInt()),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                            color: Colors.red.withAlpha((255 * 0.3).toInt())),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            alert.category.toUpperCase(),
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                              color: Colors.red.shade700,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            alert.alertMessage,
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                  .toList(),
-              const SizedBox(height: 12),
-            ],
-
-            // Confidence note
-            if (_predictionResponse!.overallConfidenceNote.isNotEmpty) ...[
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.grey.withAlpha((255 * 0.1).toInt()),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
-                      color: Colors.grey.shade600,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _predictionResponse!.overallConfidenceNote,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -630,23 +403,10 @@ class _AnalyticScreenState extends State<AnalyticScreen>
               : RefreshIndicator(
                   color: Theme.of(context).colorScheme.primary,
                   onRefresh: () async {
-                    // Capture ViewModel references before async operations
-                    final expensesViewModel =
-                        Provider.of<ExpensesViewModel>(context, listen: false);
-
-                    // Make sure we're using the current selected month
-                    expensesViewModel.forceFilterByMonth(_selectedDate);
-
-                    // Refresh data
+                    // Reset data loaded flag to force refresh
+                    _isDataLoaded = false;
+                    // Perform a complete refresh
                     await _loadData();
-
-                    // Refresh expense data
-                    await expensesViewModel.refreshData();
-
-                    // Rebuild dashboard cards with new data
-                    if (mounted) {
-                      setState(() {});
-                    }
                   },
                   child: CustomScrollView(
                     slivers: [
@@ -656,23 +416,75 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                         sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
                       ),
 
-                      // Prediction Results Card
-                      SliverToBoxAdapter(
-                        child: _buildPredictionResultsCard(),
-                      ),
-
                       SliverPadding(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0),
                         sliver: SliverToBoxAdapter(
-                          child: DatePickerButton(
-                            date: _selectedDate,
-                            themeColor: Theme.of(context).colorScheme.primary,
-                            prefix: 'Filter by',
-                            onDateChanged: _onDateChanged,
-                            showDaySelection: false,
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: DatePickerButton(
+                                  date: _selectedDate,
+                                  themeColor:
+                                      Theme.of(context).colorScheme.primary,
+                                  prefix: 'Filter by',
+                                  onDateChanged: _onDateChanged,
+                                  showDaySelection: false,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primary
+                                      .withAlpha((255 * 0.1).toInt()),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    borderRadius: BorderRadius.circular(12),
+                                    onTap: _isLoadingPrediction
+                                        ? null
+                                        : _getAIPrediction,
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12.0),
+                                      child: _isLoadingPrediction
+                                          ? SizedBox(
+                                              width: 24,
+                                              height: 24,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                              ),
+                                            )
+                                          : Icon(
+                                              Icons.lightbulb_outline,
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                              size: 24,
+                                            ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
+
+                      // AI Prediction Result Card
+                      if (_predictionResult != null || _predictionError != null)
+                        SliverPadding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0, vertical: 8.0),
+                          sliver: SliverToBoxAdapter(
+                            child: _buildAIPredictionCard(context),
+                          ),
+                        ),
 
                       // Category Distribution Pie Chart
                       SliverPadding(
@@ -689,43 +501,6 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                             horizontal: 16.0, vertical: 8.0),
                         sliver: SliverToBoxAdapter(
                           child: _buildSpendingTrendsCard(context),
-                        ),
-                      ),
-
-                      // Financial Prediction Button
-                      SliverPadding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0, vertical: 16.0),
-                        sliver: SliverToBoxAdapter(
-                          child: ElevatedButton.icon(
-                            onPressed: _isPredictionLoading
-                                ? null
-                                : _performExpensePrediction,
-                            icon: _isPredictionLoading
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Icon(Icons.psychology),
-                            label: Text(
-                              _isPredictionLoading
-                                  ? 'Getting AI Prediction...'
-                                  : 'Get AI Expense Prediction',
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.primary,
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size(double.infinity, 48),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
                         ),
                       ),
 
@@ -766,12 +541,607 @@ class _AnalyticScreenState extends State<AnalyticScreen>
     );
   }
 
+  // Build AI prediction result card
+  Widget _buildAIPredictionCard(BuildContext context) {
+    if (_predictionError != null) {
+      return Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.lightbulb_outline,
+                    color: Colors.red[400],
+                    size: 24,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'AI Prediction Error',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red[400],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _predictionError!,
+                style: TextStyle(
+                  color: Colors.red[300],
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        _predictionError = null;
+                      });
+                    },
+                    icon: const Icon(Icons.close, size: 20),
+                    tooltip: 'Dismiss',
+                    style: IconButton.styleFrom(
+                      foregroundColor: Colors.grey[600],
+                      backgroundColor: Colors.grey[100],
+                      padding: const EdgeInsets.all(8),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _getAIPrediction,
+                    icon: const Icon(Icons.refresh, size: 20),
+                    tooltip: 'Retry',
+                    style: IconButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      padding: const EdgeInsets.all(8),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_predictionResult == null) return const SizedBox.shrink();
+
+    final prediction = _predictionResult!;
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    final tomorrowFormatted =
+        '${tomorrow.day}/${tomorrow.month}/${tomorrow.year}';
+
+    // Get top 3 predicted expenses with highest confidence
+    final sortedExpenses =
+        List<PredictedExpense>.from(prediction.predictedExpenses)
+          ..sort((a, b) => b.confidence.compareTo(a.confidence));
+    final top3Expenses = sortedExpenses.take(3).toList();
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withAlpha((255 * 0.1).toInt()),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    Icons.lightbulb,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'AI Spending Prediction',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      Text(
+                        'For Tomorrow ($tomorrowFormatted)',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _getRiskLevelColor(prediction.summary.riskLevel)
+                        .withAlpha((255 * 0.1).toInt()),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    prediction.summary.riskLevel.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _getRiskLevelColor(prediction.summary.riskLevel),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Summary Stats
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest
+                    .withAlpha((255 * 0.3).toInt()),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildStatItem(
+                      'Predicted Spending',
+                      'MYR ${prediction.summary.totalPredictedSpending.toStringAsFixed(2)}',
+                      Icons.trending_up,
+                      Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 40,
+                    color: Colors.grey[300],
+                  ),
+                  Expanded(
+                    child: _buildStatItem(
+                      'Budget Utilization',
+                      '${(prediction.summary.budgetUtilizationRate * 100).toStringAsFixed(1)}%',
+                      Icons.account_balance_wallet_outlined,
+                      _getBudgetUtilizationColor(
+                          prediction.summary.budgetUtilizationRate),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Top 3 Predicted Expenses
+            if (top3Expenses.isNotEmpty) ...[
+              Text(
+                'Top Likely Expenses',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...top3Expenses.asMap().entries.map((entry) {
+                final index = entry.key;
+                final expense = entry.value;
+                final confidencePercentage = (expense.confidence * 100).round();
+                final likelihoodColor = _getConfidenceColor(expense.confidence);
+                final likelihoodText =
+                    _getConfidenceLikelihoodText(expense.confidence);
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Colors.grey[200]!,
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      // Rank indicator
+                      Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${index + 1}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // Expense details
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    expense.categoryName,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  'MYR ${expense.predictedAmount.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            if (expense.reasoning.isNotEmpty)
+                              Text(
+                                expense.reasoning,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[600],
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // Confidence indicator
+                      Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: likelihoodColor
+                                  .withAlpha((255 * 0.1).toInt()),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: likelihoodColor
+                                    .withAlpha((255 * 0.3).toInt()),
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              likelihoodText,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: likelihoodColor,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$confidencePercentage%',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: likelihoodColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ],
+
+            // Budget Reallocation Suggestions
+            if (prediction.budgetReallocationSuggestions.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Budget Reallocation Suggestions',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...prediction.budgetReallocationSuggestions.map(
+                (suggestion) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withAlpha((255 * 0.1).toInt()),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.orange.withAlpha((255 * 0.3).toInt()),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.swap_horiz,
+                        size: 16,
+                        color: Colors.orange[700],
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Move MYR ${suggestion.suggestedAmount.toStringAsFixed(2)} from ${suggestion.fromCategory} to ${suggestion.toCategory}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.orange[800],
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              suggestion.reason,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.orange[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+
+            // Categories at Risk
+            if (prediction.summary.categoriesAtRisk.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                'Categories at Risk',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.red[700],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: prediction.summary.categoriesAtRisk
+                    .map(
+                      (category) => Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withAlpha((255 * 0.1).toInt()),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.red.withAlpha((255 * 0.3).toInt()),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          category,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.red[700],
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+
+            // Insights
+            if (prediction.insights.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                'AI Insights for Tomorrow',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...prediction.insights.take(3).map((insight) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          _getInsightIcon(insight.type),
+                          size: 16,
+                          color: _getInsightColor(insight.type),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            insight.message,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+            ],
+
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _predictionResult = null;
+                    });
+                  },
+                  icon: const Icon(Icons.close, size: 20),
+                  tooltip: 'Dismiss',
+                  style: IconButton.styleFrom(
+                    foregroundColor: Colors.grey[600],
+                    backgroundColor: Colors.grey[100],
+                    padding: const EdgeInsets.all(8),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: _getAIPrediction,
+                  icon: const Icon(Icons.refresh, size: 20),
+                  tooltip: 'Refresh',
+                  style: IconButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    padding: const EdgeInsets.all(8),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(
+      String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[600],
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Color _getRiskLevelColor(String riskLevel) {
+    switch (riskLevel.toLowerCase()) {
+      case 'low':
+        return Colors.green;
+      case 'medium':
+        return Colors.orange;
+      case 'high':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _getConfidenceColor(double confidence) {
+    if (confidence >= 0.8) return Colors.green;
+    if (confidence >= 0.6) return Colors.orange;
+    return Colors.red;
+  }
+
+  String _getConfidenceLikelihoodText(double confidence) {
+    if (confidence >= 0.8) return 'HIGH';
+    if (confidence >= 0.6) return 'MEDIUM';
+    return 'LOW';
+  }
+
+  Color _getBudgetUtilizationColor(double utilization) {
+    if (utilization <= 0.7) return Colors.green;
+    if (utilization <= 0.9) return Colors.orange;
+    return Colors.red;
+  }
+
+  IconData _getInsightIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'warning':
+        return Icons.warning_amber_outlined;
+      case 'opportunity':
+        return Icons.lightbulb_outline;
+      case 'info':
+        return Icons.info_outline;
+      case 'reallocation':
+        return Icons.swap_horiz;
+      default:
+        return Icons.circle_outlined;
+    }
+  }
+
+  Color _getInsightColor(String type) {
+    switch (type.toLowerCase()) {
+      case 'warning':
+        return Colors.orange;
+      case 'opportunity':
+        return Colors.green;
+      case 'info':
+        return Colors.blue;
+      case 'reallocation':
+        return Colors.purple;
+      default:
+        return Colors.grey;
+    }
+  }
+
   // Build category distribution card with pie chart
   Widget _buildCategoryDistributionCard(BuildContext context) {
     final expensesViewModel = Provider.of<ExpensesViewModel>(context);
 
     // Ensure we're getting data for the selected month
-    expensesViewModel.forceFilterByMonth(_selectedDate);
+    // We no longer need to force filtering here as it's already done during initialization
     final categoryTotals = expensesViewModel.getCategoryTotals();
 
     // If there's no data, show a placeholder
@@ -973,7 +1343,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
     final expensesViewModel = Provider.of<ExpensesViewModel>(context);
 
     // Ensure we're getting data for the selected month
-    expensesViewModel.forceFilterByMonth(_selectedDate);
+    // We no longer need to force filtering here as it's already done during initialization
     final hasExpenses = expensesViewModel.filteredExpenses.isNotEmpty;
 
     // If there's no data, show a placeholder
@@ -1098,8 +1468,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
 
   // Build top categories chart
   Widget _buildTopCategoriesChart(ExpensesViewModel viewModel) {
-    // Ensure we're getting data for the selected month
-    viewModel.forceFilterByMonth(_selectedDate);
+    // We no longer need to force filtering here as it's already done during initialization
     final categoryTotals = viewModel.getCategoryTotals();
 
     if (categoryTotals.isEmpty) {
@@ -1211,8 +1580,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
   // Build daily spending pattern visualization
   Widget _buildDailySpendingPattern(
       BuildContext context, ExpensesViewModel viewModel) {
-    // Ensure we're getting data for the selected month
-    viewModel.forceFilterByMonth(_selectedDate);
+    // We no longer need to force filtering here as it's already done during initialization
     final expenses = viewModel.filteredExpenses;
 
     if (expenses.isEmpty) {

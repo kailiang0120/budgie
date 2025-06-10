@@ -11,6 +11,7 @@ import 'core/router/app_router.dart';
 import 'core/services/settings_service.dart';
 import 'core/services/sync_service.dart';
 import 'core/services/recurring_expense_service.dart';
+import 'core/services/notification_manager.dart';
 import 'core/network/connectivity_service.dart';
 import 'presentation/viewmodels/expenses_viewmodel.dart';
 import 'presentation/viewmodels/auth_viewmodel.dart';
@@ -92,6 +93,12 @@ Future<void> main() async {
     debugPrint('Initializing dependency injection...');
     await di.init();
     debugPrint('Dependency injection initialized');
+
+    // Initialize NotificationManager
+    debugPrint('Initializing NotificationManager...');
+    final notificationManager = di.sl<NotificationManager>();
+    await notificationManager.initialize();
+    debugPrint('NotificationManager initialized');
 
     // Initialize ConnectivityService first to monitor network state
     debugPrint('Initializing ConnectivityService...');

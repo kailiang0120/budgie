@@ -113,6 +113,10 @@ class AuthRepositoryImpl implements AuthRepository {
       if (user == null) {
         throw Exception('Failed to sign in: No user returned');
       }
+
+      // Ensure user document exists with default settings
+      await _ensureUserDocumentExists(user);
+
       return await _mapFirebaseUserToDomain(user);
     } catch (e) {
       debugPrint('Email sign-in error: $e');
@@ -132,6 +136,10 @@ class AuthRepositoryImpl implements AuthRepository {
       if (user == null) {
         throw Exception('Failed to create user: No user returned');
       }
+
+      // Ensure user document exists with default settings
+      await _ensureUserDocumentExists(user);
+
       return await _mapFirebaseUserToDomain(user);
     } catch (e) {
       debugPrint('Create user error: $e');
@@ -235,7 +243,10 @@ class AuthRepositoryImpl implements AuthRepository {
 
       debugPrint('Firebase sign-in successful: ${user.uid}');
 
-      // 6. Immediately return the mapped user without any additional processing
+      // 6. Ensure user document exists in Firestore with default settings
+      await _ensureUserDocumentExists(user);
+
+      // 7. Return the mapped user
       final domainUser = await _mapFirebaseUserToDomain(user);
 
       debugPrint('Returning user: ${domainUser.id}');
@@ -598,7 +609,11 @@ class AuthRepositoryImpl implements AuthRepository {
               'Creating missing user document for existing anonymous user');
           await _firestore.collection('users').doc(currentUser.uid).set({
             'isGuest': true,
+            'displayName': 'Guest User',
+            'photoURL': null,
+            'email': null,
             'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
             'currency': 'MYR',
             'theme': 'light',
             'settings': {
@@ -659,7 +674,11 @@ class AuthRepositoryImpl implements AuthRepository {
               // Create initial user document
               await _firestore.collection('users').doc(newUser.uid).set({
                 'isGuest': true,
+                'displayName': 'Guest User',
+                'photoURL': null,
+                'email': null,
                 'createdAt': FieldValue.serverTimestamp(),
+                'updatedAt': FieldValue.serverTimestamp(),
                 'currency': 'MYR',
                 'theme': 'light',
                 'previousGuestId': storedGuestUserId,
@@ -704,7 +723,11 @@ class AuthRepositoryImpl implements AuthRepository {
       // Create initial user document with default settings
       await _firestore.collection('users').doc(user.uid).set({
         'isGuest': true,
+        'displayName': 'Guest User',
+        'photoURL': null,
+        'email': null,
         'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
         'currency': 'MYR',
         'theme': 'light',
         'settings': {
@@ -940,7 +963,8 @@ class AuthRepositoryImpl implements AuthRepository {
 
   // 更新用户设置
   @override
-  Future<void> updateUserSettings({String? currency, String? theme}) async {
+  Future<void> updateUserSettings(
+      {String? currency, String? theme, String? displayName}) async {
     try {
       final user = _auth.currentUser;
       if (user == null) {
@@ -950,6 +974,7 @@ class AuthRepositoryImpl implements AuthRepository {
       final Map<String, dynamic> updates = {};
       if (currency != null) updates['currency'] = currency;
       if (theme != null) updates['theme'] = theme;
+      if (displayName != null) updates['displayName'] = displayName;
 
       if (updates.isNotEmpty) {
         await _firestore.collection('users').doc(user.uid).set(
@@ -1090,6 +1115,9 @@ class AuthRepositoryImpl implements AuthRepository {
 
       debugPrint('Firebase sign-in with Apple successful: ${user.uid}');
 
+      // Ensure user document exists with default settings
+      await _ensureUserDocumentExists(user);
+
       // Return the mapped user
       final domainUser = await _mapFirebaseUserToDomain(user);
 
@@ -1120,6 +1148,102 @@ class AuthRepositoryImpl implements AuthRepository {
     final bytes = utf8.encode(input);
     final digest = sha256.convert(bytes);
     return digest.toString();
+  }
+
+  /// Ensures a user document exists in Firestore with default settings
+  /// This method is called for all sign-in methods to ensure consistency
+  Future<void> _ensureUserDocumentExists(firebase_auth.User user) async {
+    try {
+      debugPrint('Ensuring user document exists for: ${user.uid}');
+
+      // Check if user document already exists
+      final userDoc = await _firestore.collection('users').doc(user.uid).get();
+
+      if (!userDoc.exists) {
+        debugPrint('Creating new user document with default settings');
+
+        // Create a complete user document with all default fields
+        await _firestore.collection('users').doc(user.uid).set({
+          'email': user.email,
+          'displayName': user.displayName ?? 'User ${user.uid.substring(0, 8)}',
+          'photoURL': user.photoURL,
+          'currency': 'MYR',
+          'theme': 'light',
+          'isGuest': false,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+          'settings': {
+            'allowNotification': false,
+            'autoBudget': false,
+            'improveAccuracy': false,
+          },
+        });
+
+        debugPrint('User document created successfully');
+      } else {
+        debugPrint('User document already exists');
+
+        // Check if the document has all required fields and add missing ones
+        final userData = userDoc.data();
+        final Map<String, dynamic> updates = {};
+
+        // Ensure all default fields exist
+        if (userData?['currency'] == null) {
+          updates['currency'] = 'MYR';
+        }
+        if (userData?['theme'] == null) {
+          updates['theme'] = 'light';
+        }
+        if (userData?['displayName'] == null) {
+          updates['displayName'] =
+              user.displayName ?? 'User ${user.uid.substring(0, 8)}';
+        }
+        if (userData?['photoURL'] == null) {
+          updates['photoURL'] = user.photoURL;
+        }
+        if (userData?['settings'] == null) {
+          updates['settings'] = {
+            'allowNotification': false,
+            'autoBudget': false,
+            'improveAccuracy': false,
+          };
+        } else {
+          // Check individual settings
+          final settings = userData!['settings'] as Map<String, dynamic>? ?? {};
+          final settingsUpdates = <String, dynamic>{};
+
+          if (settings['allowNotification'] == null) {
+            settingsUpdates['allowNotification'] = false;
+          }
+          if (settings['autoBudget'] == null) {
+            settingsUpdates['autoBudget'] = false;
+          }
+          if (settings['improveAccuracy'] == null) {
+            settingsUpdates['improveAccuracy'] = false;
+          }
+
+          if (settingsUpdates.isNotEmpty) {
+            updates['settings'] = {
+              ...settings,
+              ...settingsUpdates,
+            };
+          }
+        }
+
+        // Add updatedAt timestamp
+        if (updates.isNotEmpty) {
+          updates['updatedAt'] = FieldValue.serverTimestamp();
+
+          await _firestore.collection('users').doc(user.uid).update(updates);
+          debugPrint(
+              'User document updated with missing fields: ${updates.keys}');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error ensuring user document exists: $e');
+      // Don't throw here as this is not critical for sign-in to succeed
+      // The SettingsService will handle creating defaults if needed
+    }
   }
 
   @override

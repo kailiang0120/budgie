@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
 
-import '../../core/services/notification_service.dart';
+import '../../core/services/notification_manager.dart';
 import '../../di/injection_container.dart' as di;
 
 class NotificationTestScreen extends StatefulWidget {
@@ -13,7 +13,7 @@ class NotificationTestScreen extends StatefulWidget {
 }
 
 class _NotificationTestScreenState extends State<NotificationTestScreen> {
-  final _notificationService = di.sl<NotificationService>();
+  final _notificationManager = di.sl<NotificationManager>();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
   bool _isLoading = false;
@@ -42,9 +42,9 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
 
   Future<void> _checkPermission() async {
     final hasPermission =
-        await _notificationService.checkNotificationPermission();
+        await _notificationManager.checkNotificationPermission();
     final hasListenerPermission = Platform.isAndroid
-        ? await _notificationService.checkNotificationListenerPermission()
+        ? await _notificationManager.checkNotificationListenerPermission()
         : true;
 
     _addLog('Notification permission: $hasPermission');
@@ -64,7 +64,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
 
     try {
       final result =
-          await _notificationService.requestAllNotificationPermissions();
+          await _notificationManager.requestAllNotificationPermissions();
       _addLog('Permission request result: $result');
 
       setState(() {
@@ -93,8 +93,8 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
     });
 
     try {
-      await _notificationService.startNotificationListener();
-      final isListening = _notificationService.isListening;
+      await _notificationManager.startNotificationListener();
+      final isListening = _notificationManager.isListening;
       _addLog('Notification listener started, isListening: $isListening');
 
       setState(() {
@@ -120,7 +120,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
     });
 
     try {
-      await _notificationService.sendTestExpenseNotification();
+      await _notificationManager.sendTestExpenseNotification();
       _addLog('Test expense notification sent');
 
       setState(() {
@@ -156,7 +156,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
     });
 
     try {
-      await _notificationService.sendTestCustomNotification(
+      await _notificationManager.sendTestCustomNotification(
         title: title,
         body: message,
       );
@@ -185,7 +185,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
     });
 
     try {
-      await _notificationService.simulateExpenseWorkflow();
+      await _notificationManager.simulateExpenseWorkflow();
       _addLog('Expense simulation completed');
 
       setState(() {

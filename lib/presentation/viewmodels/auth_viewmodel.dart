@@ -760,16 +760,19 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   /// Update user settings
-  Future<void> updateUserSettings({String? currency, String? theme}) async {
+  Future<void> updateUserSettings(
+      {String? currency, String? theme, String? displayName}) async {
     try {
       _isLoading = true;
       _error = null;
       notifyListeners();
 
-      debugPrint('Updating user settings: currency=$currency, theme=$theme');
+      debugPrint(
+          'Updating user settings: currency=$currency, theme=$theme, displayName=$displayName');
       await _authRepository.updateUserSettings(
         currency: currency,
         theme: theme,
+        displayName: displayName,
       );
 
       // Refresh user data
