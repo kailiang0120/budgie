@@ -10,8 +10,7 @@ import '../widgets/custom_card.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/submit_button.dart';
 import '../utils/currency_formatter.dart';
-import '../../core/services/settings_service.dart';
-import '../../core/services/budget_calculation_service.dart';
+import '../../data/infrastructure/services/settings_service.dart';
 
 class AddBudgetScreen extends StatefulWidget {
   final String? monthId;
@@ -353,13 +352,11 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
             // Get expenses for current month
             final expenses = expensesVM.getExpensesForMonth(year, month);
 
-            // Calculate the budget with expenses factored in
-            final updatedBudget =
-                await BudgetCalculationService.calculateBudget(
-                    newBudget, expenses);
+            // First save the new budget
+            await budgetVM.saveBudget(_currentMonthId, newBudget);
 
-            // Save the final budget with correct remaining amounts - only one save operation
-            await budgetVM.saveBudget(_currentMonthId, updatedBudget);
+            // Then calculate the budget with expenses factored in
+            await budgetVM.calculateBudgetRemaining(expenses, _currentMonthId);
             debugPrint(
                 'Budget saved with expenses factored in, currency: $_currency');
           }

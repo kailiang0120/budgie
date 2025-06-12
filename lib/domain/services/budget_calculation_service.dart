@@ -1,12 +1,15 @@
-import '../../domain/entities/budget.dart';
-import '../../domain/entities/category.dart';
-import '../../domain/entities/expense.dart';
-import 'currency_conversion_service.dart';
+import '../entities/budget.dart';
+import '../entities/category.dart';
+import '../entities/expense.dart';
+import '../../data/infrastructure/services/currency_conversion_service.dart';
 
-/// Service responsible for calculating budget data based on expenses
+/// Domain service responsible for calculating budget data based on expenses
 class BudgetCalculationService {
-  static final CurrencyConversionService _currencyService =
-      CurrencyConversionService();
+  final CurrencyConversionService _currencyService;
+
+  BudgetCalculationService({
+    required CurrencyConversionService currencyService,
+  }) : _currencyService = currencyService;
 
   /// Calculate total budget remaining amount and category-specific remaining budgets
   ///
@@ -14,15 +17,14 @@ class BudgetCalculationService {
   /// [expenses] Expense list (must be filtered by month)
   ///
   /// Returns an updated Budget object with recalculated amounts
-  static Future<Budget> calculateBudget(
-      Budget budget, List<Expense> expenses) async {
+  Future<Budget> calculateBudget(Budget budget, List<Expense> expenses) async {
     return await _calculateBudgetDirect(budget, expenses);
   }
 
   /// Perform direct budget calculation with currency conversion support
   ///
   /// This method handles async currency conversion operations
-  static Future<Budget> _calculateBudgetDirect(
+  Future<Budget> _calculateBudgetDirect(
       Budget budget, List<Expense> expenses) async {
     final String budgetCurrency = budget.currency;
     final Map<String, double> categoryExpenses = {};
@@ -51,7 +53,7 @@ class BudgetCalculationService {
   }
 
   /// Calculate expenses per category with currency conversion if needed
-  static Future<void> _calculateCategoryExpenses(List<Expense> expenses,
+  Future<void> _calculateCategoryExpenses(List<Expense> expenses,
       String budgetCurrency, Map<String, double> categoryExpenses) async {
     for (final expense in expenses) {
       final categoryId = expense.category.id;
@@ -74,12 +76,12 @@ class BudgetCalculationService {
   }
 
   /// Calculate total expenses across all categories
-  static double _calculateTotalExpenses(Map<String, double> categoryExpenses) {
+  double _calculateTotalExpenses(Map<String, double> categoryExpenses) {
     return categoryExpenses.values.fold(0.0, (sum, amount) => sum + amount);
   }
 
   /// Update each category budget with calculated remaining amounts
-  static Map<String, CategoryBudget> _updateCategoryBudgets(
+  Map<String, CategoryBudget> _updateCategoryBudgets(
       Map<String, CategoryBudget> originalCategories,
       Map<String, double> categoryExpenses) {
     final Map<String, CategoryBudget> newCategories = {};

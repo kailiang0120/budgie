@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dart:io';
-import 'package:flutter_background/flutter_background.dart';
 
-import '../viewmodels/theme_viewmodel.dart';
 import '../../core/constants/routes.dart';
 import '../../core/router/page_transition.dart';
-import '../../core/services/notification_manager.dart';
-import '../../core/services/settings_service.dart';
+import '../../presentation/viewmodels/theme_viewmodel.dart';
+import '../../data/infrastructure/services/notification_manager_service.dart';
+import '../../data/infrastructure/services/notification_permission_service.dart';
+import '../../data/infrastructure/services/settings_service.dart';
 import '../../di/injection_container.dart' as di;
 import '../widgets/switch_tile.dart';
 import '../widgets/dropdown_tile.dart';
@@ -31,7 +30,8 @@ class _SettingScreenState extends State<SettingScreen> {
   bool _loading = true;
 
   // Get services
-  final _notificationManager = di.sl<NotificationManager>();
+  final _notificationManager = di.sl<NotificationManagerService>();
+  final _notificationPermissionService = di.sl<NotificationPermissionService>();
   final _settingsService = di.sl<SettingsService>();
 
   @override
@@ -146,237 +146,65 @@ class _SettingScreenState extends State<SettingScreen> {
   Future<void> _handleNotificationPermission(bool value) async {
     try {
       if (value) {
-        // First check if we already have notification listener permission on Android
-        bool hasListenerPermission = true;
-        if (Platform.isAndroid) {
-          hasListenerPermission =
-              await _notificationManager.checkNotificationListenerPermission();
-        }
+        // Use the comprehensive notification permission service to enable notifications
+        final result =
+            await _notificationPermissionService.enableNotifications(context);
 
-        // Request basic notification permissions first
-        final granted =
-            await _notificationManager.requestLocalNotificationPermissions();
+        if (result.isSuccess) {
+          // Update the setting value on success or pending
+          await _settingsService.updateNotificationSetting(true);
 
-        if (!granted) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    'Notification permission denied. Please enable in system settings.'),
+              SnackBar(
+                content: Text(result.message),
+                backgroundColor:
+                    result.type == NotificationPermissionResultType.success
+                        ? Colors.green
+                        : Colors.orange,
                 behavior: SnackBarBehavior.floating,
               ),
             );
           }
-          return;
-        }
-
-        // Now handle notification listener permission for Android
-        if (Platform.isAndroid && !hasListenerPermission) {
-          // Initialize flutter_background configuration
-          const androidConfig = FlutterBackgroundAndroidConfig(
-            notificationTitle: "Budgie Expense Detector",
-            notificationText: "Monitoring notifications for expenses",
-            notificationImportance: AndroidNotificationImportance.normal,
-            notificationIcon: AndroidResource(
-              name: 'ic_launcher',
-              defType: 'mipmap',
-            ),
-          );
-
-          // Show explanation dialog first
-          if (mounted) {
-            final shouldProceed = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Special Permission Required'),
-                    content: const Text(
-                        'To detect expenses from notifications, Budgie needs access to read your notifications. '
-                        'You will be redirected to system settings where you need to enable "Notification Access" '
-                        'for Budgie.\n\n'
-                        'Look for "Budgie Notification Listener" in the list and toggle it ON.'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text('CANCEL'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: const Text('CONTINUE'),
-                      ),
-                    ],
-                  ),
-                ) ??
-                false;
-
-            if (!shouldProceed) {
-              // User canceled, don't update the setting
-              return;
-            }
-
-            // Initialize flutter_background
-            final hasBackgroundPermission = await FlutterBackground.initialize(
-              androidConfig: androidConfig,
-            );
-
-            if (!hasBackgroundPermission) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'Background permission denied. Some features will be limited.'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            }
-
-            // Open system settings for notification listener permission
-            await _notificationManager.requestNotificationAccessPermission();
-
-            // Show follow-up guidance
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Please enable "Budgie Notification Listener" in the list and come back to the app.',
-                  ),
-                  duration: Duration(seconds: 8),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-          }
-        }
-
-        // Update the setting value
-        await _settingsService.updateNotificationSetting(true);
-
-        // Try to start the notification listener with multiple attempts
-        if (Platform.isAndroid) {
-          // Check if permission was granted
-          final hasPermissionNow =
-              await _notificationManager.checkNotificationListenerPermission();
-
-          if (hasPermissionNow) {
-            // Make multiple attempts to start the listener
-            bool listenerStarted = false;
-            for (int i = 0; i < 3; i++) {
-              await _notificationManager.startNotificationListener();
-
-              // Verify if listener is active
-              await Future.delayed(const Duration(milliseconds: 500));
-              if (_notificationManager.isListening) {
-                listenerStarted = true;
-                break;
-              }
-            }
-
-            if (listenerStarted) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content:
-                        Text('Notification monitoring enabled successfully!'),
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              }
-
-              // Enable background execution as well if needed
-              if (await FlutterBackground.hasPermissions &&
-                  !FlutterBackground.isBackgroundExecutionEnabled) {
-                await FlutterBackground.enableBackgroundExecution();
-              }
-
-              // Test the listener with a simple notification
-              await Future.delayed(const Duration(seconds: 1));
-              await _notificationManager.sendTestNotification();
-            } else {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'Failed to start notification listener. Please try again.'),
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: Colors.orange,
-                  ),
-                );
-              }
-            }
-          } else {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Notification access not granted. Some features will be limited.',
-                  ),
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-          }
         } else {
-          // Non-Android platforms
-          await _notificationManager.startNotificationListener();
+          // Handle failure cases
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(result.message),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
         }
       } else {
-        // User wants to disable notifications
+        // Use the comprehensive notification permission service to disable notifications
+        final result =
+            await _notificationPermissionService.disableNotifications(context);
+
+        // Update the setting value
         await _settingsService.updateNotificationSetting(false);
 
-        // Stop notification listener
-        await _notificationManager.stopNotificationListener();
-
-        // For Android, prompt user to also revoke notification access permission
-        if (Platform.isAndroid) {
-          final hasListenerAccess =
-              await _notificationManager.checkNotificationListenerPermission();
-
-          if (hasListenerAccess && mounted) {
-            // Prompt the user to also revoke the notification access in system settings
-            final shouldRevokeAccess = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Revoke Notification Access?'),
-                    content: const Text(
-                        'For complete privacy, you should also revoke notification access permission in system settings.\n\n'
-                        'Would you like to open system settings to revoke notification access?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text('SKIP'),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        child: const Text('OPEN SETTINGS'),
-                      ),
-                    ],
-                  ),
-                ) ??
-                false;
-
-            if (shouldRevokeAccess) {
-              await _notificationManager.requestNotificationAccessPermission();
-              // Show guidance
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Please DISABLE "Budgie Notification Listener" in the list to completely revoke access.',
-                    ),
-                    duration: Duration(seconds: 8),
-                  ),
-                );
-              }
-            }
-          }
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message),
+              backgroundColor: result.isSuccess ? Colors.green : Colors.orange,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
       }
     } catch (e) {
       debugPrint('Error handling notification permission: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error updating notification settings: $e')),
+          SnackBar(
+            content: Text('Error updating notification settings: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     }

@@ -1,47 +1,26 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import '../../domain/entities/expense.dart';
-import '../../domain/entities/recurring_expense.dart';
-import '../../domain/entities/category.dart' as app_category;
-import '../../domain/repositories/expenses_repository.dart';
-import '../../domain/repositories/recurring_expenses_repository.dart';
-import '../errors/app_error.dart';
 
-/// Service for processing recurring expenses and generating automatic expenses
-class RecurringExpenseService {
+import '../../entities/expense.dart';
+import '../../entities/recurring_expense.dart';
+import '../../entities/category.dart' as app_category;
+import '../../repositories/expenses_repository.dart';
+import '../../repositories/recurring_expenses_repository.dart';
+import '../../../data/infrastructure/errors/app_error.dart';
+
+/// Use case for processing recurring expenses and generating automatic expenses
+class ProcessRecurringExpensesUseCase {
   final ExpensesRepository _expensesRepository;
   final RecurringExpensesRepository _recurringExpensesRepository;
-  Timer? _processingTimer;
 
-  RecurringExpenseService({
+  ProcessRecurringExpensesUseCase({
     required ExpensesRepository expensesRepository,
     required RecurringExpensesRepository recurringExpensesRepository,
   })  : _expensesRepository = expensesRepository,
         _recurringExpensesRepository = recurringExpensesRepository;
 
-  /// Start the recurring expense processing service
-  void startProcessing() {
-    if (_processingTimer != null) {
-      return; // Already running
-    }
-
-    // Process recurring expenses every hour
-    _processingTimer = Timer.periodic(const Duration(hours: 1), (timer) {
-      _processRecurringExpenses();
-    });
-
-    // Also process immediately when service starts
-    _processRecurringExpenses();
-  }
-
-  /// Stop the recurring expense processing service
-  void stopProcessing() {
-    _processingTimer?.cancel();
-    _processingTimer = null;
-  }
-
   /// Manually trigger processing of recurring expenses
-  Future<void> processRecurringExpenses() async {
+  Future<void> execute() async {
     await _processRecurringExpenses();
   }
 

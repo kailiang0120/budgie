@@ -6,10 +6,11 @@ import 'dart:io';
 
 /// Service responsible for sending local notifications across different platforms
 /// Handles all outgoing notification functionality with proper platform support
-class NotificationSender {
-  static final NotificationSender _instance = NotificationSender._internal();
-  factory NotificationSender() => _instance;
-  NotificationSender._internal();
+class NotificationSenderService {
+  static final NotificationSenderService _instance =
+      NotificationSenderService._internal();
+  factory NotificationSenderService() => _instance;
+  NotificationSenderService._internal();
 
   // Plugin instance
   final FlutterLocalNotificationsPlugin _plugin =
@@ -29,7 +30,7 @@ class NotificationSender {
     if (_isInitialized) return;
 
     try {
-      debugPrint('📤 NotificationSender: Initializing...');
+      debugPrint('📤 NotificationSenderService: Initializing...');
 
       // Initialize timezone data for scheduled notifications
       if (!_isTimeZoneInitialized) {
@@ -54,9 +55,9 @@ class NotificationSender {
       }
 
       _isInitialized = true;
-      debugPrint('✅ NotificationSender: Initialization completed');
+      debugPrint('✅ NotificationSenderService: Initialization completed');
     } catch (e, stackTrace) {
-      debugPrint('❌ NotificationSender: Initialization failed: $e');
+      debugPrint('❌ NotificationSenderService: Initialization failed: $e');
       debugPrint('📍 Stack trace: $stackTrace');
       // Don't throw - app should continue working even if notifications fail
     }
@@ -85,10 +86,11 @@ class NotificationSender {
         payload: payload,
       );
 
-      debugPrint('📤 NotificationSender: Sent notification - $title');
+      debugPrint('📤 NotificationSenderService: Sent notification - $title');
       return true;
     } catch (e) {
-      debugPrint('❌ NotificationSender: Failed to send notification: $e');
+      debugPrint(
+          '❌ NotificationSenderService: Failed to send notification: $e');
       return false;
     }
   }
@@ -177,10 +179,11 @@ class NotificationSender {
       );
 
       debugPrint(
-          '📤 NotificationSender: Scheduled notification for ${scheduledTime.toString()}');
+          '📤 NotificationSenderService: Scheduled notification for ${scheduledTime.toString()}');
       return true;
     } catch (e) {
-      debugPrint('❌ NotificationSender: Failed to schedule notification: $e');
+      debugPrint(
+          '❌ NotificationSenderService: Failed to schedule notification: $e');
 
       // Fallback to Future.delayed if zonedSchedule fails
       Future.delayed(delay, () async {
@@ -199,9 +202,10 @@ class NotificationSender {
   Future<void> cancelNotification(int id) async {
     try {
       await _plugin.cancel(id);
-      debugPrint('📤 NotificationSender: Cancelled notification $id');
+      debugPrint('📤 NotificationSenderService: Cancelled notification $id');
     } catch (e) {
-      debugPrint('❌ NotificationSender: Failed to cancel notification: $e');
+      debugPrint(
+          '❌ NotificationSenderService: Failed to cancel notification: $e');
     }
   }
 
@@ -209,10 +213,10 @@ class NotificationSender {
   Future<void> cancelAllNotifications() async {
     try {
       await _plugin.cancelAll();
-      debugPrint('📤 NotificationSender: Cancelled all notifications');
+      debugPrint('📤 NotificationSenderService: Cancelled all notifications');
     } catch (e) {
       debugPrint(
-          '❌ NotificationSender: Failed to cancel all notifications: $e');
+          '❌ NotificationSenderService: Failed to cancel all notifications: $e');
     }
   }
 
@@ -222,7 +226,7 @@ class NotificationSender {
       return await _plugin.pendingNotificationRequests();
     } catch (e) {
       debugPrint(
-          '❌ NotificationSender: Failed to get pending notifications: $e');
+          '❌ NotificationSenderService: Failed to get pending notifications: $e');
       return [];
     }
   }
@@ -235,7 +239,7 @@ class NotificationSender {
       }
     } catch (e) {
       debugPrint(
-          '❌ NotificationSender: Failed to get active notifications: $e');
+          '❌ NotificationSenderService: Failed to get active notifications: $e');
     }
     return [];
   }
@@ -373,7 +377,7 @@ class NotificationSender {
   void _onNotificationResponse(NotificationResponse notificationResponse) {
     final String? payload = notificationResponse.payload;
     debugPrint(
-        '📤 NotificationSender: Notification tapped with payload: $payload');
+        '📤 NotificationSenderService: Notification tapped with payload: $payload');
 
     // Additional handling can be added here based on payload
   }
@@ -384,7 +388,7 @@ class NotificationSender {
       NotificationResponse notificationResponse) {
     final String? payload = notificationResponse.payload;
     debugPrint(
-        '📤 NotificationSender: Background notification tapped with payload: $payload');
+        '📤 NotificationSenderService: Background notification tapped with payload: $payload');
 
     // Additional handling can be added here based on payload
   }
@@ -392,7 +396,7 @@ class NotificationSender {
   /// Cleanup resources
   void dispose() {
     // Clean up any resources if needed
-    debugPrint('📤 NotificationSender: Service disposed');
+    debugPrint('📤 NotificationSenderService: Service disposed');
   }
 
   /// Check if service is initialized

@@ -7,19 +7,20 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 
 import 'settings_service.dart';
-import 'expense_detector.dart';
-import 'notification_sender.dart';
-import 'permission_handler.dart';
-import 'data_collector.dart';
-import 'expense_card_managing_service.dart';
-import '../router/app_router.dart';
+import '../../../domain/services/expense_detection_service.dart';
+import 'notification_sender_service.dart';
+import 'permission_handler_service.dart';
+import 'data_collection_service.dart';
+import '../../../presentation/services/expense_card_manager_service.dart';
+import '../../../core/router/app_router.dart';
 
 /// Main notification management service that orchestrates all notification-related functionality
 /// Follows enterprise-standard single responsibility principle
-class NotificationManager {
-  static final NotificationManager _instance = NotificationManager._internal();
-  factory NotificationManager() => _instance;
-  NotificationManager._internal();
+class NotificationManagerService {
+  static final NotificationManagerService _instance =
+      NotificationManagerService._internal();
+  factory NotificationManagerService() => _instance;
+  NotificationManagerService._internal();
 
   // Method channel for native communication
   static const platform = MethodChannel('com.kai.budgie/notification_listener');
@@ -30,10 +31,10 @@ class NotificationManager {
 
   // Service dependencies
   late final ExpenseDetector _expenseDetector;
-  late final NotificationSender _notificationSender;
-  late final PermissionHandler _permissionHandler;
-  late final DataCollector _dataCollector;
-  late final ExpenseCardManager _cardManager;
+  late final NotificationSenderService _notificationSender;
+  late final PermissionHandlerService _permissionHandler;
+  late final DataCollectionService _dataCollector;
+  late final ExpenseCardManagerService _uiService;
 
   // Notifications package instance
   final Notifications _notifications = Notifications();
@@ -41,14 +42,14 @@ class NotificationManager {
   /// Initialize the notification manager and all its dependencies
   Future<void> initialize() async {
     try {
-      debugPrint('🔔 NotificationManager: Initializing...');
+      debugPrint('🔔 NotificationManagerService: Initializing...');
 
       // Initialize service dependencies
       _expenseDetector = ExpenseDetector();
-      _notificationSender = NotificationSender();
-      _permissionHandler = PermissionHandler();
-      _dataCollector = DataCollector();
-      _cardManager = ExpenseCardManager();
+      _notificationSender = NotificationSenderService();
+      _permissionHandler = PermissionHandlerService();
+      _dataCollector = DataCollectionService();
+      _uiService = ExpenseCardManagerService();
 
       // Initialize all services
       await _notificationSender.initialize();
@@ -64,9 +65,9 @@ class NotificationManager {
       // Auto-start if user has enabled notifications
       await _checkAndStartIfEnabled();
 
-      debugPrint('✅ NotificationManager: Initialization completed');
+      debugPrint('✅ NotificationManagerService: Initialization completed');
     } catch (e, stackTrace) {
-      debugPrint('❌ NotificationManager: Initialization failed: $e');
+      debugPrint('❌ NotificationManagerService: Initialization failed: $e');
       debugPrint('📍 Stack trace: $stackTrace');
       rethrow;
     }
@@ -75,17 +76,18 @@ class NotificationManager {
   /// Start notification listening service
   Future<bool> startListening() async {
     if (_isListening) {
-      debugPrint('⚠️ NotificationManager: Already listening');
+      debugPrint('⚠️ NotificationManagerService: Already listening');
       return true;
     }
 
     try {
-      debugPrint('🔔 NotificationManager: Starting notification listener...');
+      debugPrint(
+          '🔔 NotificationManagerService: Starting notification listener...');
 
       // Check permissions first
       final hasPermissions = await _permissionHandler.requestAllPermissions();
       if (!hasPermissions) {
-        debugPrint('❌ NotificationManager: Insufficient permissions');
+        debugPrint('❌ NotificationManagerService: Insufficient permissions');
         return false;
       }
 
@@ -99,10 +101,11 @@ class NotificationManager {
       _startNotificationPackageListener();
 
       _isListening = true;
-      debugPrint('✅ NotificationManager: Notification listening started');
+      debugPrint(
+          '✅ NotificationManagerService: Notification listening started');
       return true;
     } catch (e) {
-      debugPrint('❌ NotificationManager: Failed to start listening: $e');
+      debugPrint('❌ NotificationManagerService: Failed to start listening: $e');
       _isListening = false;
       return false;
     }
@@ -113,25 +116,52 @@ class NotificationManager {
     if (!_isListening) return;
 
     try {
-      debugPrint('🔔 NotificationManager: Stopping notification listener...');
+      debugPrint(
+          '🔔 NotificationManagerService: Stopping notification listener...');
 
-      // Stop all listeners
-      _notificationSubscription?.cancel();
-      _notificationSubscription = null;
+      // Stop notification package listener with proper error handling
+      try {
+        await _notificationSubscription?.cancel();
+        _notificationSubscription = null;
+        debugPrint(
+            '✅ NotificationManagerService: Notification package stream cancelled');
+      } catch (e) {
+        debugPrint(
+            '⚠️ NotificationManagerService: Error cancelling notification stream (this is expected): $e');
+        // Force clear the subscription even if cancel fails
+        _notificationSubscription = null;
+      }
 
-      // Stop platform listener
-      await platform.invokeMethod('stopListening');
+      // Stop platform listener with error handling
+      try {
+        await platform.invokeMethod('stopListening');
+        debugPrint('✅ NotificationManagerService: Platform listener stopped');
+      } catch (e) {
+        debugPrint(
+            '⚠️ NotificationManagerService: Error stopping platform listener: $e');
+      }
 
-      // Disable background execution
-      if (Platform.isAndroid &&
-          FlutterBackground.isBackgroundExecutionEnabled) {
-        await FlutterBackground.disableBackgroundExecution();
+      // Disable background execution with error handling
+      try {
+        if (Platform.isAndroid &&
+            FlutterBackground.isBackgroundExecutionEnabled) {
+          await FlutterBackground.disableBackgroundExecution();
+          debugPrint(
+              '✅ NotificationManagerService: Background execution disabled');
+        }
+      } catch (e) {
+        debugPrint(
+            '⚠️ NotificationManagerService: Error disabling background execution: $e');
       }
 
       _isListening = false;
-      debugPrint('✅ NotificationManager: Notification listening stopped');
+      debugPrint(
+          '✅ NotificationManagerService: Notification listening stopped');
     } catch (e) {
-      debugPrint('❌ NotificationManager: Error stopping listener: $e');
+      debugPrint('❌ NotificationManagerService: Error stopping listener: $e');
+      // Force stop even if there were errors
+      _isListening = false;
+      _notificationSubscription = null;
     }
   }
 
@@ -152,7 +182,7 @@ class NotificationManager {
       if (fullText.isEmpty) return;
 
       debugPrint(
-          '🔍 NotificationManager: Processing notification from $packageName');
+          '🔍 NotificationManagerService: Processing notification from $packageName');
 
       // Analyze for expense
       final expenseData = await _expenseDetector.analyzeNotification(
@@ -161,14 +191,16 @@ class NotificationManager {
       );
 
       if (expenseData != null) {
-        debugPrint('💰 NotificationManager: Expense detected, showing card');
+        debugPrint(
+            '💰 NotificationManagerService: Expense detected, showing card');
         await _showExpenseCard(expenseData);
 
         // Record data for analytics if enabled
         await _dataCollector.recordNotificationExpense(expenseData);
       }
     } catch (e) {
-      debugPrint('❌ NotificationManager: Error processing notification: $e');
+      debugPrint(
+          '❌ NotificationManagerService: Error processing notification: $e');
     }
   }
 
@@ -240,7 +272,7 @@ class NotificationManager {
       await FlutterBackground.initialize(androidConfig: androidConfig);
       platform.setMethodCallHandler(_handleNotificationData);
     } catch (e) {
-      debugPrint('❌ NotificationManager: Background setup failed: $e');
+      debugPrint('❌ NotificationManagerService: Background setup failed: $e');
     }
   }
 
@@ -256,7 +288,7 @@ class NotificationManager {
         _startNotificationPackageListener();
       }
     } catch (e) {
-      debugPrint('❌ NotificationManager: Listener setup failed: $e');
+      debugPrint('❌ NotificationManagerService: Listener setup failed: $e');
     }
   }
 
@@ -273,7 +305,7 @@ class NotificationManager {
         }
       }
     } catch (e) {
-      debugPrint('❌ NotificationManager: Auto-start check failed: $e');
+      debugPrint('❌ NotificationManagerService: Auto-start check failed: $e');
     }
   }
 
@@ -281,13 +313,13 @@ class NotificationManager {
     try {
       final hasBackgroundPermissions = await FlutterBackground.hasPermissions;
       if (!hasBackgroundPermissions) {
-        debugPrint('❌ NotificationManager: No background permissions');
+        debugPrint('❌ NotificationManagerService: No background permissions');
         return;
       }
 
       await FlutterBackground.enableBackgroundExecution();
     } catch (e) {
-      debugPrint('❌ NotificationManager: Background service failed: $e');
+      debugPrint('❌ NotificationManagerService: Background service failed: $e');
     }
   }
 
@@ -295,17 +327,47 @@ class NotificationManager {
     try {
       await platform.invokeMethod('startListening');
     } catch (e) {
-      debugPrint('❌ NotificationManager: Platform listener failed: $e');
+      debugPrint('❌ NotificationManagerService: Platform listener failed: $e');
     }
   }
 
   void _startNotificationPackageListener() {
     try {
-      _notificationSubscription?.cancel();
-      _notificationSubscription =
-          _notifications.notificationStream?.listen(_onNotificationReceived);
+      // Cancel existing subscription safely
+      if (_notificationSubscription != null) {
+        _notificationSubscription?.cancel().catchError((e) {
+          debugPrint(
+              '⚠️ NotificationManagerService: Error cancelling existing subscription: $e');
+        });
+        _notificationSubscription = null;
+      }
+
+      // Create new subscription with error handling
+      final notificationStream = _notifications.notificationStream;
+      if (notificationStream != null) {
+        _notificationSubscription = notificationStream.listen(
+          _onNotificationReceived,
+          onError: (error) {
+            debugPrint(
+                '❌ NotificationManagerService: Notification stream error: $error');
+            // Don't stop listening on errors, just log them
+          },
+          onDone: () {
+            debugPrint(
+                'ℹ️ NotificationManagerService: Notification stream completed');
+            _notificationSubscription = null;
+          },
+          cancelOnError: false, // Continue listening even if errors occur
+        );
+        debugPrint(
+            '✅ NotificationManagerService: Notification package listener started');
+      } else {
+        debugPrint(
+            '⚠️ NotificationManagerService: Notification stream is null, cannot start listener');
+      }
     } catch (e) {
-      debugPrint('❌ NotificationManager: Package listener failed: $e');
+      debugPrint('❌ NotificationManagerService: Package listener failed: $e');
+      _notificationSubscription = null;
     }
   }
 
@@ -336,22 +398,24 @@ class NotificationManager {
 
       if (context == null) {
         debugPrint(
-            '❌ NotificationManager: No context available for expense card');
+            '❌ NotificationManagerService: No context available for expense card');
         return;
       }
 
-      _cardManager.showExpenseCard(
+      _uiService.showExpenseCard(
         context,
         expenseData,
         onExpenseSaved: () {
-          debugPrint('✅ NotificationManager: Expense saved from notification');
+          debugPrint(
+              '✅ NotificationManagerService: Expense saved from notification');
         },
         onDismissed: () {
-          debugPrint('ℹ️ NotificationManager: Expense card dismissed');
+          debugPrint('ℹ️ NotificationManagerService: Expense card dismissed');
         },
       );
     } catch (e) {
-      debugPrint('❌ NotificationManager: Error showing expense card: $e');
+      debugPrint(
+          '❌ NotificationManagerService: Error showing expense card: $e');
     }
   }
 
@@ -385,6 +449,21 @@ class NotificationManager {
   /// Request notification access permission (alias for requestNotificationListenerPermission)
   Future<void> requestNotificationAccessPermission() async {
     await _permissionHandler.requestNotificationListenerPermission();
+  }
+
+  /// Open notification listener settings for disabling access
+  Future<void> openNotificationSettingsForDisabling() async {
+    await _permissionHandler.openNotificationListenerSettingsForDisabling();
+  }
+
+  /// Check if notification access can be revoked
+  Future<bool> canRevokeNotificationAccess() async {
+    return await _permissionHandler.canRevokeNotificationAccess();
+  }
+
+  /// Request to revoke notification listener permission (opens settings)
+  Future<void> requestRevokeNotificationAccess() async {
+    await _permissionHandler.requestRevokeNotificationListenerPermission();
   }
 
   /// Get permission status for debugging
@@ -441,7 +520,7 @@ class NotificationManager {
     _notificationSubscription?.cancel();
     _expenseDetector.dispose();
     _notificationSender.dispose();
-    _cardManager.hideCard();
+    _uiService.hideCard();
     _isListening = false;
   }
 }

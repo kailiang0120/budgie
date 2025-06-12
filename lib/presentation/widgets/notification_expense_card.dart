@@ -5,8 +5,8 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:provider/provider.dart';
 import '../../domain/entities/category.dart';
 import '../utils/category_manager.dart';
-import '../../core/services/settings_service.dart';
-import '../../core/services/data_collector.dart';
+import '../../data/infrastructure/services/settings_service.dart';
+import '../../data/infrastructure/services/data_collection_service.dart';
 import '../../di/injection_container.dart' as di;
 
 enum ExpenseCardStep { confirm, category, remark, saving }
@@ -181,7 +181,7 @@ class _NotificationExpenseCardState extends State<NotificationExpenseCard>
 
       // Record data for notification record service
       try {
-        final dataCollector = di.sl<DataCollector>();
+        final dataCollector = di.sl<DataCollectionService>();
         await dataCollector.recordNotificationExpense({
           'amount': amount,
           'currency': currency,

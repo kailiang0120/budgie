@@ -13,8 +13,8 @@ import '../widgets/custom_dropdown_field.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/date_time_picker_field.dart';
 import '../widgets/recurring_expense_config.dart';
-import '../../core/errors/app_error.dart';
-import '../../core/services/settings_service.dart';
+import '../../data/infrastructure/errors/app_error.dart';
+import '../../data/infrastructure/services/settings_service.dart';
 import '../../di/injection_container.dart' as di;
 
 class EditExpenseScreen extends StatefulWidget {

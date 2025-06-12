@@ -69,11 +69,16 @@ class _ExpenseCardState extends State<ExpenseCard>
 
       if (!mounted) return;
 
-      // Refresh budget data after expense update
+      // Refresh budget data after expense update with a delay
       final budgetVM = Provider.of<BudgetViewModel>(context, listen: false);
       final monthId =
           '${widget.expense.date.year}-${widget.expense.date.month.toString().padLeft(2, '0')}';
-      budgetVM.refreshBudget(monthId);
+
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          budgetVM.refreshBudget(monthId);
+        }
+      });
     }
   }
 
@@ -116,9 +121,18 @@ class _ExpenseCardState extends State<ExpenseCard>
 
       await viewModel.deleteExpense(widget.expense.id);
 
-      // Refresh budget data after expense deletion
+      // Trigger the callback first to refresh expenses
+      if (widget.onExpenseUpdated != null) {
+        widget.onExpenseUpdated!();
+      }
+
+      // Add a small delay then refresh budget data after expense deletion
       if (mounted) {
-        budgetVM.refreshBudget(monthId);
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            budgetVM.refreshBudget(monthId);
+          }
+        });
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -127,10 +141,6 @@ class _ExpenseCardState extends State<ExpenseCard>
             duration: Duration(seconds: 2),
           ),
         );
-
-        if (widget.onExpenseUpdated != null) {
-          widget.onExpenseUpdated!();
-        }
       }
     } catch (e) {
       if (mounted) {

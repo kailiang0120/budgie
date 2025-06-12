@@ -13,9 +13,9 @@ import '../widgets/custom_dropdown_field.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/date_time_picker_field.dart';
 import '../widgets/recurring_expense_config.dart';
-import '../../core/errors/app_error.dart';
-import '../../core/services/settings_service.dart';
-import '../../core/services/data_collector.dart';
+import '../../data/infrastructure/errors/app_error.dart';
+import '../../data/infrastructure/services/settings_service.dart';
+import '../../data/infrastructure/services/data_collection_service.dart';
 import '../../di/injection_container.dart' as di;
 
 class AddExpenseScreen extends StatefulWidget {
@@ -168,7 +168,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
         // Record data for model improvement if user has consented
         try {
-          final dataCollector = di.sl<DataCollector>();
+          final dataCollector = di.sl<DataCollectionService>();
           await dataCollector.recordManualExpense(
             amount: amount,
             currency: _currency.value,

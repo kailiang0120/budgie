@@ -536,11 +536,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       final expensesVM = Provider.of<ExpensesViewModel>(context, listen: false);
       final budgetVM = Provider.of<BudgetViewModel>(context, listen: false);
 
-      // Refresh expenses data
+      // Refresh expenses data first
       await expensesVM.refreshData();
 
+      // Add a small delay before refreshing budget to ensure expenses are updated
+      await Future.delayed(const Duration(milliseconds: 300));
+
       // Refresh budget data for the selected month
-      await budgetVM.refreshBudget(_getMonthIdFromDate(_selectedDate));
+      if (mounted) {
+        await budgetVM.refreshBudget(_getMonthIdFromDate(_selectedDate));
+
+        // Also recalculate budget with current expenses to ensure real-time updates
+        final currentExpenses = expensesVM.getExpensesForMonth(
+            _selectedDate.year, _selectedDate.month);
+        await budgetVM.calculateBudgetRemaining(
+            currentExpenses, _getMonthIdFromDate(_selectedDate));
+      }
     }
   }
 
@@ -676,8 +687,31 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               return ExpenseCard(
                                 expense: expenses[index],
                                 onExpenseUpdated: () {
-                                  // Use the captured view model to refresh data
+                                  // Refresh both expenses and budget data
                                   expensesVM.refreshData();
+
+                                  // Also refresh budget to reflect expense changes
+                                  final budgetVM = Provider.of<BudgetViewModel>(
+                                      context,
+                                      listen: false);
+                                  final monthId =
+                                      _getMonthIdFromDate(_selectedDate);
+
+                                  // Add a small delay to ensure the expense operation completed
+                                  Future.delayed(
+                                      const Duration(milliseconds: 500), () {
+                                    if (mounted) {
+                                      budgetVM.refreshBudget(monthId);
+
+                                      // Also recalculate with latest expenses
+                                      final currentExpenses =
+                                          expensesVM.getExpensesForMonth(
+                                              _selectedDate.year,
+                                              _selectedDate.month);
+                                      budgetVM.calculateBudgetRemaining(
+                                          currentExpenses, monthId);
+                                    }
+                                  });
                                 },
                               );
                             },
@@ -705,13 +739,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               settings: const RouteSettings(name: Routes.expenses),
             ),
           ).then((_) {
-            // Refresh budget data when returning from expense screen
+            // Refresh both expenses and budget data when returning from expense screen
             if (!mounted) return;
 
-            // Capture context reference safely since we've checked mounted
+            // Refresh expenses first
+            final expensesVM =
+                Provider.of<ExpensesViewModel>(context, listen: false);
+            expensesVM.refreshData();
+
+            // Then refresh budget with a small delay to ensure expense data is updated
             final budgetVM =
                 Provider.of<BudgetViewModel>(context, listen: false);
-            budgetVM.refreshBudget(_getMonthIdFromDate(_selectedDate));
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (mounted) {
+                budgetVM.refreshBudget(_getMonthIdFromDate(_selectedDate));
+
+                // Also recalculate with latest expenses
+                final currentExpenses = expensesVM.getExpensesForMonth(
+                    _selectedDate.year, _selectedDate.month);
+                budgetVM.calculateBudgetRemaining(
+                    currentExpenses, _getMonthIdFromDate(_selectedDate));
+              }
+            });
           });
         },
         backgroundColor: Theme.of(context).colorScheme.primary,

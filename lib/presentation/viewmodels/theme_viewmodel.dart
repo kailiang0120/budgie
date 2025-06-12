@@ -1,20 +1,19 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
+import '../../data/infrastructure/services/settings_service.dart';
 
 class ThemeViewModel extends ChangeNotifier {
   bool _isDarkMode = false;
   String _currentTheme = 'light';
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final SettingsService _settingsService;
 
   bool get isDarkMode => _isDarkMode;
   String get currentTheme => _currentTheme;
 
   ThemeData get theme => _isDarkMode ? AppTheme.darkTheme : AppTheme.lightTheme;
 
-  ThemeViewModel() {
+  ThemeViewModel({required SettingsService settingsService})
+      : _settingsService = settingsService {
     // Start with light theme as default to match SettingsService defaults
     debugPrint('🎨 ThemeViewModel created with default light theme');
   }
@@ -28,22 +27,8 @@ class ThemeViewModel extends ChangeNotifier {
 
     debugPrint('🎨 Theme changed to: $theme');
 
-    // 保存主题设置到用户记录
-    await _saveThemeToUser();
-  }
-
-  Future<void> _saveThemeToUser() async {
-    try {
-      final user = _auth.currentUser;
-      if (user != null) {
-        await _firestore.collection('users').doc(user.uid).set({
-          'theme': _currentTheme,
-        }, SetOptions(merge: true));
-        debugPrint('🎨 Theme saved to user record');
-      }
-    } catch (e) {
-      debugPrint('🎨 Error saving theme: $e');
-    }
+    // Save theme setting to user settings
+    await _settingsService.updateTheme(theme);
   }
 
   Future<void> toggleTheme() async {
@@ -55,24 +40,14 @@ class ThemeViewModel extends ChangeNotifier {
   Future<void> initializeForUser(String userId) async {
     try {
       debugPrint('🎨 ThemeViewModel: Initializing theme for user: $userId');
-      final doc = await _firestore.collection('users').doc(userId).get();
 
-      if (doc.exists) {
-        final userData = doc.data();
-        if (userData != null && userData.containsKey('theme')) {
-          final userTheme = userData['theme'] as String;
-          debugPrint('🎨 ThemeViewModel: Found user theme: $userTheme');
-          await setTheme(userTheme);
-        } else {
-          debugPrint(
-              '🎨 ThemeViewModel: User document exists but no theme found, using defaults');
-          // Don't create settings here - let SettingsService handle it
-        }
-      } else {
-        debugPrint('🎨 ThemeViewModel: User document does not exist yet');
-        // Don't create settings here - let SettingsService handle it
-        // Keep current default theme
-      }
+      // Get theme from SettingsService which manages user settings
+      final userTheme = _settingsService.theme;
+      debugPrint('🎨 ThemeViewModel: Found user theme: $userTheme');
+
+      _currentTheme = userTheme;
+      _isDarkMode = userTheme == 'dark';
+      notifyListeners();
 
       debugPrint(
           '🎨 ThemeViewModel: Theme initialization completed for user: $userId');

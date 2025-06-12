@@ -4,15 +4,16 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_background/flutter_background.dart';
 import 'dart:io';
+import 'dart:async';
 
-import 'core/constants/firebase_options.dart';
+import 'data/infrastructure/config/firebase_options.dart';
 import 'core/constants/routes.dart';
 import 'core/router/app_router.dart';
-import 'core/services/settings_service.dart';
-import 'core/services/sync_service.dart';
-import 'core/services/recurring_expense_service.dart';
-import 'core/services/notification_manager.dart';
-import 'core/network/connectivity_service.dart';
+import 'data/infrastructure/services/settings_service.dart';
+import 'data/infrastructure/services/sync_service.dart';
+import 'domain/usecase/expense/process_recurring_expenses_usecase.dart';
+import 'data/infrastructure/services/notification_manager_service.dart';
+import 'data/infrastructure/network/connectivity_service.dart';
 import 'presentation/viewmodels/expenses_viewmodel.dart';
 import 'presentation/viewmodels/auth_viewmodel.dart';
 import 'presentation/viewmodels/budget_viewmodel.dart';
@@ -29,110 +30,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    // Initialize Firebase with proper error handling
-    debugPrint('Initializing Firebase...');
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    debugPrint('Firebase initialized successfully');
+    // Critical path initialization - must be sequential
+    await _initializeCriticalServices();
 
-    // Check Firebase Auth status
-    final auth = FirebaseAuth.instance;
-    final currentUser = auth.currentUser;
-    debugPrint('Current Firebase user: ${currentUser?.uid ?? 'Not signed in'}');
-
-    // Set up persistence for Auth
-    try {
-      await auth.setPersistence(Persistence.LOCAL);
-      debugPrint('Firebase Auth persistence set to LOCAL');
-    } catch (e) {
-      debugPrint('Failed to set persistence: $e');
-    }
-
-    // Initialize flutter_background for Android
-    if (Platform.isAndroid) {
-      try {
-        debugPrint('Initializing flutter_background for Android...');
-        const androidConfig = FlutterBackgroundAndroidConfig(
-          notificationTitle: "Budgie",
-          notificationText: "Running in background",
-          notificationImportance: AndroidNotificationImportance.normal,
-          notificationIcon: AndroidResource(
-            name: 'ic_launcher',
-            defType: 'mipmap',
-          ),
-        );
-
-        // First initialization - may trigger permission dialog
-        bool initialized =
-            await FlutterBackground.initialize(androidConfig: androidConfig);
-        debugPrint(
-            'First flutter_background initialization result: $initialized');
-
-        // Check if we have permissions but initialization still returned false
-        if (!initialized && await FlutterBackground.hasPermissions) {
-          // Try again - this should succeed now that permissions are granted
-          initialized =
-              await FlutterBackground.initialize(androidConfig: androidConfig);
-          debugPrint(
-              'Second flutter_background initialization result: $initialized');
-        }
-
-        if (initialized) {
-          debugPrint('flutter_background initialized successfully');
-        } else {
-          debugPrint(
-              'flutter_background initialization failed, will retry when needed');
-        }
-      } catch (e) {
-        debugPrint('Error initializing flutter_background: $e');
-      }
-    }
-
-    // Initialize dependency injection
-    debugPrint('Initializing dependency injection...');
-    await di.init();
-    debugPrint('Dependency injection initialized');
-
-    // Initialize NotificationManager
-    debugPrint('Initializing NotificationManager...');
-    final notificationManager = di.sl<NotificationManager>();
-    await notificationManager.initialize();
-    debugPrint('NotificationManager initialized');
-
-    // Initialize ConnectivityService first to monitor network state
-    debugPrint('Initializing ConnectivityService...');
-    di.sl<ConnectivityService>();
-
-    // Initialize SyncService for all users (logged in or not)
-    debugPrint('Initializing SyncService...');
-    final syncService = di.sl<SyncService>();
-    await syncService.initialize(startPeriodicSync: true);
-    debugPrint('SyncService initialized with automatic periodic sync');
-
-    // Initialize local data for logged in user
-    if (currentUser != null) {
-      debugPrint('User is logged in, initializing local data...');
-
-      // Initialize SettingsService for the current user
-      final settingsService = di.sl<SettingsService>();
-      await settingsService.initializeForUser(currentUser.uid);
-
-      // Start recurring expense service
-      debugPrint('Starting RecurringExpenseService...');
-      di.sl<RecurringExpenseService>().startProcessing();
-      debugPrint('RecurringExpenseService started');
-
-      // Perform initial sync after a short delay to ensure everything is ready
-      Future.delayed(const Duration(seconds: 5), () {
-        syncService.forceFullSync();
-      });
-    }
-
-    // Disable Provider type checking in debug mode if needed
-    // Provider.debugCheckInvalidValueType = null;
-
-    // Wrap your entire app in all the providers you'll need
+    // Start the app immediately with providers
     runApp(
       MultiProvider(
         providers: [
@@ -140,11 +41,13 @@ Future<void> main() async {
           ChangeNotifierProvider(create: (_) => di.sl<ExpensesViewModel>()),
           ChangeNotifierProvider(create: (_) => di.sl<BudgetViewModel>()),
           ChangeNotifierProvider(create: (_) => di.sl<ThemeViewModel>()),
-          // TODO: add more providers here as you build out other features
         ],
         child: const BudgieApp(),
       ),
     );
+
+    // Non-critical initialization can happen after app starts
+    _initializeNonCriticalServices();
   } catch (e, stackTrace) {
     debugPrint('Error during app initialization: $e');
     debugPrint(stackTrace.toString());
@@ -187,6 +90,204 @@ Future<void> main() async {
   }
 }
 
+/// Initialize only critical services needed for app startup
+Future<void> _initializeCriticalServices() async {
+  final stopwatch = Stopwatch()..start();
+
+  // Initialize Firebase with proper error handling
+  debugPrint('🚀 Initializing critical services...');
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  debugPrint('✅ Firebase initialized (${stopwatch.elapsedMilliseconds}ms)');
+
+  // Check Firebase Auth status
+  final auth = FirebaseAuth.instance;
+  final currentUser = auth.currentUser;
+  debugPrint(
+      '👤 Current Firebase user: ${currentUser?.uid ?? 'Not signed in'}');
+
+  // Set up persistence for Auth
+  try {
+    await auth.setPersistence(Persistence.LOCAL);
+    debugPrint('✅ Firebase Auth persistence set');
+  } catch (e) {
+    debugPrint('⚠️ Failed to set persistence: $e');
+  }
+
+  // Initialize dependency injection
+  await di.init();
+  debugPrint(
+      '✅ Dependency injection initialized (${stopwatch.elapsedMilliseconds}ms)');
+
+  // Initialize only essential services in parallel
+  await Future.wait([
+    _initializeConnectivityService(),
+    _initializeNotificationService(),
+  ]);
+
+  debugPrint(
+      '✅ Critical services initialized in ${stopwatch.elapsedMilliseconds}ms');
+}
+
+/// Initialize connectivity service
+Future<void> _initializeConnectivityService() async {
+  try {
+    di.sl<ConnectivityService>();
+    debugPrint('✅ ConnectivityService initialized');
+  } catch (e) {
+    debugPrint('⚠️ ConnectivityService initialization failed: $e');
+  }
+}
+
+/// Initialize notification service
+Future<void> _initializeNotificationService() async {
+  try {
+    final notificationManager = di.sl<NotificationManagerService>();
+    await notificationManager.initialize();
+    debugPrint('✅ NotificationManagerService initialized');
+  } catch (e) {
+    debugPrint('⚠️ NotificationManagerService initialization failed: $e');
+  }
+}
+
+/// Initialize non-critical services after app startup
+void _initializeNonCriticalServices() {
+  Future.delayed(const Duration(milliseconds: 500), () async {
+    final stopwatch = Stopwatch()..start();
+    debugPrint('🔄 Starting non-critical services initialization...');
+
+    try {
+      final auth = FirebaseAuth.instance;
+      final currentUser = auth.currentUser;
+
+      // Initialize services in parallel where possible
+      await Future.wait([
+        _initializeSyncService(),
+        _initializeUserSpecificServices(currentUser),
+        _initializeBackgroundService(),
+      ]);
+
+      debugPrint(
+          '✅ Non-critical services initialized in ${stopwatch.elapsedMilliseconds}ms');
+    } catch (e) {
+      debugPrint('⚠️ Non-critical services initialization error: $e');
+    }
+  });
+}
+
+/// Initialize sync service
+Future<void> _initializeSyncService() async {
+  try {
+    final syncService = di.sl<SyncService>();
+    await syncService.initialize(startPeriodicSync: true);
+    debugPrint('✅ SyncService initialized with automatic periodic sync');
+
+    // Perform initial sync after initialization
+    Future.delayed(const Duration(seconds: 3), () {
+      if (FirebaseAuth.instance.currentUser != null) {
+        syncService.forceFullSync();
+      }
+    });
+  } catch (e) {
+    debugPrint('⚠️ SyncService initialization failed: $e');
+  }
+}
+
+/// Initialize user-specific services if user is logged in
+Future<void> _initializeUserSpecificServices(User? currentUser) async {
+  if (currentUser == null) return;
+
+  try {
+    debugPrint('👤 User logged in, initializing user-specific services...');
+
+    // Initialize SettingsService for the current user
+    final settingsService = di.sl<SettingsService>();
+    await settingsService.initializeForUser(currentUser.uid);
+    debugPrint('✅ SettingsService initialized for user');
+
+    // Start recurring expense service
+    _startRecurringExpenseService();
+  } catch (e) {
+    debugPrint('⚠️ User-specific services initialization failed: $e');
+  }
+}
+
+/// Start recurring expense processing
+void _startRecurringExpenseService() {
+  try {
+    // Create a timer to process recurring expenses periodically
+    Timer.periodic(const Duration(hours: 1), (timer) {
+      di.sl<ProcessRecurringExpensesUseCase>().execute();
+    });
+
+    // Also process immediately when app starts (with delay)
+    Future.delayed(const Duration(seconds: 10), () {
+      di.sl<ProcessRecurringExpensesUseCase>().execute();
+    });
+
+    debugPrint('✅ ProcessRecurringExpensesUseCase started');
+  } catch (e) {
+    debugPrint('⚠️ RecurringExpenseService start failed: $e');
+  }
+}
+
+/// Initialize background service (optional, non-blocking)
+Future<void> _initializeBackgroundService() async {
+  // Only initialize if Android and we haven't asked for permissions yet
+  if (!Platform.isAndroid) return;
+
+  try {
+    // Check if we already have permissions to avoid showing dialog repeatedly
+    final hasPermissions = await FlutterBackground.hasPermissions;
+
+    if (hasPermissions) {
+      // We have permissions, initialize silently
+      await _setupFlutterBackground();
+    } else {
+      // We don't have permissions - initialize in background after app is fully loaded
+      // This prevents the permission dialog from blocking app startup
+      Future.delayed(const Duration(seconds: 5), () async {
+        try {
+          await _setupFlutterBackground();
+        } catch (e) {
+          debugPrint('⚠️ Background service setup failed (non-critical): $e');
+        }
+      });
+    }
+  } catch (e) {
+    debugPrint('⚠️ Background service check failed (non-critical): $e');
+  }
+}
+
+/// Setup Flutter Background with proper configuration
+Future<void> _setupFlutterBackground() async {
+  try {
+    const androidConfig = FlutterBackgroundAndroidConfig(
+      notificationTitle: "Budgie",
+      notificationText: "Tracking expenses in background",
+      notificationImportance:
+          AndroidNotificationImportance.normal, // Standard importance
+      notificationIcon: AndroidResource(
+        name: 'ic_launcher',
+        defType: 'mipmap',
+      ),
+    );
+
+    final initialized =
+        await FlutterBackground.initialize(androidConfig: androidConfig);
+
+    if (initialized) {
+      debugPrint('✅ Flutter background service initialized');
+    } else {
+      debugPrint(
+          '⚠️ Flutter background service not initialized (permissions may be needed)');
+    }
+  } catch (e) {
+    debugPrint('⚠️ Flutter background setup error: $e');
+  }
+}
+
 class BudgieApp extends StatefulWidget {
   const BudgieApp({Key? key}) : super(key: key);
 
@@ -211,21 +312,27 @@ class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       // App is resumed from background, check for sync
-      final syncService = di.sl<SyncService>();
-      final auth = FirebaseAuth.instance;
-      if (auth.currentUser != null) {
-        // App is resumed and user is logged in, trigger sync
-        debugPrint('App resumed - checking for pending syncs');
-        Future.delayed(const Duration(seconds: 1), () {
-          syncService.syncData(fullSync: false);
-        });
+      try {
+        final syncService = di.sl<SyncService>();
+        final auth = FirebaseAuth.instance;
+        if (auth.currentUser != null) {
+          // App is resumed and user is logged in, trigger sync
+          debugPrint('📱 App resumed - checking for pending syncs');
+          Future.delayed(const Duration(seconds: 1), () {
+            syncService.syncData(fullSync: false);
+          });
+        }
+      } catch (e) {
+        debugPrint('⚠️ Resume sync failed: $e');
       }
     } else if (state == AppLifecycleState.detached) {
       // App is being killed, clean up resources
-      di.sl<SyncService>().dispose();
-      di.sl<RecurringExpenseService>().stopProcessing();
-      debugPrint(
-          'App detached: disposed SyncService and RecurringExpenseService');
+      try {
+        di.sl<SyncService>().dispose();
+        debugPrint('🧹 App detached: disposed SyncService');
+      } catch (e) {
+        debugPrint('⚠️ Cleanup failed: $e');
+      }
     }
   }
 

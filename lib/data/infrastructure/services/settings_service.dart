@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../data/datasources/local_data_source.dart';
+import '../../datasources/local_data_source.dart';
 import '../network/connectivity_service.dart';
 
 class SettingsService extends ChangeNotifier {

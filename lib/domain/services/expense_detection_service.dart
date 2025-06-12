@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
-import 'api_models.dart';
+import '../../data/models/api_response_models.dart';
 
 /// Service responsible for detecting expenses from notification text using AI/ML models
 /// Provides clean interface for expense analysis and pattern matching
@@ -27,21 +27,18 @@ class ExpenseDetector {
       // Check API health on initialization
       final isHealthy = await checkHealth();
       if (!isHealthy) {
-        debugPrint(
-            '⚠️ ExpenseDetector: API is not healthy, using fallback detection');
+        debugPrint('⚠️ ExpenseDetector: API is not healthy');
       }
 
       _isInitialized = true;
       debugPrint('✅ ExpenseDetector: Initialization completed');
     } catch (e) {
       debugPrint('❌ ExpenseDetector: Initialization failed: $e');
-      // Don't throw - service should work with fallback even if API fails
+      // Service should fail gracefully if API is not available
       _isInitialized = true;
     }
   }
 
-  /// Analyze notification text for potential expense information
-  /// Returns expense data if expense is detected, null otherwise
   Future<Map<String, dynamic>?> analyzeNotification({
     required String text,
     required String source,
@@ -53,33 +50,16 @@ class ExpenseDetector {
     try {
       debugPrint('🔍 ExpenseDetector: Analyzing notification from $source');
 
-      // Try API-based detection first
+      // Only try API-based detection - no fallback
       final apiResult = await _detectExpenseViaApi(text);
       if (apiResult != null) {
         return _enrichExpenseData(apiResult, text, source);
       }
 
-      // Fallback to pattern-based detection
-      final patternResult = _detectExpenseViaPattern(text);
-      if (patternResult != null) {
-        return _enrichExpenseData(patternResult, text, source);
-      }
-
+      debugPrint('🔍 ExpenseDetector: No expense detected via API');
       return null;
     } catch (e) {
       debugPrint('❌ ExpenseDetector: Analysis failed: $e');
-
-      // Try fallback detection even if API fails
-      try {
-        final patternResult = _detectExpenseViaPattern(text);
-        if (patternResult != null) {
-          return _enrichExpenseData(patternResult, text, source);
-        }
-      } catch (fallbackError) {
-        debugPrint(
-            '❌ ExpenseDetector: Fallback detection failed: $fallbackError');
-      }
-
       return null;
     }
   }
@@ -151,7 +131,7 @@ class ExpenseDetector {
 
   // Private methods
 
-  /// Detect expense using AI/ML API
+  /// Detect expense using AI/ML API only
   Future<Map<String, dynamic>?> _detectExpenseViaApi(String text) async {
     try {
       final uri = Uri.parse('$_baseUrl/classify');
@@ -188,7 +168,7 @@ class ExpenseDetector {
     }
   }
 
-  /// Extract expense data from API response
+  /// Extract expense data from API response - only amount, no merchant
   Map<String, dynamic> _extractExpenseFromApiResponse(
     String text,
     NotificationResponse response,
@@ -198,128 +178,50 @@ class ExpenseDetector {
 
     if (response.extractedAmount != null) {
       final amountStr = response.extractedAmount!;
+      amount = double.tryParse(amountStr.replaceAll(RegExp(r'[^\d.]'), ''));
 
-      // Determine currency from extracted amount
-      currency = _extractCurrency(amountStr);
-
-      // Extract numeric value
-      final numericPattern = RegExp(r'(\d+(?:\.\d+)?)');
-      final numericMatch = numericPattern.firstMatch(amountStr);
-      if (numericMatch != null) {
-        amount = double.tryParse(numericMatch.group(1) ?? '0');
+      // Infer currency from extracted amount
+      if (amountStr.toUpperCase().contains('RM') ||
+          amountStr.toUpperCase().contains('MYR')) {
+        currency = 'MYR';
+      } else if (amountStr.contains('\$') ||
+          amountStr.toUpperCase().contains('USD')) {
+        currency = 'USD';
+      } else if (amountStr.contains('€') ||
+          amountStr.toUpperCase().contains('EUR')) {
+        currency = 'EUR';
       }
     }
 
-    // Extract merchant from original text
-    final merchant = _extractMerchant(text);
-
     return {
-      'amount': amount ?? 0.0,
-      'merchant': merchant,
+      'amount': amount,
       'currency': currency,
       'confidence': response.confidence,
-      'detectionMethod': 'api',
-      'extractedAmount': response.extractedAmount,
+      'isAutoDetected': true,
+      'detectionMethod': 'ai_api',
+      'originalText': text,
     };
   }
 
-  /// Detect expense using pattern matching (fallback)
-  Map<String, dynamic>? _detectExpenseViaPattern(String text) {
-    try {
-      final lowerText = text.toLowerCase();
-
-      // Check for payment keywords
-      final paymentKeywords = [
-        'paid',
-        'payment',
-        'transaction',
-        'purchase',
-        'spent',
-        'debit',
-        'charged',
-        'bill',
-        'receipt',
-        'checkout'
-      ];
-
-      final hasPaymentKeyword =
-          paymentKeywords.any((keyword) => lowerText.contains(keyword));
-
-      if (!hasPaymentKeyword) {
-        return null;
-      }
-
-      // Extract amount and currency
-      final amountPattern = RegExp(
-          r'(?:RM|MYR|\$|USD|€|EUR|£|GBP)\s*(\d+(?:\.\d+)?)',
-          caseSensitive: false);
-
-      final amountMatch = amountPattern.firstMatch(text);
-      if (amountMatch == null) {
-        return null;
-      }
-
-      final amount = double.tryParse(amountMatch.group(1) ?? '0') ?? 0.0;
-      final currency = _extractCurrency(amountMatch.group(0) ?? '');
-      final merchant = _extractMerchant(text);
-
-      return {
-        'amount': amount,
-        'merchant': merchant,
-        'currency': currency,
-        'confidence': 0.6, // Lower confidence for pattern matching
-        'detectionMethod': 'pattern',
-        'extractedAmount': amountMatch.group(0),
-      };
-    } catch (e) {
-      debugPrint('🔍 ExpenseDetector: Pattern detection failed: $e');
-      return null;
-    }
-  }
-
-  /// Extract currency from amount string
-  String _extractCurrency(String amountStr) {
-    if (amountStr.contains('RM') || amountStr.contains('MYR')) {
-      return 'MYR';
-    } else if (amountStr.contains('\$') || amountStr.contains('USD')) {
-      return 'USD';
-    } else if (amountStr.contains('€') || amountStr.contains('EUR')) {
-      return 'EUR';
-    } else if (amountStr.contains('£') || amountStr.contains('GBP')) {
-      return 'GBP';
-    }
-    return 'MYR'; // Default
-  }
-
-  /// Extract merchant name from text
-  String _extractMerchant(String text) {
-    final merchantPattern = RegExp(r'(?:at|from|to)\s+([A-Za-z\s]+?)(?:\s|$)',
-        caseSensitive: false);
-
-    final merchantMatch = merchantPattern.firstMatch(text);
-    return merchantMatch?.group(1)?.trim() ?? 'Unknown';
-  }
-
-  /// Enrich expense data with additional metadata
+  /// Enrich expense data with additional information
   Map<String, dynamic> _enrichExpenseData(
-    Map<String, dynamic> baseData,
+    Map<String, dynamic> expenseData,
     String originalText,
     String source,
   ) {
     return {
-      ...baseData,
-      'date': DateTime.now().toIso8601String(),
-      'category': 'Auto-detected',
-      'isAutoDetected': true,
+      ...expenseData,
       'source': source,
-      'originalText': originalText,
-      'detectedAt': DateTime.now().millisecondsSinceEpoch,
+      'timestamp': DateTime.now().toIso8601String(),
+      'fullNotification': originalText,
+      'processingVersion': '2.0', // Updated version
     };
   }
 
   /// Cleanup resources
   void dispose() {
     _httpClient.close();
+    debugPrint('🔍 ExpenseDetector: Disposed');
   }
 
   /// Check if service is initialized

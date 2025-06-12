@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/constants/routes.dart';
 import '../viewmodels/auth_viewmodel.dart';
-import '../../core/errors/app_error.dart';
+import '../../data/infrastructure/errors/app_error.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {

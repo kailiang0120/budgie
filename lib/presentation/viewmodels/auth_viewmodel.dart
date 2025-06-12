@@ -1,21 +1,37 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/foundation.dart';
 import 'dart:async';
 import '../../domain/entities/user.dart' as domain;
 import '../../domain/repositories/auth_repository.dart';
-import '../../core/utils/performance_monitor.dart';
-import '../../core/services/sync_service.dart';
-import '../../core/services/settings_service.dart';
-import '../viewmodels/theme_viewmodel.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../data/infrastructure/monitoring/performance_monitor.dart';
+import '../../domain/usecase/auth/sign_in_with_email_usecase.dart';
+import '../../domain/usecase/auth/create_user_with_email_usecase.dart';
+import '../../domain/usecase/auth/sign_in_with_google_usecase.dart';
+import '../../domain/usecase/auth/sign_in_with_apple_usecase.dart';
+import '../../domain/usecase/auth/sign_in_as_guest_usecase.dart';
+import '../../domain/usecase/auth/upgrade_guest_account_usecase.dart';
+import '../../domain/usecase/auth/secure_sign_out_anonymous_user_usecase.dart';
+import '../../domain/usecase/auth/refresh_auth_state_usecase.dart';
+import '../../domain/usecase/auth/update_profile_usecase.dart';
+import '../../domain/usecase/auth/update_user_settings_usecase.dart';
+import '../../domain/usecase/auth/initialize_user_data_usecase.dart';
+import '../../domain/usecase/auth/is_guest_user_usecase.dart';
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
-  final SyncService _syncService;
-  final ThemeViewModel _themeViewModel;
-  final SettingsService _settingsService;
+  final SignInWithEmailUseCase _signInWithEmailUseCase;
+  final CreateUserWithEmailUseCase _createUserWithEmailUseCase;
+  final SignInWithGoogleUseCase _signInWithGoogleUseCase;
+  final SignInWithAppleUseCase _signInWithAppleUseCase;
+  final SignInAsGuestUseCase _signInAsGuestUseCase;
+  final UpgradeGuestAccountUseCase _upgradeGuestAccountUseCase;
+  final SecureSignOutAnonymousUserUseCase _secureSignOutAnonymousUserUseCase;
+  final RefreshAuthStateUseCase _refreshAuthStateUseCase;
+  final UpdateProfileUseCase _updateProfileUseCase;
+  final UpdateUserSettingsUseCase _updateUserSettingsUseCase;
+  final InitializeUserDataUseCase _initializeUserDataUseCase;
+  final IsGuestUserUseCase _isGuestUserUseCase;
+
   domain.User? _currentUser;
   bool _isLoading = false;
   String? _error;
@@ -23,13 +39,32 @@ class AuthViewModel extends ChangeNotifier {
 
   AuthViewModel({
     required AuthRepository authRepository,
-    required SyncService syncService,
-    required ThemeViewModel themeViewModel,
-    required SettingsService settingsService,
+    required SignInWithEmailUseCase signInWithEmailUseCase,
+    required CreateUserWithEmailUseCase createUserWithEmailUseCase,
+    required SignInWithGoogleUseCase signInWithGoogleUseCase,
+    required SignInWithAppleUseCase signInWithAppleUseCase,
+    required SignInAsGuestUseCase signInAsGuestUseCase,
+    required UpgradeGuestAccountUseCase upgradeGuestAccountUseCase,
+    required SecureSignOutAnonymousUserUseCase
+        secureSignOutAnonymousUserUseCase,
+    required RefreshAuthStateUseCase refreshAuthStateUseCase,
+    required UpdateProfileUseCase updateProfileUseCase,
+    required UpdateUserSettingsUseCase updateUserSettingsUseCase,
+    required InitializeUserDataUseCase initializeUserDataUseCase,
+    required IsGuestUserUseCase isGuestUserUseCase,
   })  : _authRepository = authRepository,
-        _syncService = syncService,
-        _themeViewModel = themeViewModel,
-        _settingsService = settingsService {
+        _signInWithEmailUseCase = signInWithEmailUseCase,
+        _createUserWithEmailUseCase = createUserWithEmailUseCase,
+        _signInWithGoogleUseCase = signInWithGoogleUseCase,
+        _signInWithAppleUseCase = signInWithAppleUseCase,
+        _signInAsGuestUseCase = signInAsGuestUseCase,
+        _upgradeGuestAccountUseCase = upgradeGuestAccountUseCase,
+        _secureSignOutAnonymousUserUseCase = secureSignOutAnonymousUserUseCase,
+        _refreshAuthStateUseCase = refreshAuthStateUseCase,
+        _updateProfileUseCase = updateProfileUseCase,
+        _updateUserSettingsUseCase = updateUserSettingsUseCase,
+        _initializeUserDataUseCase = initializeUserDataUseCase,
+        _isGuestUserUseCase = isGuestUserUseCase {
     _initAuth();
   }
 
@@ -51,7 +86,7 @@ class AuthViewModel extends ChangeNotifier {
       // If user is already authenticated, initialize their data
       if (_currentUser != null) {
         debugPrint('🔥 AuthViewModel: Current user found: ${_currentUser!.id}');
-        await _initializeUserData(_currentUser!.id);
+        await _initializeUserDataUseCase.execute(_currentUser!.id);
       } else {
         debugPrint('🔥 AuthViewModel: No current user found');
       }
@@ -68,10 +103,9 @@ class AuthViewModel extends ChangeNotifier {
             if (user != null) {
               debugPrint(
                   '🔥 AuthViewModel: User logged in, initializing data for: ${user.id}');
-              await _handleUserLogin(user.id);
+              await _initializeUserDataUseCase.execute(user.id);
             } else {
               debugPrint('🔥 AuthViewModel: User logged out');
-              await _handleUserLogout();
             }
 
             notifyListeners();
@@ -99,121 +133,17 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  // Handle user login with new/existing user detection
-  Future<void> _handleUserLogin(String userId) async {
-    try {
-      debugPrint('🔥 AuthViewModel: Handling user login for: $userId');
-
-      // Step 1: Initialize settings (will handle new/existing user detection internally)
-      debugPrint('🔥 AuthViewModel: Initializing settings for user');
-      await _settingsService.initializeForUser(userId);
-      debugPrint('🔥 AuthViewModel: Settings initialization completed');
-      debugPrint(
-          '🔥 AuthViewModel: Current settings - Currency: ${_settingsService.currency}, Theme: ${_settingsService.theme}, Notifications: ${_settingsService.allowNotification}');
-
-      // Step 2: Initialize theme based on user settings (only after settings are loaded/created)
-      debugPrint('🔥 AuthViewModel: Initializing theme for user');
-      await _themeViewModel.initializeForUser(userId);
-      debugPrint('🔥 AuthViewModel: Theme initialization completed');
-
-      // Step 3: Initialize local data synchronization
-      debugPrint('🔥 AuthViewModel: Initializing local data sync');
-      await _syncService.initializeLocalDataOnLogin(userId);
-      debugPrint('🔥 AuthViewModel: Local data sync initialized');
-
-      // Step 4: Trigger a full sync to ensure offline data is merged with Firebase
-      debugPrint('🔥 AuthViewModel: Triggering full data synchronization');
-      // Use a slight delay to ensure everything is initialized properly
-      Future.delayed(const Duration(seconds: 2), () {
-        _syncService.forceFullSync();
-      });
-
-      debugPrint(
-          '🔥 AuthViewModel: User login handling completed for: $userId');
-    } catch (e) {
-      debugPrint('🔥 AuthViewModel: Error handling user login for $userId: $e');
-      _error = 'Failed to initialize user data: ${e.toString()}';
-      rethrow;
-    }
-  }
-
-  // Handle user logout
-  Future<void> _handleUserLogout() async {
-    try {
-      debugPrint('🔥 AuthViewModel: Handling user logout');
-      // Reset any local state if needed
-      // The services will handle their own cleanup
-    } catch (e) {
-      debugPrint('🔥 AuthViewModel: Error handling user logout: $e');
-    }
-  }
-
-  // Initialize user data (used for current user on app start)
-  Future<void> _initializeUserData(String userId) async {
-    try {
-      debugPrint(
-          '🔥 AuthViewModel: Initializing data for current user: $userId');
-
-      // Initialize settings first
-      await _settingsService.initializeForUser(userId);
-      debugPrint('🔥 AuthViewModel: Settings initialized for current user');
-
-      // Then initialize theme
-      await _themeViewModel.initializeForUser(userId);
-      debugPrint('🔥 AuthViewModel: Theme initialized for current user');
-
-      // Finally initialize local data
-      await _syncService.initializeLocalDataOnLogin(userId);
-      debugPrint('🔥 AuthViewModel: Local data initialized for current user');
-
-      // Trigger a full sync to ensure offline data is merged with Firebase
-      debugPrint(
-          '🔥 AuthViewModel: Triggering full data synchronization for current user');
-      // Use a slight delay to ensure everything is initialized properly
-      Future.delayed(const Duration(seconds: 2), () {
-        _syncService.forceFullSync();
-      });
-    } catch (e) {
-      debugPrint('🔥 AuthViewModel: Error initializing current user data: $e');
-      _error = 'Failed to initialize user data: ${e.toString()}';
-      rethrow;
-    }
-  }
-
-  // Refresh authentication state to ensure current user info is up-to-date
+  /// Refresh authentication state to ensure current user info is up-to-date
   Future<void> refreshAuthState() async {
     try {
-      //debugPrint('🔥 Refreshing auth state');
       PerformanceMonitor.startTimer('refresh_auth_state');
       _isLoading = true;
       _error = null;
       notifyListeners();
 
-      // Get fresh user data
-      _currentUser = await _authRepository.getCurrentUser();
-
-      // Additional debug info
-      //debugPrint('🔥 Refreshed user: ${_currentUser?.id ?? 'Not logged in'}');
-      final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
-      //debugPrint('🔥 Firebase user: ${firebaseUser?.uid ?? 'Not logged in'}');
-
-      // Handle potential state mismatch
-      if (firebaseUser != null && _currentUser == null) {
-        //debugPrint(
-        //    '🔥 State mismatch detected: Firebase user exists but domain user is null');
-        await firebaseUser.reload();
-        _currentUser = await _authRepository.getCurrentUser();
-      }
-
-      // Initialize theme if user is authenticated
-      if (_currentUser != null) {
-        //debugPrint(
-        //    '🔥 Initializing theme for authenticated user: ${_currentUser!.id}');
-        await _themeViewModel.initializeForUser(_currentUser!.id);
-        //debugPrint('🔥 Theme initialization completed for refreshed user');
-      }
+      _currentUser = await _refreshAuthStateUseCase.execute();
     } catch (e) {
-      //debugPrint('🔥 Error refreshing auth state: $e');
+      debugPrint('🔥 Error refreshing auth state: $e');
       _error = 'Failed to refresh authentication state';
       _currentUser = null;
     } finally {
@@ -235,19 +165,11 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      //debugPrint('🔥 AuthViewModel: Signing in with email: $email');
-      final user =
-          await _authRepository.signInWithEmailAndPassword(email, password);
+      final user = await _signInWithEmailUseCase.execute(email, password);
       _currentUser = user;
-      //debugPrint('🔥 AuthViewModel: Successfully signed in: ${user.id}');
-
-      // Use the new user handling logic
-      await _handleUserLogin(user.id);
-      // debugPrint('🔥 AuthViewModel: Sign-in process completed for: ${user.id}');
-
       return _currentUser;
     } catch (e) {
-      // debugPrint('🔥 AuthViewModel: Sign in error: $e');
+      debugPrint('🔥 AuthViewModel: Sign in error: $e');
       _error = 'Failed to sign in: ${e.toString()}';
       return null;
     } finally {
@@ -268,19 +190,11 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      //debugPrint('🔥 AuthViewModel: Creating account with email: $email');
-      final user =
-          await _authRepository.createUserWithEmailAndPassword(email, password);
+      final user = await _createUserWithEmailUseCase.execute(email, password);
       _currentUser = user;
-      //debugPrint('🔥 AuthViewModel: Successfully created account: ${user.id}');
-
-      // Use the new user handling logic (will detect this as a new user)
-      await _handleUserLogin(user.id);
-      //debugPrint('🔥 AuthViewModel: Sign-up process completed for: ${user.id}');
-
       return _currentUser;
     } catch (e) {
-      //debugPrint('🔥 AuthViewModel: Sign up error: $e');
+      debugPrint('🔥 AuthViewModel: Sign up error: $e');
       _error = 'Failed to create account: ${e.toString()}';
       return null;
     } finally {
@@ -295,44 +209,10 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      //debugPrint('🔥 AuthViewModel: Starting Google sign-in');
-
-      // Check if the current user is anonymous
-      final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
-      final isAnonymous = firebaseUser != null && firebaseUser.isAnonymous;
-
-      // If user is anonymous and in profile screen context, we link the accounts
-      // The repository will handle the linking automatically
-
-      // Call repository for Google sign-in
+      // Call use case for Google sign-in
       try {
-        final user = await _authRepository.signInWithGoogle();
-
-        // Set current user
+        final user = await _signInWithGoogleUseCase.execute();
         _currentUser = user;
-
-        // Verify we have a valid user
-        if (_currentUser == null || _currentUser!.id.isEmpty) {
-          //debugPrint('🔥 AuthViewModel: Invalid user returned from repository');
-          throw Exception('Authentication failed - Invalid user');
-        }
-
-        //debugPrint(
-        //    '🔥 AuthViewModel: Google sign-in successful - User ID: ${_currentUser!.id}');
-
-        // If we were previously anonymous, ensure we remove stored guest ID
-        if (isAnonymous) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.remove('last_guest_user_id');
-          debugPrint(
-              '🔥 AuthViewModel: Removed stored guest user ID after upgrade to Google account');
-        }
-
-        // Use the new user handling logic
-        await _handleUserLogin(_currentUser!.id);
-        //debugPrint(
-        //    '🔥 AuthViewModel: Google sign-in process completed for: ${_currentUser!.id}');
-
         return true; // Sign-in successful
       } catch (e) {
         if (e.toString().contains('cancel') ||
@@ -345,7 +225,7 @@ class AuthViewModel extends ChangeNotifier {
         rethrow;
       }
     } catch (e) {
-      //debugPrint('🔥 AuthViewModel: Google sign-in error: $e');
+      debugPrint('🔥 AuthViewModel: Google sign-in error: $e');
 
       // Set appropriate error message
       if (e.toString().contains('network')) {
@@ -373,39 +253,8 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      debugPrint('🔥 AuthViewModel: Starting Apple sign-in');
-
-      // Check if the current user is anonymous
-      final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
-      final isAnonymous = firebaseUser != null && firebaseUser.isAnonymous;
-
-      // Call repository for Apple sign-in
-      final user = await _authRepository.signInWithApple();
-
-      // Set current user
+      final user = await _signInWithAppleUseCase.execute();
       _currentUser = user;
-
-      // Verify we have a valid user
-      if (_currentUser == null || _currentUser!.id.isEmpty) {
-        debugPrint('🔥 AuthViewModel: Invalid user returned from repository');
-        throw Exception('Authentication failed - Invalid user');
-      }
-
-      debugPrint(
-          '🔥 AuthViewModel: Apple sign-in successful - User ID: ${_currentUser!.id}');
-
-      // If we were previously anonymous, ensure we remove stored guest ID
-      if (isAnonymous) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('last_guest_user_id');
-        debugPrint(
-            '🔥 AuthViewModel: Removed stored guest user ID after upgrade to Apple account');
-      }
-
-      // Use the new user handling logic
-      await _handleUserLogin(_currentUser!.id);
-      debugPrint(
-          '🔥 AuthViewModel: Apple sign-in process completed for: ${_currentUser!.id}');
     } catch (e) {
       debugPrint('🔥 AuthViewModel: Apple sign-in error: $e');
 
@@ -429,81 +278,14 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   /// Sign in as guest (anonymous authentication)
-  /// Returns the user object if successful, or null if failed
   Future<domain.User?> signInAsGuest() async {
     try {
       _isLoading = true;
       _error = null;
       notifyListeners();
 
-      debugPrint('🔥 AuthViewModel: Starting guest sign-in');
-
-      // Check if we have a stored guest user ID in local storage
-      final prefs = await SharedPreferences.getInstance();
-      final storedGuestUserId = prefs.getString('last_guest_user_id');
-
-      if (storedGuestUserId != null) {
-        debugPrint(
-            '🔥 AuthViewModel: Found stored guest user ID: $storedGuestUserId');
-
-        // Try to sign in with the stored guest credentials
-        try {
-          // We need to check if this anonymous user still exists in Firebase
-          // If the app was uninstalled and reinstalled, the local ID might be invalid
-          final isValid = await _checkIfAnonymousUserExists(storedGuestUserId);
-
-          if (isValid) {
-            debugPrint('🔥 AuthViewModel: Using existing guest account');
-            // Get user from local database
-            final localUser =
-                await _syncService.getLocalUser(storedGuestUserId);
-
-            if (localUser != null) {
-              _currentUser = localUser;
-              await _handleUserLogin(localUser.id);
-              debugPrint(
-                  '🔥 AuthViewModel: Successfully loaded existing guest user data');
-              _isLoading = false;
-              notifyListeners();
-              return _currentUser;
-            }
-          } else {
-            debugPrint(
-                '🔥 AuthViewModel: Stored guest user is invalid, creating new one');
-            // Clear the stored ID since it's invalid
-            await prefs.remove('last_guest_user_id');
-          }
-        } catch (e) {
-          debugPrint('🔥 AuthViewModel: Error checking stored guest user: $e');
-          // Continue with creating a new guest user
-        }
-      }
-
-      // If we reach here, we need to create a new guest user
-      // Call repository for anonymous sign-in
-      final user = await _authRepository.signInAnonymously();
-
-      // Set current user
+      final user = await _signInAsGuestUseCase.execute();
       _currentUser = user;
-
-      // Verify we have a valid user
-      if (_currentUser == null || _currentUser!.id.isEmpty) {
-        debugPrint('🔥 AuthViewModel: Invalid user returned from repository');
-        throw Exception('Guest authentication failed - Invalid user');
-      }
-
-      // Store the guest user ID for future use
-      await prefs.setString('last_guest_user_id', user.id);
-
-      debugPrint(
-          '🔥 AuthViewModel: Guest sign-in successful - User ID: ${_currentUser!.id}');
-
-      // Use the same user handling logic as other auth methods
-      await _handleUserLogin(_currentUser!.id);
-
-      debugPrint(
-          '🔥 AuthViewModel: Guest sign-in process completed for: ${_currentUser!.id}');
-
       return _currentUser;
     } catch (e) {
       debugPrint('🔥 AuthViewModel: Guest sign-in error: $e');
@@ -516,39 +298,6 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  /// Check if an anonymous user exists in Firebase
-  Future<bool> _checkIfAnonymousUserExists(String userId) async {
-    try {
-      // Get the currently signed-in Firebase user
-      final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
-
-      // If there's already a signed-in user with a different ID, it's likely invalid
-      if (firebaseUser != null && firebaseUser.uid != userId) {
-        debugPrint('🔥 AuthViewModel: Found different user ID than requested');
-        return false;
-      }
-
-      // Try to see if we have this user in Firestore
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
-      if (userDoc.exists) {
-        debugPrint('🔥 AuthViewModel: Found user document in Firestore');
-        // The user exists in Firestore, which means it's a valid user
-        return true;
-      }
-
-      // If we reach here, we couldn't verify the user exists
-      debugPrint('🔥 AuthViewModel: Could not verify user existence');
-      return false;
-    } catch (e) {
-      debugPrint(
-          '🔥 AuthViewModel: Error checking if anonymous user exists: $e');
-      return false;
-    }
-  }
-
   /// Upgrade guest account to permanent account
   Future<void> upgradeGuestAccount(
       {required String email, required String password}) async {
@@ -557,42 +306,15 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      // Check if current user is anonymous
-      final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
-      if (firebaseUser == null || !firebaseUser.isAnonymous) {
-        throw Exception('No guest account to upgrade');
-      }
-
-      // Store the guest user ID to ensure data continuity
-      final guestUserId = firebaseUser.uid;
-      debugPrint(
-          '🔥 AuthViewModel: Upgrading guest account to permanent account: $guestUserId');
-
-      // First ensure all local data is synced to Firebase
-      await _syncService.forceFullSync();
-      debugPrint('🔥 AuthViewModel: Forced data sync before account upgrade');
-
-      // Call repository to link anonymous account
-      final user = await _authRepository.linkAnonymousAccount(
+      final user = await _upgradeGuestAccountUseCase.execute(
         email: email,
         password: password,
       );
 
-      // Update current user
       _currentUser = user;
-
-      debugPrint('🔥 AuthViewModel: Guest account upgraded successfully');
-
-      // Remove the stored guest user ID since it's now a permanent account
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('last_guest_user_id');
 
       // Refresh user data
       await refreshAuthState();
-
-      // Trigger another sync to ensure all data is properly associated with the upgraded account
-      await _syncService.forceFullSync();
-      debugPrint('🔥 AuthViewModel: Final data sync after account upgrade');
     } catch (e) {
       debugPrint('🔥 AuthViewModel: Error upgrading guest account: $e');
 
@@ -613,10 +335,7 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   /// Check if current user is a guest
-  bool get isGuestUser {
-    final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
-    return firebaseUser != null && firebaseUser.isAnonymous;
-  }
+  bool get isGuestUser => _isGuestUserUseCase.execute();
 
   Future<void> signOut() async {
     try {
@@ -624,12 +343,11 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      //debugPrint('Signing out');
       await _authRepository.signOut();
       _currentUser = null;
-      //debugPrint('Successfully signed out');
+      debugPrint('Successfully signed out');
     } catch (e) {
-      //debugPrint('Sign out error: $e');
+      debugPrint('Sign out error: $e');
       _error = 'Failed to sign out: ${e.toString()}';
     } finally {
       _isLoading = false;
@@ -644,47 +362,12 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      // Check if current user is anonymous
-      final firebaseUser = firebase_auth.FirebaseAuth.instance.currentUser;
-      if (firebaseUser == null || !firebaseUser.isAnonymous) {
-        throw Exception('No anonymous user to sign out');
-      }
-
-      final userId = firebaseUser.uid;
-      debugPrint('Securely signing out anonymous user: $userId');
-
-      // Clear local storage reference to guest user
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('last_guest_user_id');
-
-      // Call the comprehensive function that deletes the user account and data
-      try {
-        await _authRepository.deleteGuestUser();
-        _currentUser = null;
-        debugPrint('Anonymous user securely signed out and deleted');
-      } catch (e) {
-        debugPrint('Warning: Error during secure sign out: $e');
-
-        // Even if there was an error with deletion, try a normal sign out
-        // to ensure the user is at least logged out
-        if (firebase_auth.FirebaseAuth.instance.currentUser != null) {
-          debugPrint('Attempting normal sign out as fallback');
-          await _authRepository.signOut();
-          _currentUser = null;
-        }
-
-        // Specific error handling for better user feedback
-        if (e.toString().contains('permission-denied')) {
-          _error =
-              'Sign out completed, but some data could not be deleted due to permission restrictions.';
-        } else {
-          _error =
-              'Sign out completed, but there was an issue with data deletion.';
-        }
-      }
+      await _secureSignOutAnonymousUserUseCase.execute();
+      _currentUser = null;
+      debugPrint('Anonymous user securely signed out and deleted');
     } catch (e) {
       debugPrint('Secure sign out error: $e');
-      _error = 'Failed to securely sign out: ${e.toString()}';
+      _error = e.toString();
       rethrow; // Rethrow to allow UI to handle the error
     } finally {
       _isLoading = false;
@@ -704,31 +387,11 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      //debugPrint('Sending password reset email to: $email');
       await _authRepository.resetPassword(email);
-      //debugPrint('Password reset email sent');
+      debugPrint('Password reset email sent');
     } catch (e) {
-      //debugPrint('Password reset error: $e');
+      debugPrint('Password reset error: $e');
       _error = 'Failed to reset password: ${e.toString()}';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  /// Manually trigger data synchronization
-  Future<void> syncData() async {
-    if (_currentUser == null) return;
-
-    try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
-
-      await _syncService.syncData();
-    } catch (e) {
-      debugPrint('Sync error: $e');
-      _error = 'Failed to sync data: ${e.toString()}';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -741,14 +404,12 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      debugPrint('Updating profile: name=$displayName, photo=$photoUrl');
-      await _authRepository.updateProfile(
+      final updatedUser = await _updateProfileUseCase.execute(
         displayName: displayName,
         photoUrl: photoUrl,
       );
 
-      // Refresh user data after update
-      _currentUser = await _authRepository.getCurrentUser();
+      _currentUser = updatedUser;
       debugPrint('Profile updated successfully');
     } catch (e) {
       debugPrint('Profile update error: $e');
@@ -767,16 +428,13 @@ class AuthViewModel extends ChangeNotifier {
       _error = null;
       notifyListeners();
 
-      debugPrint(
-          'Updating user settings: currency=$currency, theme=$theme, displayName=$displayName');
-      await _authRepository.updateUserSettings(
+      final updatedUser = await _updateUserSettingsUseCase.execute(
         currency: currency,
         theme: theme,
         displayName: displayName,
       );
 
-      // Refresh user data
-      _currentUser = await _authRepository.getCurrentUser();
+      _currentUser = updatedUser;
       debugPrint('User settings updated successfully');
     } catch (e) {
       debugPrint('User settings update error: $e');

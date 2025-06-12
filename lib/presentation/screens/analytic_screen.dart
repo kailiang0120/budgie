@@ -16,9 +16,10 @@ import 'add_expense_screen.dart';
 
 import '../../core/constants/routes.dart';
 import '../../core/router/page_transition.dart';
-import '../../core/services/settings_service.dart';
-import '../../core/services/google_ai_expense_prediction_service.dart';
-import '../../core/services/ai_models.dart';
+import '../../data/infrastructure/services/settings_service.dart';
+import '../../domain/services/google_ai_expense_prediction_service.dart';
+import '../../domain/services/budget_reallocation_service.dart';
+import '../../data/models/ai_response_models.dart';
 import '../../di/injection_container.dart' as di;
 
 String formatMonthId(DateTime date) {
@@ -50,6 +51,9 @@ class _AnalyticScreenState extends State<AnalyticScreen>
   bool _isLoadingPrediction = false;
   ExpensePredictionResponse? _predictionResult;
   String? _predictionError;
+
+  // Budget reallocation state
+  bool _isReallocating = false;
 
   @override
   void initState() {
@@ -331,6 +335,21 @@ class _AnalyticScreenState extends State<AnalyticScreen>
       });
 
       debugPrint('🤖 AI Prediction completed successfully');
+      debugPrint(
+          '📊 Prediction result has ${result.predictedExpenses.length} expenses');
+
+      // Debug the top 3 expenses
+      final sortedExpenses =
+          List<PredictedExpense>.from(result.predictedExpenses)
+            ..sort((a, b) => b.confidence.compareTo(a.confidence));
+      final top3 = sortedExpenses.take(3).toList();
+
+      debugPrint('📊 Top 3 expenses by confidence:');
+      for (int i = 0; i < top3.length; i++) {
+        final exp = top3[i];
+        debugPrint(
+            '📊 ${i + 1}. ${exp.categoryName}: ${exp.predictedAmount} (confidence: ${exp.confidence})');
+      }
     } catch (e) {
       setState(() {
         _predictionError = e.toString();
@@ -338,6 +357,110 @@ class _AnalyticScreenState extends State<AnalyticScreen>
       });
 
       debugPrint('🤖 AI Prediction failed: $e');
+    }
+  }
+
+  /// Reallocate budget based on AI predictions
+  Future<void> _reallocateBudget() async {
+    if (_predictionResult == null) return;
+
+    setState(() {
+      _isReallocating = true;
+    });
+
+    try {
+      final budgetViewModel =
+          Provider.of<BudgetViewModel>(context, listen: false);
+      final currentBudget = budgetViewModel.budget;
+
+      if (currentBudget == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No budget data available for reallocation'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Get the reallocation service
+      final reallocationService = di.sl<BudgetReallocationService>();
+
+      // Get current month ID
+      final monthId = formatMonthId(_selectedDate);
+
+      // Perform reallocation
+      final reallocatedBudget = await reallocationService.reallocateBudget(
+        currentBudget: currentBudget,
+        predictions: _predictionResult!,
+        monthId: monthId,
+      );
+
+      // Update the budget in the view model by saving it
+      await budgetViewModel.saveBudget(monthId, reallocatedBudget);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Budget successfully reallocated based on AI predictions!',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+
+      debugPrint('✅ Budget reallocation completed successfully');
+    } catch (e) {
+      debugPrint('❌ Budget reallocation failed: $e');
+
+      String errorMessage = 'Failed to reallocate budget';
+      if (e.toString().contains('REALLOCATION_IMPOSSIBLE')) {
+        errorMessage = 'Cannot reallocate - all categories exceed their limits';
+      } else if (e.toString().contains('NO_SUGGESTIONS')) {
+        errorMessage = 'No reallocation suggestions available from AI';
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    errorMessage,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isReallocating = false;
+        });
+      }
     }
   }
 
@@ -626,6 +749,15 @@ class _AnalyticScreenState extends State<AnalyticScreen>
         List<PredictedExpense>.from(prediction.predictedExpenses)
           ..sort((a, b) => b.confidence.compareTo(a.confidence));
     final top3Expenses = sortedExpenses.take(3).toList();
+
+    debugPrint(
+        '📊 Card rendering: Total expenses: ${prediction.predictedExpenses.length}');
+    debugPrint('📊 Card rendering: Top 3 expenses: ${top3Expenses.length}');
+    for (int i = 0; i < top3Expenses.length; i++) {
+      final exp = top3Expenses[i];
+      debugPrint(
+          '📊 Card rendering ${i + 1}: ${exp.categoryName} - ${exp.predictedAmount} (${exp.confidence})');
+    }
 
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -1031,6 +1163,29 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                   ),
                 ),
                 const SizedBox(width: 8),
+                // Reallocate button - only show if there are reallocation suggestions
+                if (prediction.budgetReallocationSuggestions.isNotEmpty) ...[
+                  IconButton(
+                    onPressed: _isReallocating ? null : _reallocateBudget,
+                    icon: _isReallocating
+                        ? SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.swap_horiz, size: 20),
+                    tooltip: 'Reallocate Budget',
+                    style: IconButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      backgroundColor: Colors.orange,
+                      padding: const EdgeInsets.all(8),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
                 IconButton(
                   onPressed: _getAIPrediction,
                   icon: const Icon(Icons.refresh, size: 20),

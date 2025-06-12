@@ -3,12 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
-import '../../data/datasources/local_data_source.dart';
-import '../../domain/repositories/expenses_repository.dart';
-import '../../domain/repositories/budget_repository.dart';
-import '../../domain/entities/expense.dart';
-import '../../domain/entities/category.dart';
-import '../../domain/entities/user.dart' as domain;
+import '../../datasources/local_data_source.dart';
+import '../../../domain/repositories/expenses_repository.dart';
+import '../../../domain/repositories/budget_repository.dart';
+import '../../../domain/entities/expense.dart';
+import '../../../domain/entities/category.dart';
+import '../../../domain/entities/user.dart' as domain;
 import '../network/connectivity_service.dart';
 import '../errors/app_error.dart';
 

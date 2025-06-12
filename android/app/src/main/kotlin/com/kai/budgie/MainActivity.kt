@@ -32,6 +32,10 @@ class MainActivity : FlutterActivity() {
                     requestNotificationAccess()
                     result.success(null)
                 }
+                "openNotificationSettings" -> {
+                    openNotificationSettings()
+                    result.success(null)
+                }
                 "startListening" -> {
                     startNotificationListener()
                     result.success(null)
@@ -157,6 +161,39 @@ class MainActivity : FlutterActivity() {
                     } catch (e4: Exception) {
                         Log.e(TAG, "Failed to open notification settings", e4)
                     }
+                }
+            }
+        }
+    }
+
+    private fun openNotificationSettings() {
+        try {
+            // Try to open app-specific notification settings first
+            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+            Log.d(TAG, "Opened app notification settings")
+        } catch (e: Exception) {
+            try {
+                // Fallback to general notification settings
+                val intent = Intent("android.settings.NOTIFICATION_SETTINGS").apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(intent)
+                Log.d(TAG, "Opened general notification settings (fallback)")
+            } catch (e2: Exception) {
+                try {
+                    // Final fallback to app details settings
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.parse("package:$packageName")
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    startActivity(intent)
+                    Log.d(TAG, "Opened app details settings (final fallback)")
+                } catch (e3: Exception) {
+                    Log.e(TAG, "Failed to open any notification settings", e3)
                 }
             }
         }

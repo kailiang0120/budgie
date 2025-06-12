@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
 
-import '../../core/services/notification_manager.dart';
+import '../../data/infrastructure/services/notification_manager_service.dart';
 import '../../di/injection_container.dart' as di;
 
 class NotificationTestScreen extends StatefulWidget {
@@ -13,7 +13,7 @@ class NotificationTestScreen extends StatefulWidget {
 }
 
 class _NotificationTestScreenState extends State<NotificationTestScreen> {
-  final _notificationManager = di.sl<NotificationManager>();
+  final _notificationManager = di.sl<NotificationManagerService>();
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _messageController = TextEditingController();
   bool _isLoading = false;

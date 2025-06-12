@@ -1,3 +1,269 @@
+# Budgie - Flutter Clean Architecture Documentation
+
+## 📁 Project Structure Overview
+
+This project follows **Clean Architecture** principles with clear separation of concerns across different layers. Each layer has specific responsibilities and dependencies flow inward (toward the domain layer).
+
+```
+lib/
+├── 🏗️ core/                    # Core application infrastructure
+├── 🎯 domain/                  # Business logic & entities (Clean Architecture core)
+├── 💾 data/                    # Data layer (repositories, services, models)
+├── 🎨 presentation/            # UI layer (screens, widgets, viewmodels)
+├── 🔧 di/                      # Dependency injection container
+└── 📱 main.dart               # Application entry point
+```
+
+## ✅ **REFACTORING COMPLETED (v2.0)**
+
+### **1. Duplicate Services Removed** ✅
+- **Removed**: `ai_prediction_service.dart` (duplicate of GoogleAIExpensePredictionService)
+- **Removed**: `expense_prediction_service.dart` (duplicate functionality)
+- **Removed**: `notification_service.dart` (replaced by NotificationSenderService)
+- **Kept**: `GoogleAIExpensePredictionService` as the single AI prediction service
+
+### **2. Fallback Detection Removed** ✅
+- **Updated**: `ExpenseDetectorService` - removed pattern-based fallback detection
+- **API-Only Detection**: All expense detection now uses AI/ML API exclusively
+- **Simplified Logic**: Cleaner, more reliable detection flow
+
+### **3. Merchant Detection Removed** ✅
+- **Amount-Only Extraction**: Only extracts amount from notifications
+- **Simplified Models**: Removed `extractedMerchant` from API models
+- **Firebase Optimization**: Only necessary data is stored
+
+### **4. Model Consolidation** ✅
+- **Removed**: `ai_expense_models.dart` (duplicated)
+- **Removed**: `expense_prediction_models.dart` (duplicated)
+- **Removed**: `notification_models.dart` (unused)
+- **Kept**: `ai_response_models.dart` and `api_response_models.dart` for clean separation
+
+### **5. Service Alignment** ✅
+- **Notification Flow**: NotificationManagerService → ExpenseDetector → API Service
+- **No Fallbacks**: Clean failure handling without pattern matching
+- **Enterprise Standards**: Proper error handling and logging
+
+## 🏗️ **LAYER BREAKDOWN**
+
+### **🎯 Domain Layer** (Business Logic Core)
+```
+domain/
+├── entities/              # Pure business objects
+│   ├── budget.dart       # Budget domain model
+│   ├── category.dart     # Expense categories
+│   ├── expense.dart      # Expense domain model
+│   ├── recurring_expense.dart # Recurring expenses
+│   ├── user.dart        # User domain model
+│   └── constants.dart   # Domain constants
+├── repositories/         # Repository contracts (interfaces)
+│   ├── auth_repository.dart
+│   ├── budget_repository.dart
+│   ├── expenses_repository.dart
+│   └── recurring_expenses_repository.dart
+├── services/            # Domain business logic services
+│   ├── budget_calculation_service.dart     # Business rules for budget calculations
+│   ├── expense_detection_service.dart      # Core expense detection logic
+│   └── google_ai_expense_prediction_service.dart # AI prediction business logic
+└── usecase/            # Single-responsibility use cases
+    ├── auth/           # Authentication use cases
+    ├── budget/         # Budget management use cases
+    └── expense/        # Expense management use cases
+```
+
+### **💾 Data Layer** (External Concerns)
+```
+data/
+├── datasources/         # Data source abstractions
+│   ├── local_data_source.dart      # Local database interface
+│   └── local_data_source_impl.dart # SQLite implementation
+├── infrastructure/     # External service integrations
+│   ├── config/         # Configuration files
+│   │   └── firebase_options.dart
+│   ├── errors/         # Error handling
+│   │   └── app_error.dart
+│   ├── monitoring/     # Performance monitoring
+│   │   └── performance_monitor.dart
+│   ├── network/        # Network services
+│   │   └── connectivity_service.dart
+│   └── services/       # Infrastructure services
+│       ├── currency_conversion_service.dart    # External currency API
+│       ├── data_collection_service.dart        # Analytics & telemetry
+│       ├── expense_detector_service.dart       # ML/AI API integration
+│       ├── notification_manager_service.dart   # Notification orchestration
+│       ├── notification_sender_service.dart    # Platform notifications
+│       ├── permission_handler_service.dart     # Platform permissions
+│       ├── settings_service.dart               # User preferences
+│       └── sync_service.dart                   # Data synchronization
+├── local/              # Local storage implementations
+│   └── database/       # Floor database
+│       ├── app_database.dart
+│       └── app_database.g.dart
+├── models/             # Data transfer objects
+│   ├── ai_response_models.dart    # AI/ML API models
+│   ├── api_models.dart            # General API models  
+│   ├── api_response_models.dart   # API response models
+│   └── exceptions.dart            # Data layer exceptions
+└── repositories/       # Repository implementations
+    ├── auth_repository_impl.dart
+    ├── budget_repository_impl.dart
+    ├── expenses_repository_impl.dart
+    └── recurring_expenses_repository_impl.dart
+```
+
+### **🎨 Presentation Layer** (UI & User Interaction)
+```
+presentation/
+├── screens/            # Application screens
+│   ├── add_budget_screen.dart     # Budget creation
+│   ├── add_expense_screen.dart    # Expense entry
+│   ├── analytic_screen.dart       # Data analytics
+│   ├── edit_expense_screen.dart   # Expense editing
+│   ├── home_screen.dart           # Main dashboard
+│   ├── login_screen.dart          # Authentication
+│   ├── notification_test_screen.dart # Notification testing
+│   ├── profile_screen.dart        # User profile
+│   ├── setting_screen.dart        # App settings
+│   └── splash_screen.dart         # App startup
+├── services/           # UI-specific services
+│   ├── expense_card_manager_service.dart # UI card management
+│   └── ui_overlay_service.dart          # UI overlays
+├── utils/              # Presentation utilities
+│   ├── app_constants.dart         # UI constants
+│   ├── app_theme.dart            # Theme configuration
+│   ├── auth_utils.dart           # Authentication helpers
+│   ├── category_manager.dart     # Category management
+│   ├── currency_formatter.dart   # Currency formatting
+│   └── dialog_utils.dart         # Dialog utilities
+├── viewmodels/         # State management (MVVM)
+│   ├── auth_viewmodel.dart       # Authentication state
+│   ├── budget_viewmodel.dart     # Budget state
+│   ├── expenses_viewmodel.dart   # Expenses state
+│   └── theme_viewmodel.dart      # Theme state
+└── widgets/            # Reusable UI components
+    ├── animated_float_button.dart
+    ├── auth_button.dart
+    ├── bottom_nav_bar.dart
+    ├── budget_card.dart
+    ├── category_selector.dart
+    ├── custom_card.dart
+    ├── custom_dropdown_field.dart
+    ├── custom_text_field.dart
+    ├── date_picker_button.dart
+    ├── date_time_picker_field.dart
+    ├── dropdown_tile.dart
+    ├── expense_card.dart
+    ├── expense_pie_chart.dart
+    ├── legend_card.dart
+    ├── legend_item.dart
+    ├── month_display.dart
+    ├── notification_expense_card.dart
+    ├── recurring_expense_config.dart
+    ├── submit_button.dart
+    └── switch_tile.dart
+```
+
+### **🏗️ Core Layer** (Shared Infrastructure)
+```
+core/
+├── constants/          # Application constants
+│   └── routes.dart    # Route definitions
+└── router/            # Navigation infrastructure
+    ├── app_router.dart        # Route configuration
+    ├── navigation_helper.dart  # Navigation utilities
+    └── page_transition.dart    # Custom transitions
+```
+
+### **🔧 Dependency Injection**
+```
+di/
+└── injection_container.dart  # Service locator setup
+```
+
+## 🎯 **CLEAN ARCHITECTURE PRINCIPLES**
+
+### **Dependency Rule**
+- **Domain** depends on nothing
+- **Data** depends only on Domain
+- **Presentation** depends on Domain and Data abstractions
+- **Core** provides shared utilities to all layers
+
+### **Service Organization**
+- **Domain Services**: Pure business logic (no I/O, no external dependencies)
+- **Infrastructure Services**: External integrations (APIs, databases, platform features)
+- **Presentation Services**: UI-specific functionality
+
+### **Use Case Pattern**
+Each use case handles a single business operation:
+```dart
+// Example: Single responsibility use case
+class AddExpenseUseCase {
+  final ExpensesRepository expensesRepository;
+  final BudgetRepository budgetRepository;
+  final BudgetCalculationService budgetCalculationService;
+  
+  Future<void> execute(Expense expense) async {
+    // Single, focused business operation
+  }
+}
+```
+
+## 🚦 **CURRENT STATUS**
+
+### **Architecture Quality: ✅ EXCELLENT**
+- ✅ Clear separation of concerns
+- ✅ Proper dependency injection
+- ✅ Clean interfaces and abstractions
+- ✅ Single responsibility principle
+- ✅ Enterprise-level error handling
+- ✅ Consistent naming conventions
+
+### **Service Optimization: ✅ COMPLETED**
+- ✅ No duplicate services
+- ✅ Single prediction service (GoogleAI)
+- ✅ Simplified notification detection
+- ✅ Amount-only extraction
+- ✅ API-first approach (no fallbacks)
+
+### **Code Quality: ✅ HIGH**
+- ✅ Consistent error handling
+- ✅ Proper logging throughout
+- ✅ Clean model separation
+- ✅ Enterprise standards compliance
+
+## 🎯 **NOTIFICATION DETECTION FLOW**
+
+```
+📱 Notification Received
+     ↓
+🔔 NotificationManagerService
+     ↓
+🧠 ExpenseDetector (Domain)
+     ↓
+🤖 AI/ML API Service
+     ↓
+💰 Amount Extraction Only
+     ↓
+💾 Firebase Storage
+```
+
+**Key Features:**
+- **API-Only Detection**: No fallback pattern matching
+- **Amount-Only**: No merchant detection (simplified)
+- **Clean Failure**: Graceful handling when API unavailable
+- **Enterprise Logging**: Comprehensive tracking and debugging
+
+## 🏆 **BEST PRACTICES IMPLEMENTED**
+
+1. **Single Responsibility**: Each service has one clear purpose
+2. **Dependency Inversion**: All dependencies flow inward to domain
+3. **Interface Segregation**: Clean, focused interfaces
+4. **Open/Closed Principle**: Extensible without modification
+5. **Don't Repeat Yourself**: No duplicate functionality
+6. **Fail Fast**: Early validation and clear error messages
+7. **Enterprise Logging**: Comprehensive debugging information
+
+This architecture provides a solid foundation for maintainable, testable, and scalable Flutter applications.
+
 # Budgie App - Component Library
 
 This document summarizes the reusable components and utility classes in the Budgie application to help developers better understand and use these components.

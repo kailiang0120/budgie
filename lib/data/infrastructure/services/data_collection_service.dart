@@ -1,13 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../domain/entities/category.dart' as app_category;
+import '../../../domain/entities/category.dart' as app_category;
 import 'settings_service.dart';
 
 /// Unified service for collecting user data for analytics and model improvement
 /// Combines functionality for both anonymized research data and analytics
-class DataCollector {
-  static DataCollector? _instance;
+class DataCollectionService {
+  static DataCollectionService? _instance;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -20,25 +20,25 @@ class DataCollector {
   // Data structure version for future compatibility
   static const int _dataVersion = 1;
 
-  DataCollector() {
+  DataCollectionService() {
     _instance = this;
   }
 
-  static DataCollector? get instance => _instance;
+  static DataCollectionService? get instance => _instance;
 
   /// Initialize the data collector
   Future<void> initialize() async {
     try {
-      debugPrint('📊 DataCollector: Initializing...');
+      debugPrint('📊 DataCollectionService: Initializing...');
 
       _settingsService = SettingsService.instance!;
 
       // Cleanup old data on initialization
       await _cleanupOldData();
 
-      debugPrint('✅ DataCollector: Initialization completed');
+      debugPrint('✅ DataCollectionService: Initialization completed');
     } catch (e) {
-      debugPrint('❌ DataCollector: Initialization failed: $e');
+      debugPrint('❌ DataCollectionService: Initialization failed: $e');
       // Don't throw - data collection is optional
     }
   }
@@ -47,19 +47,20 @@ class DataCollector {
   Future<void> recordNotificationExpense(
       Map<String, dynamic> expenseData) async {
     if (!_settingsService.improveAccuracy) {
-      debugPrint('📊 DataCollector: Data collection disabled by user');
+      debugPrint('📊 DataCollectionService: Data collection disabled by user');
       return;
     }
 
     final currentUser = _auth.currentUser;
     if (currentUser == null) {
       debugPrint(
-          '📊 DataCollector: No authenticated user, skipping data collection');
+          '📊 DataCollectionService: No authenticated user, skipping data collection');
       return;
     }
 
     try {
-      debugPrint('📊 DataCollector: Recording notification expense data');
+      debugPrint(
+          '📊 DataCollectionService: Recording notification expense data');
 
       // Record for analytics (aggregated data)
       await _recordAnalyticsData(expenseData, currentUser.uid);
@@ -67,9 +68,9 @@ class DataCollector {
       // Record for model training (anonymized data)
       await _recordModelTrainingData(expenseData, currentUser.uid);
 
-      debugPrint('✅ DataCollector: Successfully recorded expense data');
+      debugPrint('✅ DataCollectionService: Successfully recorded expense data');
     } catch (e, stackTrace) {
-      debugPrint('❌ DataCollector: Failed to record expense data: $e');
+      debugPrint('❌ DataCollectionService: Failed to record expense data: $e');
       debugPrint('📍 Stack trace: $stackTrace');
       // Don't rethrow - this is background data collection
     }
@@ -90,7 +91,7 @@ class DataCollector {
     if (currentUser == null) return;
 
     try {
-      debugPrint('📊 DataCollector: Recording manual expense data');
+      debugPrint('📊 DataCollectionService: Recording manual expense data');
 
       final manualExpenseData = {
         'amount': amount,
@@ -112,9 +113,11 @@ class DataCollector {
       // Record for model training
       await _recordModelTrainingData(manualExpenseData, currentUser.uid);
 
-      debugPrint('✅ DataCollector: Successfully recorded manual expense data');
+      debugPrint(
+          '✅ DataCollectionService: Successfully recorded manual expense data');
     } catch (e) {
-      debugPrint('❌ DataCollector: Failed to record manual expense data: $e');
+      debugPrint(
+          '❌ DataCollectionService: Failed to record manual expense data: $e');
     }
   }
 
@@ -132,7 +135,7 @@ class DataCollector {
     if (currentUser == null) return;
 
     try {
-      debugPrint('📊 DataCollector: Recording prediction feedback');
+      debugPrint('📊 DataCollectionService: Recording prediction feedback');
 
       final feedbackData = {
         'dataVersion': _dataVersion,
@@ -154,9 +157,11 @@ class DataCollector {
       // Store in model training collection
       await _firestore.collection(_modelTrainingCollection).add(feedbackData);
 
-      debugPrint('✅ DataCollector: Successfully recorded prediction feedback');
+      debugPrint(
+          '✅ DataCollectionService: Successfully recorded prediction feedback');
     } catch (e) {
-      debugPrint('❌ DataCollector: Failed to record prediction feedback: $e');
+      debugPrint(
+          '❌ DataCollectionService: Failed to record prediction feedback: $e');
     }
   }
 
@@ -194,7 +199,7 @@ class DataCollector {
         'dataCollectionEnabled': _settingsService.improveAccuracy,
       };
     } catch (e) {
-      debugPrint('❌ DataCollector: Failed to get collection stats: $e');
+      debugPrint('❌ DataCollectionService: Failed to get collection stats: $e');
       return {'error': e.toString()};
     }
   }
@@ -236,9 +241,10 @@ class DataCollector {
       };
 
       await _firestore.collection(_analyticsCollection).add(analyticsRecord);
-      debugPrint('📊 DataCollector: Analytics data recorded');
+      debugPrint('📊 DataCollectionService: Analytics data recorded');
     } catch (e) {
-      debugPrint('❌ DataCollector: Failed to record analytics data: $e');
+      debugPrint(
+          '❌ DataCollectionService: Failed to record analytics data: $e');
       rethrow;
     }
   }
@@ -287,9 +293,10 @@ class DataCollector {
       };
 
       await _firestore.collection(_modelTrainingCollection).add(trainingRecord);
-      debugPrint('📊 DataCollector: Model training data recorded');
+      debugPrint('📊 DataCollectionService: Model training data recorded');
     } catch (e) {
-      debugPrint('❌ DataCollector: Failed to record model training data: $e');
+      debugPrint(
+          '❌ DataCollectionService: Failed to record model training data: $e');
       rethrow;
     }
   }
@@ -422,9 +429,9 @@ class DataCollector {
         cutoffDate,
       );
 
-      debugPrint('📊 DataCollector: Data cleanup completed');
+      debugPrint('📊 DataCollectionService: Data cleanup completed');
     } catch (e) {
-      debugPrint('❌ DataCollector: Data cleanup failed: $e');
+      debugPrint('❌ DataCollectionService: Data cleanup failed: $e');
     }
   }
 
@@ -450,7 +457,7 @@ class DataCollector {
       await batch.commit();
 
       debugPrint(
-          '📊 DataCollector: Cleaned up ${oldDataQuery.docs.length} old records from $collectionName');
+          '📊 DataCollectionService: Cleaned up ${oldDataQuery.docs.length} old records from $collectionName');
     }
   }
 }

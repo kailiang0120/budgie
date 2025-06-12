@@ -64,8 +64,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1055222295322',
     projectId: 'budgie-final-year',
     storageBucket: 'budgie-final-year.firebasestorage.app',
-    androidClientId: '1055222295322-k80e7oskgl4ma1f57bv3c86errpbm8d4.apps.googleusercontent.com',
-    iosClientId: '1055222295322-cqegjfgvn826g8pc01bqko1h1rv9m5vf.apps.googleusercontent.com',
+    androidClientId:
+        '1055222295322-k80e7oskgl4ma1f57bv3c86errpbm8d4.apps.googleusercontent.com',
+    iosClientId:
+        '1055222295322-cqegjfgvn826g8pc01bqko1h1rv9m5vf.apps.googleusercontent.com',
     iosBundleId: 'com.kai.budgie',
   );
 
@@ -75,8 +77,10 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1055222295322',
     projectId: 'budgie-final-year',
     storageBucket: 'budgie-final-year.firebasestorage.app',
-    androidClientId: '1055222295322-k80e7oskgl4ma1f57bv3c86errpbm8d4.apps.googleusercontent.com',
-    iosClientId: '1055222295322-cqegjfgvn826g8pc01bqko1h1rv9m5vf.apps.googleusercontent.com',
+    androidClientId:
+        '1055222295322-k80e7oskgl4ma1f57bv3c86errpbm8d4.apps.googleusercontent.com',
+    iosClientId:
+        '1055222295322-cqegjfgvn826g8pc01bqko1h1rv9m5vf.apps.googleusercontent.com',
     iosBundleId: 'com.kai.budgie',
   );
 
@@ -89,5 +93,4 @@ class DefaultFirebaseOptions {
     storageBucket: 'budgie-final-year.firebasestorage.app',
     measurementId: 'G-14GM0SSEEG',
   );
-
 }

@@ -3,9 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../domain/entities/expense.dart';
 import '../../domain/entities/category.dart' as app_category;
 import '../../domain/repositories/expenses_repository.dart';
-import '../../core/errors/app_error.dart';
+import '../infrastructure/errors/app_error.dart';
 import '../datasources/local_data_source.dart';
-import '../../core/network/connectivity_service.dart';
+import '../infrastructure/network/connectivity_service.dart';
 import 'package:flutter/foundation.dart';
 
 /// Implementation of ExpensesRepository with offline support
