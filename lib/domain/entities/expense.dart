@@ -3,9 +3,11 @@ import 'constants.dart';
 
 /// Available payment methods for expenses
 enum PaymentMethod {
-  creditCard,
+  card,
   cash,
   eWallet,
+  bankTransfer,
+  other,
 }
 
 /// Expense entity representing a financial expense record

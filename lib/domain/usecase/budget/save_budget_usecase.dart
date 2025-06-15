@@ -21,34 +21,46 @@ class SaveBudgetUseCase {
 
   /// Execute the save budget use case with debouncing
   Future<void> execute(String monthId, Budget budget) async {
-    // Cancel any pending save for this month
-    if (_saveDebounceTimer != null && _saveDebounceTimer!.isActive) {
-      _saveDebounceTimer!.cancel();
-    }
+    try {
+      // Cancel any pending save for this month
+      if (_saveDebounceTimer != null && _saveDebounceTimer!.isActive) {
+        _saveDebounceTimer!.cancel();
+      }
 
-    // Store this budget in pending saves
-    _pendingSaves[monthId] = budget;
+      // Store this budget in pending saves
+      _pendingSaves[monthId] = budget;
 
-    // Check if we should throttle this save
-    final now = DateTime.now();
-    if (_lastSaveTime != null && now.difference(_lastSaveTime!).inSeconds < 2) {
-      // Debounce save requests that come too quickly
-      print('Debouncing budget save for month: $monthId');
-      _saveDebounceTimer = Timer(const Duration(seconds: 2), () {
-        // After debounce period, check if this save is still needed
-        if (_pendingSaves.containsKey(monthId)) {
-          final budgetToSave = _pendingSaves.remove(monthId);
-          if (budgetToSave != null) {
-            _executeSave(monthId, budgetToSave);
+      // Check if we should throttle this save
+      final now = DateTime.now();
+      if (_lastSaveTime != null &&
+          now.difference(_lastSaveTime!).inSeconds < 2) {
+        // Debounce save requests that come too quickly
+        print('Debouncing budget save for month: $monthId');
+        _saveDebounceTimer = Timer(const Duration(seconds: 2), () {
+          // After debounce period, check if this save is still needed
+          if (_pendingSaves.containsKey(monthId)) {
+            final budgetToSave = _pendingSaves.remove(monthId);
+            if (budgetToSave != null) {
+              _executeSave(monthId, budgetToSave).catchError((error) {
+                print('Error in debounced save: $error');
+                // Re-add to pending if save failed
+                _pendingSaves[monthId] = budgetToSave;
+              });
+            }
           }
-        }
-      });
-      return;
-    }
+        });
+        return;
+      }
 
-    // Not throttled, execute immediately
-    _pendingSaves.remove(monthId);
-    await _executeSave(monthId, budget);
+      // Not throttled, execute immediately
+      _pendingSaves.remove(monthId);
+      await _executeSave(monthId, budget);
+    } catch (e) {
+      print('Error in save budget use case: $e');
+      // Re-add to pending saves if execution failed
+      _pendingSaves[monthId] = budget;
+      rethrow;
+    }
   }
 
   /// The actual save operation

@@ -1,6 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'month_display.dart';
 
 /// A reusable date picker button that provides a consistent UI across the app
@@ -53,7 +54,7 @@ class DatePickerButton extends StatelessWidget {
               effectiveLastDate);
         }
       },
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(12.r),
       child: MonthDisplay(
         date: date,
         themeColor: effectiveThemeColor,
@@ -202,9 +203,9 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
     final disabledColor = Theme.of(context).disabledColor;
 
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(16.w),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,17 +215,17 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
               child: Text(
                 'Select Month',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 18.sp,
                   fontWeight: FontWeight.bold,
                   color: widget.themeColor,
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16.h),
 
             // Year selector
             SizedBox(
-              height: 50,
+              height: 50.h,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -257,7 +258,7 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
                           child: Text(
                             year.toString(),
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: 20.sp,
                               fontWeight: FontWeight.bold,
                               color: year == _selectedYear
                                   ? widget.themeColor
@@ -287,17 +288,17 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
               ),
             ),
 
-            const SizedBox(height: 16),
+            SizedBox(height: 16.h),
 
             // Month grid
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 childAspectRatio: 2,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
+                crossAxisSpacing: 8.w,
+                mainAxisSpacing: 8.h,
               ),
               itemCount: 12,
               itemBuilder: (context, index) {
@@ -327,11 +328,11 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
                               .pop(DateTime(_selectedYear, _selectedMonth, 1));
                         }
                       : null,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                   child: Container(
                     decoration: BoxDecoration(
                       color: isSelected ? widget.themeColor : null,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(8.r),
                       border: Border.all(
                         color: isSelected
                             ? widget.themeColor

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import '../../domain/entities/expense.dart';
 import '../../domain/entities/category.dart';
@@ -57,9 +58,11 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
 
   // Payment method mapping
   final Map<String, PaymentMethod> _paymentMethodMap = {
-    'Credit Card': PaymentMethod.creditCard,
+    'Card': PaymentMethod.card,
     'Cash': PaymentMethod.cash,
-    'e-Wallet': PaymentMethod.eWallet,
+    'E-Wallet': PaymentMethod.eWallet,
+    'Bank Transfer': PaymentMethod.bankTransfer,
+    'Other': PaymentMethod.other,
   };
 
   @override
@@ -127,12 +130,16 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
 
   String _getPaymentMethodString(PaymentMethod method) {
     switch (method) {
-      case PaymentMethod.creditCard:
-        return 'Credit Card';
+      case PaymentMethod.card:
+        return 'Card';
       case PaymentMethod.cash:
         return 'Cash';
       case PaymentMethod.eWallet:
-        return 'e-Wallet';
+        return 'E-Wallet';
+      case PaymentMethod.bankTransfer:
+        return 'Bank Transfer';
+      case PaymentMethod.other:
+        return 'Other';
     }
   }
 
@@ -399,10 +406,10 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
         title: const Text('Edit Expense'),
         centerTitle: true,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
+          preferredSize: Size.fromHeight(1.h),
           child: Divider(
-            height: 1,
-            thickness: 1,
+            height: 1.h,
+            thickness: 1.h,
             color: Theme.of(context).dividerColor,
           ),
         ),
@@ -416,7 +423,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                 key: _formKey,
                 child: SingleChildScrollView(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+                      EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -433,13 +440,13 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                           },
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      SizedBox(height: 24.h),
 
                       Row(
                         children: [
                           Container(
-                            width: 100,
-                            margin: const EdgeInsets.only(right: 8),
+                            width: 100.w,
+                            margin: EdgeInsets.only(right: 8.w),
                             child: ValueListenableBuilder<String>(
                               valueListenable: _currency,
                               builder: (context, currency, _) {
@@ -475,7 +482,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16.h),
 
                       CustomTextField(
                         controller: _remarkController,
@@ -483,7 +490,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                         prefixIcon: Icons.note,
                         isRequired: true,
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16.h),
 
                       ValueListenableBuilder<DateTime>(
                         valueListenable: _selectedDateTime,
@@ -500,7 +507,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                           );
                         },
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16.h),
 
                       ValueListenableBuilder<String>(
                         valueListenable: _selectedPaymentMethod,
@@ -519,7 +526,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                           );
                         },
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16.h),
 
                       // Recurring expense configuration
                       ValueListenableBuilder<RecurringFrequency>(
@@ -563,62 +570,62 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                           );
                         },
                       ),
-                      const SizedBox(height: 24),
+                      SizedBox(height: 24.h),
 
                       // Update button - Square with corner radius
                       SizedBox(
                         width: double.infinity,
-                        height: 56, // Square-ish height
+                        height: 56.h, // Square-ish height
                         child: ElevatedButton(
                           onPressed: _isSubmitting || _isDeleting
                               ? null
                               : _handleUpdate,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.primaryColor,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 16,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 24.w,
+                              vertical: 16.h,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius:
-                                  BorderRadius.circular(12.0), // Corner radius
+                                  BorderRadius.circular(12.r), // Corner radius
                             ),
                             elevation: 2,
                           ),
                           child: _isSubmitting
-                              ? const Row(
+                              ? Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     SizedBox(
-                                      width: 20,
-                                      height: 20,
+                                      width: 20.w,
+                                      height: 20.h,
                                       child: CircularProgressIndicator(
-                                        strokeWidth: 2,
+                                        strokeWidth: 2.w,
                                         color: Colors.white,
                                       ),
                                     ),
-                                    SizedBox(width: 12),
+                                    SizedBox(width: 12.w),
                                     Text(
                                       'Updating...',
                                       style: TextStyle(
                                         fontFamily: AppTheme.fontFamily,
-                                        fontSize: 16,
+                                        fontSize: 16.sp,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.white,
                                       ),
                                     ),
                                   ],
                                 )
-                              : const Row(
+                              : Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.update_rounded, size: 22),
-                                    SizedBox(width: 8),
+                                    Icon(Icons.update_rounded, size: 22.sp),
+                                    SizedBox(width: 8.w),
                                     Text(
                                       'Update Expense',
                                       style: TextStyle(
                                         fontFamily: AppTheme.fontFamily,
-                                        fontSize: 16,
+                                        fontSize: 16.sp,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.white,
                                       ),
@@ -627,62 +634,62 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                                 ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: 16.h),
 
                       // Delete button - Square with corner radius
                       SizedBox(
                         width: double.infinity,
-                        height: 56, // Square-ish height
+                        height: 56.h, // Square-ish height
                         child: ElevatedButton(
                           onPressed: _isSubmitting || _isDeleting
                               ? null
                               : _handleDelete,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.red,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 16,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 24.w,
+                              vertical: 16.h,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius:
-                                  BorderRadius.circular(12.0), // Corner radius
+                                  BorderRadius.circular(12.r), // Corner radius
                             ),
                             elevation: 2,
                           ),
                           child: _isDeleting
-                              ? const Row(
+                              ? Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     SizedBox(
-                                      width: 20,
-                                      height: 20,
+                                      width: 20.w,
+                                      height: 20.h,
                                       child: CircularProgressIndicator(
-                                        strokeWidth: 2,
+                                        strokeWidth: 2.w,
                                         color: Colors.white,
                                       ),
                                     ),
-                                    SizedBox(width: 12),
+                                    SizedBox(width: 12.w),
                                     Text(
                                       'Deleting...',
                                       style: TextStyle(
                                         fontFamily: AppTheme.fontFamily,
-                                        fontSize: 16,
+                                        fontSize: 16.sp,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.white,
                                       ),
                                     ),
                                   ],
                                 )
-                              : const Row(
+                              : Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Icon(Icons.delete_rounded, size: 22),
-                                    SizedBox(width: 8),
+                                    Icon(Icons.delete_rounded, size: 22.sp),
+                                    SizedBox(width: 8.w),
                                     Text(
                                       'Delete Expense',
                                       style: TextStyle(
                                         fontFamily: AppTheme.fontFamily,
-                                        fontSize: 16,
+                                        fontSize: 16.sp,
                                         fontWeight: FontWeight.w600,
                                         color: Colors.white,
                                       ),

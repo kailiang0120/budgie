@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class DropdownTile<T> extends StatelessWidget {
   final String title;
@@ -21,27 +22,35 @@ class DropdownTile<T> extends StatelessWidget {
     return Column(
       children: [
         ListTile(
-          title: Text(title, style: const TextStyle(fontSize: 16)),
+          title: Text(
+            title,
+            style: TextStyle(fontSize: 16.sp),
+          ),
           trailing: Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12.0, vertical: 4.0),
+            padding: EdgeInsets.symmetric(
+              horizontal: 12.w,
+              vertical: 4.h,
+            ),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.r),
               border: Border.all(color: Colors.grey.shade300),
             ),
             child: DropdownButton<T>(
               value: value,
               onChanged: onChanged,
               underline: Container(),
-              icon: Icon(Icons.arrow_drop_down,
-                  color: Theme.of(context).colorScheme.primary),
+              icon: Icon(
+                Icons.arrow_drop_down,
+                color: Theme.of(context).colorScheme.primary,
+                size: 24.sp,
+              ),
               isDense: true,
               items: items.map((T item) {
                 return DropdownMenuItem<T>(
                   value: item,
                   child: Text(
                     itemLabelBuilder(item),
-                    style: const TextStyle(fontSize: 14),
+                    style: TextStyle(fontSize: 14.sp),
                   ),
                 );
               }).toList(),
@@ -49,10 +58,10 @@ class DropdownTile<T> extends StatelessWidget {
           ),
         ),
         Divider(
-          height: 1,
-          thickness: 1,
-          indent: 18,
-          endIndent: 25,
+          height: 1.h,
+          thickness: 1.h,
+          indent: 18.w,
+          endIndent: 25.w,
           color: Theme.of(context).dividerColor,
         ),
       ],

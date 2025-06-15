@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class AuthButton extends StatelessWidget {
   final String label;
@@ -23,9 +24,9 @@ class AuthButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: backgroundColor,
         foregroundColor: textColor,
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: EdgeInsets.symmetric(vertical: 12.h),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(45),
+          borderRadius: BorderRadius.circular(45.r),
         ),
         disabledBackgroundColor: backgroundColor.withAlpha((255 * 0.6).toInt()),
         disabledForegroundColor: textColor.withAlpha((255 * 0.6).toInt()),
@@ -34,12 +35,12 @@ class AuthButton extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           leadingIcon,
-          const SizedBox(width: 12),
+          SizedBox(width: 12.w),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: 'Lexend',
-              fontSize: 16,
+              fontSize: 16.sp,
               fontWeight: FontWeight.w500,
             ),
           ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
 import '../viewmodels/auth_viewmodel.dart';
@@ -17,16 +18,16 @@ class DialogUtils {
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16.r),
           ),
           title: Row(
             children: [
               Icon(
                 Icons.warning_amber_rounded,
                 color: Colors.amber[700],
-                size: 28,
+                size: 28.sp,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: 8.w),
               Expanded(
                 child: Text(
                   'Warning: Data Loss Risk',
@@ -42,19 +43,19 @@ class DialogUtils {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'You are about to sign out as a guest user.',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 16.sp,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: 16.h),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(12.w),
                 decoration: BoxDecoration(
                   color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(8.r),
                   border: Border.all(color: Colors.red.shade200),
                 ),
                 child: Column(
@@ -64,7 +65,7 @@ class DialogUtils {
                       children: [
                         Icon(Icons.delete_forever,
                             color: theme.colorScheme.error),
-                        const SizedBox(width: 8),
+                        SizedBox(width: 8.w),
                         Text(
                           'Permanent Data Loss',
                           style: TextStyle(
@@ -74,18 +75,18 @@ class DialogUtils {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
+                    SizedBox(height: 8.h),
+                    Text(
                       'All your expenses, budgets, and settings will be permanently deleted and cannot be recovered.',
-                      style: TextStyle(fontSize: 14),
+                      style: TextStyle(fontSize: 14.sp),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: 16.h),
+              Text(
                 'To keep your data, link your account to an email or social login before signing out.',
-                style: TextStyle(fontSize: 14),
+                style: TextStyle(fontSize: 14.sp),
               ),
             ],
           ),
@@ -108,15 +109,14 @@ class DialogUtils {
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.colorScheme.primary,
                 elevation: 2,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.link, size: 18),
-                  SizedBox(width: 8),
-                  Text(
+                  Icon(Icons.link, size: 18.sp),
+                  SizedBox(width: 8.w),
+                  const Text(
                     'Link Account & Save Data',
                     style: TextStyle(
                       color: Colors.white,
@@ -178,15 +178,14 @@ class DialogUtils {
               },
               style: TextButton.styleFrom(
                 foregroundColor: theme.colorScheme.error,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.delete_outline, size: 18),
-                  SizedBox(width: 8),
-                  Text(
+                  Icon(Icons.delete_outline, size: 18.sp),
+                  SizedBox(width: 8.w),
+                  const Text(
                     'Delete & Sign Out',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
@@ -199,46 +198,85 @@ class DialogUtils {
     );
   }
 
-  /// Shows a loading dialog with a spinner
-  static Future<void> showLoadingDialog(BuildContext context,
-      {String message = 'Loading...'}) async {
-    return showDialog(
+  /// Shows a loading dialog with optional message
+  static void showLoadingDialog(BuildContext context, {String? message}) {
+    showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
         return Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha((255 * 0.1).toInt()),
-                    blurRadius: 10,
-                    spreadRadius: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.r),
+          ),
+          child: Padding(
+            padding: EdgeInsets.all(20.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  message ?? 'Loading...',
+                  style: TextStyle(
+                    fontSize: 14.sp,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
                   ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const CircularProgressIndicator(),
-                  const SizedBox(height: 16),
-                  Text(
-                    message,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
+        );
+      },
+    );
+  }
+
+  /// Shows a generic confirmation dialog
+  static Future<bool?> showConfirmationDialog(
+    BuildContext context, {
+    required String title,
+    required String content,
+    String confirmText = 'Confirm',
+    String cancelText = 'Cancel',
+    Color? confirmColor,
+    IconData? icon,
+  }) async {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16.r),
+          ),
+          title: Row(
+            children: [
+              if (icon != null) ...[
+                Icon(
+                  icon,
+                  color: confirmColor ?? Theme.of(context).colorScheme.primary,
+                  size: 24.sp,
+                ),
+                SizedBox(width: 8.w),
+              ],
+              Expanded(child: Text(title)),
+            ],
+          ),
+          content: Text(content),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(cancelText),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    confirmColor ?? Theme.of(context).colorScheme.primary,
+              ),
+              child: Text(confirmText),
+            ),
+          ],
         );
       },
     );

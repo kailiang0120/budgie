@@ -137,6 +137,14 @@ class BudgetReallocationService {
       }
     }
 
+    // Add saving as an additional source if available
+    final availableSaving = budget.saving;
+    if (availableSaving > 5.0) {
+      // Only consider meaningful saving (> 5 currency units)
+      totalSurplus += availableSaving;
+      debugPrint('🔍 Available saving: ${availableSaving.toStringAsFixed(2)}');
+    }
+
     final isReallocationNeeded = categoriesNeedingMore.isNotEmpty;
     final isReallocationPossible = totalSurplus >= totalShortfall;
 
@@ -144,7 +152,9 @@ class BudgetReallocationService {
     debugPrint('  - Categories needing more: ${categoriesNeedingMore.length}');
     debugPrint('  - Categories with surplus: ${categoriesWithSurplus.length}');
     debugPrint('  - Total shortfall: ${totalShortfall.toStringAsFixed(2)}');
-    debugPrint('  - Total surplus: ${totalSurplus.toStringAsFixed(2)}');
+    debugPrint(
+        '  - Total surplus (including saving): ${totalSurplus.toStringAsFixed(2)}');
+    debugPrint('  - Available saving: ${availableSaving.toStringAsFixed(2)}');
     debugPrint('  - Reallocation needed: $isReallocationNeeded');
     debugPrint('  - Reallocation possible: $isReallocationPossible');
 
@@ -155,6 +165,7 @@ class BudgetReallocationService {
       totalSurplus: totalSurplus,
       isReallocationNeeded: isReallocationNeeded,
       isReallocationPossible: isReallocationPossible,
+      availableSaving: availableSaving,
     );
   }
 
@@ -167,6 +178,7 @@ class BudgetReallocationService {
     final newCategories =
         Map<String, CategoryBudget>.from(currentBudget.categories);
     final reallocationMoves = <ReallocationMove>[];
+    double remainingSaving = analysis.availableSaving;
 
     // Calculate how much each category needs
     final categoryNeeds = <String, double>{};
@@ -203,7 +215,35 @@ class BudgetReallocationService {
       final neededAmount = categoryNeeds[needyCategory] ?? 0.0;
       double amountToAllocate = neededAmount;
 
-      // Find surplus categories to take from
+      // First, try to use saving if available
+      if (amountToAllocate > 0 && remainingSaving > 5.0) {
+        final transferFromSaving = (amountToAllocate > remainingSaving)
+            ? remainingSaving
+            : amountToAllocate;
+
+        // Update target category (increase budget and left)
+        final targetBudget = newCategories[needyCategory]!;
+        newCategories[needyCategory] = CategoryBudget(
+          budget: targetBudget.budget + transferFromSaving,
+          left: targetBudget.left + transferFromSaving,
+        );
+
+        // Record the move from saving
+        reallocationMoves.add(ReallocationMove(
+          fromCategory: 'saving',
+          toCategory: needyCategory,
+          amount: transferFromSaving,
+        ));
+
+        // Update remaining amounts
+        remainingSaving -= transferFromSaving;
+        amountToAllocate -= transferFromSaving;
+
+        debugPrint(
+            '💰 Moved ${transferFromSaving.toStringAsFixed(2)} from saving to $needyCategory');
+      }
+
+      // Then, find surplus categories to take from for any remaining need
       for (final surplusCategory in analysis.categoriesWithSurplus) {
         if (amountToAllocate <= 0) break;
 
@@ -244,9 +284,13 @@ class BudgetReallocationService {
       }
     }
 
+    // Calculate the new saving amount after reallocation
+    final newSaving = remainingSaving;
+
     // Log the reallocation summary
     debugPrint('🔄 Reallocation summary:');
     debugPrint('  - Total moves: ${reallocationMoves.length}');
+    debugPrint('  - Remaining saving: ${newSaving.toStringAsFixed(2)}');
     for (final move in reallocationMoves) {
       debugPrint(
           '    ${move.fromCategory} → ${move.toCategory}: ${move.amount.toStringAsFixed(2)}');
@@ -256,12 +300,13 @@ class BudgetReallocationService {
       total: currentBudget.total,
       left: currentBudget.left, // Overall left amount doesn't change
       categories: newCategories,
+      saving: newSaving, // Updated saving after reallocation
       currency: currentBudget.currency,
     );
   }
 
   /// Get category name from ID for display purposes
-  String _getCategoryName(String categoryId) {
+  String getCategoryName(String categoryId) {
     try {
       final category = CategoryExtension.fromId(categoryId);
       return category?.name ?? categoryId;
@@ -279,6 +324,7 @@ class ReallocationAnalysis {
   final double totalSurplus;
   final bool isReallocationNeeded;
   final bool isReallocationPossible;
+  final double availableSaving;
 
   ReallocationAnalysis({
     required this.categoriesNeedingMore,
@@ -287,6 +333,7 @@ class ReallocationAnalysis {
     required this.totalSurplus,
     required this.isReallocationNeeded,
     required this.isReallocationPossible,
+    required this.availableSaving,
   });
 }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../utils/app_theme.dart';
 
 class SubmitButton extends StatelessWidget {
@@ -38,20 +39,20 @@ class SubmitButton extends StatelessWidget {
     final effectiveColor = color ?? AppTheme.primaryColor;
 
     return SizedBox(
-      width: width,
-      height: height,
+      width: width?.w,
+      height: height.h,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: effectiveColor,
           disabledBackgroundColor:
               effectiveColor.withAlpha((255 * 0.5).toInt()),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 16,
+          padding: EdgeInsets.symmetric(
+            horizontal: 24.w,
+            vertical: 16.h,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(borderRadius),
+            borderRadius: BorderRadius.circular(borderRadius.r),
           ),
           elevation: 2,
         ),
@@ -59,20 +60,20 @@ class SubmitButton extends StatelessWidget {
             ? Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
+                  SizedBox(
+                    width: 20.w,
+                    height: 20.h,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2,
+                      strokeWidth: 2.w,
                       color: Colors.white,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: 12.w),
                   Text(
                     loadingText,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: AppTheme.fontFamily,
-                      fontSize: 16,
+                      fontSize: 16.sp,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
                     ),
@@ -89,13 +90,13 @@ class SubmitButton extends StatelessWidget {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 22),
-          const SizedBox(width: 8),
+          Icon(icon, size: 22.sp),
+          SizedBox(width: 8.w),
           Text(
             text,
-            style: const TextStyle(
+            style: TextStyle(
               fontFamily: AppTheme.fontFamily,
-              fontSize: 16,
+              fontSize: 16.sp,
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
@@ -106,9 +107,9 @@ class SubmitButton extends StatelessWidget {
 
     return Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontFamily: AppTheme.fontFamily,
-        fontSize: 16,
+        fontSize: 16.sp,
         fontWeight: FontWeight.w600,
         color: Colors.white,
       ),

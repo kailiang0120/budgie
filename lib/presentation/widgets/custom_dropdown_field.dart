@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../utils/app_theme.dart';
 
 class CustomDropdownField<T> extends StatelessWidget {
@@ -39,41 +40,48 @@ class CustomDropdownField<T> extends StatelessWidget {
 
     return DropdownButtonFormField<T>(
       value: value,
-      items: items
-          .map((item) => DropdownMenuItem(
-                value: item,
-                child: Text(
-                  itemLabelBuilder(item),
-                  style: TextStyle(
-                    fontFamily: AppTheme.fontFamily,
-                    fontWeight: FontWeight.w400,
-                    color: Theme.of(context).textTheme.bodyMedium?.color,
-                  ),
-                ),
-              ))
-          .toList(),
-      onChanged: onChanged,
       decoration: InputDecoration(
         labelText: isRequired ? '$labelText *' : labelText,
-        labelStyle: TextStyle(
-          fontFamily: AppTheme.fontFamily,
-          color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-        ),
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20.sp) : null,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(borderRadius),
+          borderRadius: BorderRadius.circular(borderRadius.r),
         ),
         filled: true,
         fillColor: Theme.of(context).cardColor,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        labelStyle: TextStyle(
+          color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+          fontSize: 14.sp,
+        ),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 16.w,
+          vertical: 16.h,
+        ),
       ),
-      validator: validator ??
-          (isRequired
-              ? (value) => value == null ? 'Please select $labelText' : null
-              : null),
-      iconEnabledColor: Theme.of(context).colorScheme.primary,
-      dropdownColor: Theme.of(context).cardColor,
+      items: items.map((T item) {
+        return DropdownMenuItem<T>(
+          value: item,
+          child: Text(
+            itemLabelBuilder(item),
+            style: TextStyle(
+              fontFamily: AppTheme.fontFamily,
+              fontSize: 16.sp,
+              color: Theme.of(context).textTheme.bodyMedium?.color,
+            ),
+          ),
+        );
+      }).toList(),
+      onChanged: onChanged,
+      validator: validator,
+      style: TextStyle(
+        fontFamily: AppTheme.fontFamily,
+        fontSize: 16.sp,
+        color: Theme.of(context).textTheme.bodyMedium?.color,
+      ),
+      icon: Icon(
+        Icons.arrow_drop_down,
+        size: 24.sp,
+        color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+      ),
     );
   }
 }

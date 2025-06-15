@@ -26,7 +26,9 @@ class BudgetCalculationService {
   /// This method handles async currency conversion operations
   Future<Budget> _calculateBudgetDirect(
       Budget budget, List<Expense> expenses) async {
+    // Extract budget currency for consistency in calculations
     final String budgetCurrency = budget.currency;
+
     final Map<String, double> categoryExpenses = {};
 
     // Calculate expenses for each category with currency conversion
@@ -48,6 +50,7 @@ class BudgetCalculationService {
       total: budget.total,
       left: totalLeft,
       categories: newCategories,
+      saving: budget.saving, // Preserve the saving field
       currency: budgetCurrency,
     );
   }

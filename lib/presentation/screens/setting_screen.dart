@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -8,6 +9,7 @@ import '../../presentation/viewmodels/theme_viewmodel.dart';
 import '../../data/infrastructure/services/notification_manager_service.dart';
 import '../../data/infrastructure/services/notification_permission_service.dart';
 import '../../data/infrastructure/services/settings_service.dart';
+import '../../data/infrastructure/services/background_task_service.dart';
 import '../../di/injection_container.dart' as di;
 import '../widgets/switch_tile.dart';
 import '../widgets/dropdown_tile.dart';
@@ -33,6 +35,7 @@ class _SettingScreenState extends State<SettingScreen> {
   final _notificationManager = di.sl<NotificationManagerService>();
   final _notificationPermissionService = di.sl<NotificationPermissionService>();
   final _settingsService = di.sl<SettingsService>();
+  final _backgroundTaskService = di.sl<BackgroundTaskService>();
 
   @override
   void initState() {
@@ -144,49 +147,40 @@ class _SettingScreenState extends State<SettingScreen> {
   }
 
   Future<void> _handleNotificationPermission(bool value) async {
+    // This method orchestrates the entire permission and service flow
+    // based on the user's choice in the UI.
     try {
+      // First, immediately update the master setting. This is the source of truth.
+      await _settingsService.updateNotificationSetting(value);
+      debugPrint('🔔 Settings toggled to: $value. Notifying services.');
+
       if (value) {
-        // Use the comprehensive notification permission service to enable notifications
+        // If the user turned the setting ON, trigger the enable workflow.
+        // The service will read the setting we just saved.
         final result =
             await _notificationPermissionService.enableNotifications(context);
 
-        if (result.isSuccess) {
-          // Update the setting value on success or pending
-          await _settingsService.updateNotificationSetting(true);
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(result.message),
-                backgroundColor:
-                    result.type == NotificationPermissionResultType.success
-                        ? Colors.green
-                        : Colors.orange,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        } else {
-          // Handle failure cases
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(result.message),
-                backgroundColor: Colors.red,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
+        // The enableNotifications service handles reverting the setting on failure,
+        // so we just need to show the final result to the user.
+        if (mounted && result.message.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.message),
+              backgroundColor: result.isSuccess
+                  ? (result.type == NotificationPermissionResultType.pending
+                      ? Colors.orange
+                      : Colors.green)
+                  : Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
         }
       } else {
-        // Use the comprehensive notification permission service to disable notifications
+        // If the user turned the setting OFF, trigger the disable workflow.
         final result =
             await _notificationPermissionService.disableNotifications(context);
 
-        // Update the setting value
-        await _settingsService.updateNotificationSetting(false);
-
-        if (mounted) {
+        if (mounted && result.message.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(result.message),
@@ -197,28 +191,54 @@ class _SettingScreenState extends State<SettingScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Error handling notification permission: $e');
+      debugPrint('❌ Top-level error handling notification permission: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error updating notification settings: $e'),
+            content: Text('An unexpected error occurred: $e'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
+      // Ensure the setting is off if any catastrophic error occurs.
+      if (_settingsService.allowNotification) {
+        await _settingsService.updateNotificationSetting(false);
+      }
     }
   }
 
-  Future<void> _updateAutoBudget(bool value) async {
+  Future<void> _handleAutomaticRebalance(bool value) async {
     try {
+      // Update both settings to maintain backward compatibility
       await _settingsService.updateAutoBudgetSetting(value);
-      debugPrint('Auto budget updated to: $value');
+      await _settingsService.updateAutomaticRebalanceSuggestions(value);
+      debugPrint('Auto budget reallocation updated to: $value');
+
+      if (value) {
+        await _backgroundTaskService.scheduleBudgetSuggestionTask();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Auto budget reallocation enabled. AI will automatically optimize your budget daily.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        await _backgroundTaskService.cancelBudgetSuggestionTask();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Auto budget reallocation disabled.'),
+            backgroundColor: Colors.grey,
+          ),
+        );
+      }
     } catch (e) {
-      debugPrint('Error updating auto budget: $e');
+      debugPrint('Error updating auto budget reallocation: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update auto budget: $e')),
+          SnackBar(
+              content: Text('Failed to update auto budget reallocation: $e')),
         );
       }
     }
@@ -274,36 +294,36 @@ class _SettingScreenState extends State<SettingScreen> {
                     color: Theme.of(context).colorScheme.primary,
                     size: 24,
                   ),
-                  const SizedBox(width: 8),
-                  const Expanded(
+                  SizedBox(width: 8.w),
+                  Expanded(
                     child: Text(
                       'Help Improve Our AI Model',
-                      style: TextStyle(fontSize: 18),
+                      style: TextStyle(fontSize: 18.sp),
                     ),
                   ),
                 ],
               ),
               content: ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.6,
-                  maxWidth: MediaQuery.of(context).size.width * 0.9,
+                  maxHeight: MediaQuery.of(context).size.height * 0.6.h,
+                  maxWidth: MediaQuery.of(context).size.width * 0.9.w,
                 ),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'We would like to use your anonymized user data to improve our AI model for better performance.',
-                        style: TextStyle(fontSize: 15),
+                        style: TextStyle(fontSize: 15.sp),
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: 16.h),
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.all(12),
+                        padding: EdgeInsets.all(12.w),
                         decoration: BoxDecoration(
                           color: Colors.blue.withAlpha((255 * 0.1).toInt()),
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(8.r),
                           border: Border.all(
                             color: Colors.blue.withAlpha((255 * 0.3).toInt()),
                           ),
@@ -316,37 +336,37 @@ class _SettingScreenState extends State<SettingScreen> {
                                 Icon(
                                   Icons.security,
                                   color: Colors.blue.shade700,
-                                  size: 18,
+                                  size: 18.sp,
                                 ),
-                                const SizedBox(width: 6),
+                                SizedBox(width: 6.w),
                                 Expanded(
                                   child: Text(
                                     'Data Privacy & Usage',
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: Colors.blue.shade700,
-                                      fontSize: 14,
+                                      fontSize: 14.sp,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
-                            const Text(
+                            SizedBox(height: 8.h),
+                            Text(
                               '• Your data will be completely anonymized\n'
                               '• No personal information will be shared\n'
                               '• Data is used solely for AI model training\n'
                               '• You can disable this anytime in settings\n'
                               '• Data helps improve model output accuracy',
-                              style: TextStyle(fontSize: 13),
+                              style: TextStyle(fontSize: 13.sp),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      const Text(
+                      SizedBox(height: 16.h),
+                      Text(
                         'By enabling this feature, you consent to share anonymized data to help us build better AI models for all users.',
-                        style: TextStyle(fontSize: 13),
+                        style: TextStyle(fontSize: 13.sp),
                       ),
                     ],
                   ),
@@ -360,19 +380,19 @@ class _SettingScreenState extends State<SettingScreen> {
                         onPressed: () => Navigator.of(context).pop(false),
                         style: TextButton.styleFrom(
                           foregroundColor: Colors.grey[600],
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: EdgeInsets.symmetric(vertical: 12.h),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(8.r),
                             side: BorderSide(color: Colors.grey.shade300),
                           ),
                         ),
-                        child: const Text(
+                        child: Text(
                           'No, Keep Disabled',
-                          style: TextStyle(fontSize: 14),
+                          style: TextStyle(fontSize: 14.sp),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12.w),
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () => Navigator.of(context).pop(true),
@@ -380,16 +400,16 @@ class _SettingScreenState extends State<SettingScreen> {
                           backgroundColor:
                               Theme.of(context).colorScheme.primary,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          padding: EdgeInsets.symmetric(vertical: 12.h),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.circular(8.r),
                           ),
                           elevation: 0,
                         ),
-                        child: const Text(
+                        child: Text(
                           'Agree & Enable',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 14.sp,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -398,9 +418,9 @@ class _SettingScreenState extends State<SettingScreen> {
                   ],
                 ),
               ],
-              actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-              contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-              titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+              actionsPadding: EdgeInsets.fromLTRB(24.w, 0, 24.w, 24.h),
+              contentPadding: EdgeInsets.fromLTRB(24.w, 20.h, 24.w, 0),
+              titlePadding: EdgeInsets.fromLTRB(24.w, 24.h, 24.w, 0),
             );
           },
         ) ??
@@ -433,10 +453,10 @@ class _SettingScreenState extends State<SettingScreen> {
           ),
           centerTitle: true,
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
+            preferredSize: Size.fromHeight(1.h),
             child: Container(
               color: Theme.of(context).dividerColor,
-              height: 0.5,
+              height: 0.5.h,
             ),
           ),
         ),
@@ -446,30 +466,30 @@ class _SettingScreenState extends State<SettingScreen> {
             children: [
               Icon(
                 Icons.account_circle_outlined,
-                size: 80,
+                size: 80.sp,
                 color: Theme.of(context)
                     .colorScheme
                     .primary
                     .withAlpha((255 * 0.7).toInt()),
               ),
-              const SizedBox(height: 20),
-              const Text(
+              SizedBox(height: 20.h),
+              Text(
                 'Sign in to access settings',
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 18.sp,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text(
+              SizedBox(height: 12.h),
+              Text(
                 'Please log in to view and customize your settings',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 14.sp,
                   color: Colors.grey,
                 ),
               ),
-              const SizedBox(height: 30),
+              SizedBox(height: 30.h),
               ElevatedButton(
                 onPressed: () {
                   Navigator.pushReplacementNamed(context, Routes.login);
@@ -478,7 +498,7 @@ class _SettingScreenState extends State<SettingScreen> {
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Colors.white,
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                      EdgeInsets.symmetric(horizontal: 32.w, vertical: 12.h),
                 ),
                 child: const Text('Sign In'),
               ),
@@ -527,10 +547,10 @@ class _SettingScreenState extends State<SettingScreen> {
         ),
         centerTitle: true,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
+          preferredSize: Size.fromHeight(1.h),
           child: Container(
             color: Theme.of(context).dividerColor,
-            height: 0.5,
+            height: 0.5.h,
           ),
         ),
       ),
@@ -561,9 +581,11 @@ class _SettingScreenState extends State<SettingScreen> {
 
           // Switch options
           SwitchTile(
-            title: 'Auto budget rebalance',
-            value: _settingsService.autoBudget,
-            onChanged: _updateAutoBudget,
+            title: 'Auto Budget Reallocation',
+            value: _settingsService.automaticRebalanceSuggestions,
+            onChanged: _handleAutomaticRebalance,
+            subtitle:
+                'Automatically optimize your budget using AI-powered analysis',
           ),
           SwitchTile(
             title: 'Allow notification',
@@ -580,34 +602,33 @@ class _SettingScreenState extends State<SettingScreen> {
 
           // Divider for testing section
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
             child: Divider(
               color: Theme.of(context).dividerColor,
-              thickness: 0.5,
+              thickness: 0.5.h,
             ),
           ),
 
           // Notification API Test Button
           ListTile(
             leading: Container(
-              padding: const EdgeInsets.all(8.0),
+              padding: EdgeInsets.all(8.w),
               decoration: BoxDecoration(
                 color: Theme.of(context)
                     .colorScheme
                     .primary
                     .withAlpha((255 * 0.1).toInt()),
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: BorderRadius.circular(8.r),
               ),
               child: Icon(
                 Icons.bug_report,
                 color: Theme.of(context).colorScheme.primary,
-                size: 20,
+                size: 20.sp,
               ),
             ),
             title: const Text('Notification API Test'),
             subtitle: const Text('Test notification detection API connection'),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+            trailing: Icon(Icons.arrow_forward_ios, size: 16.sp),
             onTap: () {
               Navigator.push(
                 context,
@@ -622,16 +643,15 @@ class _SettingScreenState extends State<SettingScreen> {
 
           // Sign Out Button
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
             child: Divider(
               color: Theme.of(context).dividerColor,
-              thickness: 0.5,
+              thickness: 0.5.h,
             ),
           ),
 
           // Add some space at the bottom for better UI
-          const SizedBox(height: 90),
+          SizedBox(height: 90.h),
         ],
       ),
       extendBody: true,

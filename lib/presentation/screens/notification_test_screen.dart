@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'dart:io';
 
 import '../../data/infrastructure/services/notification_manager_service.dart';
@@ -244,13 +245,13 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: EdgeInsets.all(16.w),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Card(
                       child: Padding(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: EdgeInsets.all(16.w),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -258,16 +259,16 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                               'Status',
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: 8.h),
                             Text(_status),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     Card(
                       child: Padding(
-                        padding: const EdgeInsets.all(16.0),
+                        padding: EdgeInsets.all(16.w),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -275,30 +276,30 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                               'Permissions',
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            const SizedBox(height: 16),
+                            SizedBox(height: 16.h),
                             ElevatedButton.icon(
                               onPressed: _requestPermission,
                               icon: const Icon(Icons.security),
                               label: const Text(
                                   'Request Notification Permissions'),
                               style: ElevatedButton.styleFrom(
-                                minimumSize: const Size(double.infinity, 48),
+                                minimumSize: Size(double.infinity, 48.h),
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            SizedBox(height: 8.h),
                             ElevatedButton.icon(
                               onPressed: _checkPermission,
                               icon: const Icon(Icons.check_circle),
                               label: const Text('Check Permissions'),
                               style: ElevatedButton.styleFrom(
-                                minimumSize: const Size(double.infinity, 48),
+                                minimumSize: Size(double.infinity, 48.h),
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
@@ -427,10 +428,10 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                                   itemBuilder: (context, index) {
                                     return Text(
                                       _logs[index],
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         color: Colors.green,
                                         fontFamily: 'monospace',
-                                        fontSize: 12,
+                                        fontSize: 12.sp,
                                       ),
                                     );
                                   },

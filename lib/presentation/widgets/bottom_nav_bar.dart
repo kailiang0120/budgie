@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../core/constants/routes.dart';
 
@@ -45,7 +46,7 @@ class BottomNavBar extends StatelessWidget {
             Theme.of(context).colorScheme.surface, Colors.blueGrey, 0.0)!;
 
     return SizedBox(
-      height: 80,
+      height: 80.h,
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
@@ -57,7 +58,7 @@ class BottomNavBar extends StatelessWidget {
           ),
           // Enhanced nav bar icons with smooth animations
           Positioned.fill(
-            bottom: 16, // Adjust bottom position for better centering
+            bottom: 16.h, // Adjust bottom position for better centering
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -96,7 +97,7 @@ class BottomNavBar extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(8.w),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: isSelected
@@ -112,7 +113,7 @@ class BottomNavBar extends StatelessWidget {
             color: isSelected
                 ? primaryColor
                 : textColor.withAlpha((255 * 0.6).toInt()),
-            size: 24,
+            size: 24.sp,
           ),
         ),
       ),
@@ -160,7 +161,7 @@ class _NavBarPainter extends CustomPainter {
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
-    const double notchRadius = 32;
+    final double notchRadius = 32.r;
     final double notchCenterX = size.width / 2;
     const double notchTop = 0;
     final double barHeight = size.height;
@@ -168,7 +169,7 @@ class _NavBarPainter extends CustomPainter {
     final path = Path();
     path.moveTo(0, notchTop);
     // Left to notch
-    path.lineTo(notchCenterX - notchRadius - 12, notchTop);
+    path.lineTo(notchCenterX - notchRadius - 12.w, notchTop);
     // Notch curve
     path.quadraticBezierTo(
       notchCenterX - notchRadius,
@@ -178,13 +179,13 @@ class _NavBarPainter extends CustomPainter {
     );
     path.arcToPoint(
       Offset(notchCenterX + notchRadius * 0.8, notchTop + notchRadius * 0.3),
-      radius: const Radius.circular(notchRadius),
+      radius: Radius.circular(notchRadius),
       clockwise: false,
     );
     path.quadraticBezierTo(
       notchCenterX + notchRadius,
       notchTop,
-      notchCenterX + notchRadius + 12,
+      notchCenterX + notchRadius + 12.w,
       notchTop,
     );
     // Right to end
@@ -194,7 +195,7 @@ class _NavBarPainter extends CustomPainter {
     path.close();
 
     canvas.drawShadow(
-        path, Colors.black.withAlpha((255 * 0.15).toInt()), 8, true);
+        path, Colors.black.withAlpha((255 * 0.15).toInt()), 8.r, true);
     canvas.drawPath(path, paint);
   }
 

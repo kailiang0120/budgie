@@ -1,5 +1,6 @@
 // lib/widgets/legend_card.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'legend_item.dart';
 
 class LegendCard extends StatelessWidget {
@@ -13,24 +14,24 @@ class LegendCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: EdgeInsets.symmetric(horizontal: 16.w),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16.w),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Categories',
               style: TextStyle(
                 fontFamily: 'Lexend',
-                fontSize: 16,
+                fontSize: 16.sp,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16.h),
             Wrap(
-              spacing: 16,
-              runSpacing: 16,
+              spacing: 16.w,
+              runSpacing: 16.h,
               children: categories.map((category) {
                 return LegendItem(category: category);
               }).toList(),

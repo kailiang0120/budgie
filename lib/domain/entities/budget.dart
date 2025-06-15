@@ -49,6 +49,10 @@ class Budget {
   /// Budget allocations by category ID
   final Map<String, CategoryBudget> categories;
 
+  /// Unallocated budget amount (saving)
+  /// This represents the amount of total budget that hasn't been allocated to any category
+  final double saving;
+
   /// Currency code
   final String currency;
 
@@ -57,37 +61,61 @@ class Budget {
     required this.total,
     required this.left,
     required this.categories,
+    double? saving,
     String? currency,
-  }) : currency = currency ?? DomainConstants.defaultCurrency;
+  })  : saving = saving ?? _calculateSaving(total, categories),
+        currency = currency ?? DomainConstants.defaultCurrency;
+
+  /// Calculate saving amount from total budget and category allocations
+  static double _calculateSaving(
+      double total, Map<String, CategoryBudget> categories) {
+    final totalAllocated =
+        categories.values.fold(0.0, (sum, cat) => sum + cat.budget);
+    return total - totalAllocated;
+  }
 
   /// Converts the Budget to a Map for serialization
   Map<String, dynamic> toMap() => {
         'total': total,
         'left': left,
         'categories': categories.map((k, v) => MapEntry(k, v.toMap())),
+        'saving': saving,
         'currency': currency,
       };
 
   /// Creates a Budget from a Map
-  factory Budget.fromMap(Map<String, dynamic> map) => Budget(
-        total: (map['total'] as num?)?.toDouble() ?? 0,
-        left: (map['left'] as num?)?.toDouble() ?? 0,
-        categories: (map['categories'] as Map<String, dynamic>? ?? {})
-            .map((k, v) => MapEntry(k, CategoryBudget.fromMap(v))),
-        currency: map['currency'] as String?,
-      );
+  factory Budget.fromMap(Map<String, dynamic> map) {
+    final total = (map['total'] as num?)?.toDouble() ?? 0;
+    final categories = (map['categories'] as Map<String, dynamic>? ?? {})
+        .map((k, v) => MapEntry(k, CategoryBudget.fromMap(v)));
+
+    // If saving is not provided, calculate it from total and categories
+    final saving = map['saving'] != null
+        ? (map['saving'] as num?)?.toDouble() ?? 0
+        : _calculateSaving(total, categories);
+
+    return Budget(
+      total: total,
+      left: (map['left'] as num?)?.toDouble() ?? 0,
+      categories: categories,
+      saving: saving,
+      currency: map['currency'] as String?,
+    );
+  }
 
   /// Creates a copy of this Budget with the given fields replaced with new values
   Budget copyWith({
     double? total,
     double? left,
     Map<String, CategoryBudget>? categories,
+    double? saving,
     String? currency,
   }) {
     return Budget(
       total: total ?? this.total,
       left: left ?? this.left,
       categories: categories ?? this.categories,
+      saving: saving ?? this.saving,
       currency: currency ?? this.currency,
     );
   }
@@ -109,9 +137,11 @@ class Budget {
           '💱 Converting budget: $currency → $newCurrency (rate: $conversionRate)');
     }
 
-    // Convert total and left amounts with 2 decimal precision
+    // Convert total, left, and saving amounts with 2 decimal precision
     final newTotal = double.parse((total * conversionRate).toStringAsFixed(2));
     final newLeft = double.parse((left * conversionRate).toStringAsFixed(2));
+    final newSaving =
+        double.parse((saving * conversionRate).toStringAsFixed(2));
 
     // Convert each category budget
     final newCategories = <String, CategoryBudget>{};
@@ -136,6 +166,7 @@ class Budget {
       total: newTotal,
       left: newLeft,
       categories: newCategories,
+      saving: newSaving,
       currency: newCurrency,
     );
   }
@@ -148,6 +179,7 @@ class Budget {
     // Use epsilon for double comparison
     if ((other.total - total).abs() >= DomainConstants.epsilon ||
         (other.left - left).abs() >= DomainConstants.epsilon ||
+        (other.saving - saving).abs() >= DomainConstants.epsilon ||
         other.currency != currency) {
       return false;
     }
@@ -176,5 +208,9 @@ class Budget {
 
   @override
   int get hashCode =>
-      total.hashCode ^ left.hashCode ^ categories.hashCode ^ currency.hashCode;
+      total.hashCode ^
+      left.hashCode ^
+      categories.hashCode ^
+      saving.hashCode ^
+      currency.hashCode;
 }

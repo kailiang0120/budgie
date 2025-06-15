@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
 
-/// 日期和时间选择器组件
+/// 日期和时间选择器组件 - Responsive Design
 class DateTimePickerField extends StatelessWidget {
   /// 当前选择的日期时间
   final DateTime dateTime;
@@ -59,9 +60,9 @@ class DateTimePickerField extends StatelessWidget {
               child: InkWell(
                 onTap: () => _pickDate(context, effectiveThemeColor),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12.w,
+                    vertical: 12.h,
                   ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
@@ -69,21 +70,21 @@ class DateTimePickerField extends StatelessWidget {
                         color: isDarkMode
                             ? Colors.grey.shade700
                             : Colors.grey.shade400),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(AppTheme.borderRadius),
-                      bottomLeft: Radius.circular(AppTheme.borderRadius),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(AppTheme.borderRadius.r),
+                      bottomLeft: Radius.circular(AppTheme.borderRadius.r),
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(Icons.calendar_today,
-                          color: effectiveThemeColor, size: 20),
-                      const SizedBox(width: 8),
+                          color: effectiveThemeColor, size: 20.sp),
+                      SizedBox(width: 8.w),
                       Text(
                         effectiveDateFormat.format(dateTime),
                         style: TextStyle(
                           fontFamily: AppTheme.fontFamily,
-                          fontSize: 14,
+                          fontSize: 14.sp,
                           color: Theme.of(context).textTheme.bodyMedium?.color,
                         ),
                       ),
@@ -93,17 +94,17 @@ class DateTimePickerField extends StatelessWidget {
               ),
             ),
             Container(
-              width: 1,
-              height: 40,
+              width: 1.w,
+              height: 40.h,
               color: isDarkMode ? Colors.grey.shade700 : Colors.grey.shade400,
             ),
             Expanded(
               child: InkWell(
                 onTap: () => _pickTime(context, effectiveThemeColor),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 16.h,
                   ),
                   decoration: BoxDecoration(
                     color: Theme.of(context).cardColor,
@@ -111,21 +112,21 @@ class DateTimePickerField extends StatelessWidget {
                         color: isDarkMode
                             ? Colors.grey.shade700
                             : Colors.grey.shade400),
-                    borderRadius: const BorderRadius.only(
-                      topRight: Radius.circular(AppTheme.borderRadius),
-                      bottomRight: Radius.circular(AppTheme.borderRadius),
+                    borderRadius: BorderRadius.only(
+                      topRight: Radius.circular(AppTheme.borderRadius.r),
+                      bottomRight: Radius.circular(AppTheme.borderRadius.r),
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(Icons.access_time,
-                          color: effectiveThemeColor, size: 20),
-                      const SizedBox(width: 8),
+                          color: effectiveThemeColor, size: 20.sp),
+                      SizedBox(width: 8.w),
                       Text(
                         effectiveTimeFormat.format(dateTime),
                         style: TextStyle(
                           fontFamily: AppTheme.fontFamily,
-                          fontSize: 14,
+                          fontSize: 14.sp,
                           color: Theme.of(context).textTheme.bodyMedium?.color,
                         ),
                       ),
@@ -137,19 +138,22 @@ class DateTimePickerField extends StatelessWidget {
           ],
         ),
         if (showCurrentTimeButton) ...[
-          const SizedBox(height: 8),
+          SizedBox(height: 8.h),
           ElevatedButton.icon(
             onPressed: onCurrentTimePressed,
-            icon: const Icon(Icons.access_time, size: 18),
-            label: const Text(AppConstants.currentTimeButtonText),
+            icon: Icon(Icons.access_time, size: 18.sp),
+            label: Text(
+              AppConstants.currentTimeButtonText,
+              style: TextStyle(fontSize: 14.sp),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor:
                   effectiveThemeColor.withAlpha((255 * 0.1).toInt()),
               foregroundColor: effectiveThemeColor,
               elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 12),
+              padding: EdgeInsets.symmetric(vertical: 12.h),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppTheme.borderRadius),
+                borderRadius: BorderRadius.circular(AppTheme.borderRadius.r),
               ),
             ),
           ),

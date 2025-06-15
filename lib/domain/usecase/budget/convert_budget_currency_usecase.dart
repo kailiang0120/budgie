@@ -50,6 +50,8 @@ class ConvertBudgetCurrencyUseCase {
       return budget;
     } catch (e) {
       debugPrint('Error checking/converting budget currency: $e');
+      // Reset the conversion flag in case of error to prevent deadlock
+      _isConvertingCurrency = false;
       // Don't rethrow - this is a background operation
       return null;
     }
@@ -106,18 +108,22 @@ class ConvertBudgetCurrencyUseCase {
             'Converted category "$categoryId": Budget ${categoryBudget.budget} $oldCurrency → $convertedBudget $newCurrency');
       }
 
-      // Convert total and left amounts
+      // Convert total, left, and saving amounts
       final convertedTotal = await _currencyConversionService.convertCurrency(
           budget.total, oldCurrency, newCurrency);
 
       final convertedLeft = await _currencyConversionService.convertCurrency(
           budget.left, oldCurrency, newCurrency);
 
+      final convertedSaving = await _currencyConversionService.convertCurrency(
+          budget.saving, oldCurrency, newCurrency);
+
       // Create the new budget with converted values
       final convertedBudget = Budget(
         total: convertedTotal,
         left: convertedLeft,
         categories: newCategories,
+        saving: convertedSaving,
         currency: newCurrency,
       );
 
@@ -125,6 +131,8 @@ class ConvertBudgetCurrencyUseCase {
           'Converted total budget: ${budget.total} $oldCurrency → ${convertedBudget.total} $newCurrency');
       print(
           'Converted left budget: ${budget.left} $oldCurrency → ${convertedBudget.left} $newCurrency');
+      print(
+          'Converted saving: ${budget.saving} $oldCurrency → ${convertedBudget.saving} $newCurrency');
 
       // Save the converted budget to Firebase
       print('Saving converted budget to Firebase with currency: $newCurrency');

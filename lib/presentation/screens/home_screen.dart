@@ -1,5 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
 import '../viewmodels/expenses_viewmodel.dart';
@@ -157,37 +158,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (budget == null) {
           // Show empty budget card with call to action
           return Card(
-            elevation: 4,
+            elevation: 4.r,
             shadowColor: Colors.black.withAlpha((255 * 0.3).toInt()),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.r)),
             child: InkWell(
               onTap: _navigateToBudgetScreen,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.r),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.all(20.w),
                 child: Column(
                   children: [
                     Icon(
                       Icons.account_balance_wallet_outlined,
-                      size: 40,
+                      size: 40.sp,
                       color: themeColor.withAlpha((255 * 0.5).toInt()),
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
+                    SizedBox(height: 12.h),
+                    Text(
                       'Set Budget',
                       style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 20.sp,
                         color: Colors.grey,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8.h),
                     Text(
                       'Tap here to set your monthly budget',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 16.sp,
                         color: Colors.grey[500],
                       ),
                     ),
@@ -213,10 +213,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 : Colors.green.shade700;
 
         return Card(
-          elevation: 8,
+          elevation: 8.r,
           shadowColor: Colors.black.withAlpha((255 * 0.3).toInt()),
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
           child: InkWell(
             onTap: _showDetailedBudget
                 ? null // Disable tap when already expanded
@@ -225,12 +225,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       _showDetailedBudget = true;
                     });
                   },
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(16.r),
             child: AnimatedContainer(
               duration: _animationDuration,
               curve: _animationCurve,
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(20.w),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -238,67 +238,66 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(10),
+                        padding: EdgeInsets.all(10.w),
                         decoration: BoxDecoration(
                           color: themeColor.withAlpha((255 * 0.1).toInt()),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12.r),
                         ),
                         child: Icon(
                           Icons.account_balance_wallet,
-                          size: 28,
+                          size: 28.sp,
                           color: themeColor,
                         ),
                       ),
-                      const SizedBox(width: 16),
+                      SizedBox(width: 16.w),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Total Budget',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 16.sp,
                               color: Colors.grey,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4.h),
                           Text(
                             '$currencySymbol${budget.total.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              color: Colors.grey,
                             ),
                           ),
                         ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
-                  const Text(
+                  SizedBox(height: 20.h),
+                  Text(
                     'Amount left for this month',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 14.sp,
                       color: Colors.grey,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8.h),
                   Row(
                     children: [
                       Expanded(
                         child: Text(
                           '$currencySymbol${remaining.toStringAsFixed(2)}',
                           style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 16.sp,
                             color: statusColor,
                           ),
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 10.w, vertical: 6.h),
                         decoration: BoxDecoration(
                           color: statusColor.withAlpha((255 * 0.1).toInt()),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12.r),
                         ),
                         child: Text(
                           isNegative
@@ -307,37 +306,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   ? 'Low Budget'
                                   : 'Budget Healthy',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 12.sp,
                             color: statusColor,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  SizedBox(height: 12.h),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(8.r),
                     child: LinearProgressIndicator(
                       value: percentage.clamp(0, 1).toDouble(),
-                      minHeight: 8,
+                      minHeight: 8.h,
                       backgroundColor: Colors.grey.shade200,
                       valueColor: AlwaysStoppedAnimation<Color>(statusColor),
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  SizedBox(height: 8.h),
                   Align(
                     alignment: Alignment.centerRight,
                     child: Text(
                       'Used ${((1 - percentage) * 100).toStringAsFixed(1)}%',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 12.sp,
                         color: Colors.grey[600],
                       ),
                     ),
                   ),
                   if (!_showDetailedBudget) ...[
-                    const SizedBox(height: 12),
+                    SizedBox(height: 12.h),
                     Align(
                       alignment: Alignment.center,
                       child: TextButton.icon(
@@ -346,7 +344,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             _showDetailedBudget = true;
                           });
                         },
-                        icon: const Icon(Icons.expand_more, size: 20),
+                        icon: Icon(Icons.expand_more, size: 20.sp),
                         label: const Text('Show more'),
                         style: TextButton.styleFrom(
                           foregroundColor: themeColor,
@@ -363,17 +361,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ? Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const SizedBox(height: 16),
+                              SizedBox(height: 16.h),
                               const Divider(),
-                              const SizedBox(height: 16),
+                              SizedBox(height: 16.h),
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Categories',
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 16.sp,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -383,11 +381,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              SizedBox(height: 8.h),
                               ..._buildCategoryList(budget),
 
                               // Show less button
-                              const SizedBox(height: 8),
+                              SizedBox(height: 8.h),
                               Align(
                                 alignment: Alignment.center,
                                 child: TextButton.icon(
@@ -396,7 +394,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       _showDetailedBudget = false;
                                     });
                                   },
-                                  icon: const Icon(Icons.expand_less, size: 20),
+                                  icon: Icon(Icons.expand_less, size: 20.sp),
                                   label: const Text('Show less'),
                                   style: TextButton.styleFrom(
                                     foregroundColor: themeColor,
@@ -459,22 +457,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               : Colors.green.shade700;
 
       return Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: EdgeInsets.only(bottom: 12.h),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: EdgeInsets.all(8.w),
               decoration: BoxDecoration(
                 color: categoryColor.withAlpha((255 * 0.1).toInt()),
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(10.r),
               ),
               child: Icon(
                 categoryIcon,
-                size: 18,
+                size: 18.sp,
                 color: categoryColor,
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: 12.w),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -484,38 +482,38 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     children: [
                       Text(
                         categoryName,
-                        style: const TextStyle(
-                          fontSize: 14,
+                        style: TextStyle(
+                          fontSize: 14.sp,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       Text(
                         '$currencySymbol${catBudget.left.toStringAsFixed(0)}',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 14.sp,
                           fontWeight: FontWeight.w500,
                           color: statusColor,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  SizedBox(height: 6.h),
                   Stack(
                     children: [
                       Container(
-                        height: 6,
+                        height: 6.h,
                         decoration: BoxDecoration(
                           color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(3),
+                          borderRadius: BorderRadius.circular(3.r),
                         ),
                       ),
                       FractionallySizedBox(
                         widthFactor: percentage,
                         child: Container(
-                          height: 6,
+                          height: 6.h,
                           decoration: BoxDecoration(
                             color: statusColor,
-                            borderRadius: BorderRadius.circular(3),
+                            borderRadius: BorderRadius.circular(3.r),
                           ),
                         ),
                       ),
@@ -569,11 +567,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      extendBody: true,
       appBar: AppBar(
-        title: const Text('Home'),
-        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         automaticallyImplyLeading: false,
+        title: Text(
+          'Home',
+          style:
+              TextStyle(color: Theme.of(context).textTheme.titleLarge?.color),
+        ),
+        centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(1.h),
+          child: Container(
+            color: Theme.of(context).dividerColor,
+            height: 0.5.h,
+          ),
+        ),
       ),
 
       body: isLoading
@@ -590,15 +600,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               },
               child: CustomScrollView(
                 slivers: [
-                  const SliverPadding(
-                    padding: EdgeInsets.only(top: 16.0),
-                    sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
+                  SliverPadding(
+                    padding: EdgeInsets.only(top: 16.h),
+                    sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
                   ),
 
                   // Month/day selector row (moved to top)
                   SliverPadding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
                     sliver: SliverToBoxAdapter(
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -613,22 +623,22 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               showDaySelection: _filterByDay,
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          SizedBox(width: 8.w),
                           // Filter toggle button
                           Material(
                             color: Colors.transparent,
                             child: InkWell(
                               onTap: _toggleFilterMode,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(12.r),
                               child: Container(
-                                constraints: const BoxConstraints(
-                                    minHeight: 45, minWidth: 45),
+                                constraints: BoxConstraints(
+                                    minHeight: 45.h, minWidth: 45.w),
                                 decoration: BoxDecoration(
                                   color: Theme.of(context)
                                       .colorScheme
                                       .primary
                                       .withAlpha((255 * 0.1).toInt()),
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(12.r),
                                   border: Border.all(
                                     color: Theme.of(context)
                                         .colorScheme
@@ -643,7 +653,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         : Icons.calendar_month,
                                     color:
                                         Theme.of(context).colorScheme.primary,
-                                    size: 20,
+                                    size: 20.sp,
                                   ),
                                 ),
                               ),
@@ -656,8 +666,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                   // Budget Card
                   SliverPadding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
+                    padding:
+                        EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
                     sliver: SliverToBoxAdapter(
                       child: _buildBudgetCard(),
                     ),
@@ -665,12 +675,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                   // Expense list
                   expenses.isEmpty
-                      ? const SliverPadding(
-                          padding: EdgeInsets.all(32.0),
-                          sliver: SliverToBoxAdapter(
+                      ? SliverPadding(
+                          padding: EdgeInsets.all(32.w),
+                          sliver: const SliverToBoxAdapter(
                             child: Center(
                               child: Text(
-                                'No expenses for this period. Add your first expense by tapping the + button below',
+                                'Add your first expense by tapping the + button below',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(color: Colors.grey),
                               ),
@@ -720,8 +730,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         ),
 
                   // Padding at bottom so FAB + NavBar don't cover last card
-                  const SliverPadding(
-                    padding: EdgeInsets.only(bottom: 90),
+                  SliverPadding(
+                    padding: EdgeInsets.only(bottom: 90.h),
                     sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
                   ),
                 ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import '../../domain/entities/expense.dart';
 import '../../domain/entities/category.dart';
@@ -54,9 +55,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   // Payment method mapping
   final Map<String, PaymentMethod> _paymentMethodMap = {
-    'Credit Card': PaymentMethod.creditCard,
+    'Card': PaymentMethod.card,
     'Cash': PaymentMethod.cash,
-    'e-Wallet': PaymentMethod.eWallet,
+    'E-Wallet': PaymentMethod.eWallet,
+    'Bank Transfer': PaymentMethod.bankTransfer,
+    'Other': PaymentMethod.other,
   };
 
   @override
@@ -239,10 +242,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ),
         centerTitle: true,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
+          preferredSize: Size.fromHeight(1.h),
           child: Divider(
-            height: 1,
-            thickness: 1,
+            height: 1.h,
+            thickness: 1.h,
             color: Theme.of(context).dividerColor,
           ),
         ),
@@ -251,7 +254,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -268,13 +271,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     },
                   ),
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 24.h),
 
                 Row(
                   children: [
                     Container(
-                      width: 100,
-                      margin: const EdgeInsets.only(right: 8),
+                      width: 100.w,
+                      margin: EdgeInsets.only(right: 8.w),
                       child: ValueListenableBuilder<String>(
                         valueListenable: _currency,
                         builder: (context, currency, _) {
@@ -309,7 +312,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
 
                 CustomTextField(
                   controller: _remarkController,
@@ -317,7 +320,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   prefixIcon: Icons.note,
                   isRequired: true,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
 
                 ValueListenableBuilder<DateTime>(
                   valueListenable: _selectedDateTime,
@@ -334,7 +337,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     );
                   },
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
 
                 ValueListenableBuilder<String>(
                   valueListenable: _selectedPaymentMethod,
@@ -353,7 +356,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     );
                   },
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16.h),
 
                 // Recurring expense configuration
                 ValueListenableBuilder<RecurringFrequency>(
@@ -394,60 +397,60 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     );
                   },
                 ),
-                const SizedBox(height: 24),
+                SizedBox(height: 24.h),
 
                 // Submit button - Square with corner radius
                 SizedBox(
                   width: double.infinity,
-                  height: 56, // Square-ish height
+                  height: 56.h, // Square-ish height
                   child: ElevatedButton(
                     onPressed: _isSubmitting ? null : _handleSubmit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 16,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.w,
+                        vertical: 16.h,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius:
-                            BorderRadius.circular(16.0), // Corner radius
+                            BorderRadius.circular(16.r), // Corner radius
                       ),
-                      elevation: 2,
+                      elevation: 2.r,
                     ),
                     child: _isSubmitting
-                        ? const Row(
+                        ? Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               SizedBox(
-                                width: 20,
-                                height: 20,
+                                width: 20.w,
+                                height: 20.h,
                                 child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                                  strokeWidth: 2.w,
                                   color: Colors.white,
                                 ),
                               ),
-                              SizedBox(width: 12),
+                              SizedBox(width: 12.w),
                               Text(
                                 AppConstants.addingText,
                                 style: TextStyle(
                                   fontFamily: AppTheme.fontFamily,
-                                  fontSize: 16,
+                                  fontSize: 16.sp,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
                                 ),
                               ),
                             ],
                           )
-                        : const Row(
+                        : Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.add_rounded, size: 22),
-                              SizedBox(width: 8),
+                              Icon(Icons.add_rounded, size: 22.sp),
+                              SizedBox(width: 8.w),
                               Text(
                                 'Add New Expenses',
                                 style: TextStyle(
                                   fontFamily: AppTheme.fontFamily,
-                                  fontSize: 16,
+                                  fontSize: 16.sp,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,
                                 ),

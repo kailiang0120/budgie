@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 
 /// A widget to display the current budget month
@@ -22,10 +23,10 @@ class MonthDisplay extends StatelessWidget {
     final String dateFormat = showDay ? 'dd MMMM yyyy' : 'MMMM yyyy';
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 16.w),
       decoration: BoxDecoration(
         color: effectiveColor.withAlpha((255 * 0.1).toInt()),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
         border:
             Border.all(color: effectiveColor.withAlpha((255 * 0.3).toInt())),
       ),
@@ -35,14 +36,14 @@ class MonthDisplay extends StatelessWidget {
           Icon(
             Icons.calendar_today,
             color: effectiveColor,
-            size: 20,
+            size: 20.sp,
           ),
-          const SizedBox(width: 12),
+          SizedBox(width: 12.w),
           Flexible(
             child: Text(
               '$prefix ${DateFormat(dateFormat).format(date)}',
               style: TextStyle(
-                fontSize: 15,
+                fontSize: 15.sp,
                 fontWeight: FontWeight.normal,
                 color: effectiveColor,
               ),

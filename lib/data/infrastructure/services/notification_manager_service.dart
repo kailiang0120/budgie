@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
 import 'package:flutter_background/flutter_background.dart';
 import 'package:notifications/notifications.dart';
 import 'dart:async';
@@ -63,7 +63,7 @@ class NotificationManagerService {
       await _setupNotificationListener();
 
       // Auto-start if user has enabled notifications
-      await _checkAndStartIfEnabled();
+      // await _checkAndStartIfEnabled();
 
       debugPrint('✅ NotificationManagerService: Initialization completed');
     } catch (e, stackTrace) {
@@ -289,23 +289,6 @@ class NotificationManagerService {
       }
     } catch (e) {
       debugPrint('❌ NotificationManagerService: Listener setup failed: $e');
-    }
-  }
-
-  Future<void> _checkAndStartIfEnabled() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    try {
-      final settingsService = SettingsService.instance;
-      if (settingsService != null && settingsService.allowNotification) {
-        final hasPermissions = await _permissionHandler.hasAllPermissions();
-        if (hasPermissions) {
-          await startListening();
-        }
-      }
-    } catch (e) {
-      debugPrint('❌ NotificationManagerService: Auto-start check failed: $e');
     }
   }
 

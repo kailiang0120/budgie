@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
 
-/// 自定义文本输入字段组件
+/// 自定义文本输入字段组件 - Responsive Design
 class CustomTextField extends StatelessWidget {
   /// 控制器
   final TextEditingController? controller;
@@ -102,22 +103,26 @@ class CustomTextField extends StatelessWidget {
         helperText: helperText,
         errorText: errorText,
         prefixText: prefixText,
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20.sp) : null,
         suffixText: suffixText,
-        suffixIcon: suffixIcon != null ? Icon(suffixIcon) : null,
+        suffixIcon: suffixIcon != null ? Icon(suffixIcon, size: 20.sp) : null,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(borderRadius),
+          borderRadius: BorderRadius.circular(borderRadius.r),
         ),
         filled: true,
         fillColor: Theme.of(context).cardColor,
         labelStyle: TextStyle(
           color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
+          fontSize: 14.sp,
         ),
         hintStyle: TextStyle(
           color: isDarkMode ? Colors.grey[400] : Colors.grey[500],
+          fontSize: 14.sp,
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: 16.w,
+          vertical: 16.h,
+        ),
       ),
       keyboardType: isMultiline ? TextInputType.multiline : keyboardType,
       obscureText: isPassword,
@@ -133,7 +138,7 @@ class CustomTextField extends StatelessWidget {
               : null),
       style: TextStyle(
         fontFamily: AppTheme.fontFamily,
-        fontSize: 16,
+        fontSize: 16.sp,
         color: Theme.of(context).textTheme.bodyMedium?.color,
       ),
     );

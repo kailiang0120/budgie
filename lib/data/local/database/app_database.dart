@@ -33,6 +33,7 @@ class Budgets extends Table {
   RealColumn get total => real()();
   RealColumn get left => real()();
   TextColumn get categoriesJson => text()();
+  RealColumn get saving => real().withDefault(const Constant(0.0))();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   DateTimeColumn get lastModified => dateTime()();
 
@@ -100,11 +101,23 @@ class Users extends Table {
   BoolColumn get autoBudget => boolean().withDefault(const Constant(false))();
   BoolColumn get improveAccuracy =>
       boolean().withDefault(const Constant(false))();
+  BoolColumn get automaticRebalanceSuggestions =>
+      boolean().withDefault(const Constant(false))();
   DateTimeColumn get lastModified => dateTime()();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column> get primaryKey => {id};
+}
+
+/// Budget suggestions table for storing AI-generated recommendations
+class BudgetSuggestions extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get monthId => text()();
+  TextColumn get userId => text()();
+  TextColumn get suggestions => text()(); // Stores the raw text from the AI
+  DateTimeColumn get timestamp => dateTime()();
+  BoolColumn get isRead => boolean().withDefault(const Constant(false))();
 }
 
 /// Create database connection
@@ -123,13 +136,14 @@ LazyDatabase _openConnection() {
   SyncQueue,
   RecurringExpenses,
   Users,
-  ExchangeRates
+  ExchangeRates,
+  BudgetSuggestions,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration {
@@ -153,9 +167,33 @@ class AppDatabase extends _$AppDatabase {
               expenses, expenses.recurringExpenseId as GeneratedColumn<Object>);
         }
         if (from <= 3 && to >= 4) {
-          // Add exchange rates table - skip for now and add it in onCreate
-          // This table will be created for new installations automatically
-          // For existing installations, we'll create it when we generate the database
+          // Add exchange rates table for currency conversion
+          await m.createTable(exchangeRates);
+        }
+        if (from <= 4 && to >= 5) {
+          // Add saving field to budgets table with a safe default
+          // First, check if the column already exists
+          final tableInfo =
+              await m.database.customSelect('PRAGMA table_info(budgets)').get();
+          final hasSavingColumn =
+              tableInfo.any((row) => row.data['name'] == 'saving');
+
+          if (!hasSavingColumn) {
+            await m.addColumn(
+                budgets, budgets.saving as GeneratedColumn<Object>);
+          }
+        }
+        if (from <= 5 && to >= 6) {
+          // Add table for budget suggestions and new user setting
+          await m.createTable(budgetSuggestions);
+          final tableInfo =
+              await m.database.customSelect('PRAGMA table_info(users)').get();
+          final hasColumn = tableInfo.any(
+              (row) => row.data['name'] == 'automatic_rebalance_suggestions');
+          if (!hasColumn) {
+            await m.addColumn(users,
+                users.automaticRebalanceSuggestions as GeneratedColumn<Object>);
+          }
         }
       },
     );

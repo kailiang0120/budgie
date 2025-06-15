@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../viewmodels/auth_viewmodel.dart';
@@ -54,32 +55,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Theme.of(context).cardColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
       ),
       builder: (context) => Container(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(20.w),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 40,
-              height: 4,
+              width: 40.w,
+              height: 4.h,
               decoration: BoxDecoration(
                 color: Theme.of(context).dividerColor,
-                borderRadius: BorderRadius.circular(2),
+                borderRadius: BorderRadius.circular(2.r),
               ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20.h),
             Text(
               'Choose Profile Photo',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.bold,
                 color: Theme.of(context).textTheme.titleLarge?.color,
               ),
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20.h),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -131,7 +132,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            SizedBox(height: 20.h),
           ],
         ),
       ),
@@ -148,24 +149,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         children: [
           Container(
-            width: 60,
-            height: 60,
+            width: 60.w,
+            height: 60.h,
             decoration: BoxDecoration(
               color:
                   Theme.of(context).primaryColor.withAlpha((255 * 0.1).round()),
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: BorderRadius.circular(15.r),
             ),
             child: Icon(
               icon,
-              size: 28,
+              size: 28.sp,
               color: Theme.of(context).primaryColor,
             ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8.h),
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 12.sp,
               color: Theme.of(context).textTheme.bodyMedium?.color,
             ),
           ),
@@ -181,7 +182,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isGuest = viewModel.isGuestUser;
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: EdgeInsets.all(24.w),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -191,9 +192,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Colors.transparent,
           ],
         ),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(30),
-          bottomRight: Radius.circular(30),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30.r),
+          bottomRight: Radius.circular(30.r),
         ),
       ),
       child: Column(
@@ -206,13 +207,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withAlpha((255 * 0.1).round()),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
+                      blurRadius: 20.r,
+                      offset: Offset(0, 10.h),
                     ),
                   ],
                 ),
                 child: CircleAvatar(
-                  radius: 60,
+                  radius: 60.r,
                   backgroundColor: themeViewModel.isDarkMode
                       ? Colors.grey[800]
                       : Colors.grey[200],
@@ -230,7 +231,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           (user?.photoUrl == null || user!.photoUrl!.isEmpty))
                       ? Icon(
                           Icons.person,
-                          size: 60,
+                          size: 60.sp,
                           color: themeViewModel.isDarkMode
                               ? Colors.grey[500]
                               : Colors.grey[400],
@@ -245,40 +246,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: GestureDetector(
                     onTap: _pickImage,
                     child: Container(
-                      width: 36,
-                      height: 36,
+                      width: 36.w,
+                      height: 36.h,
                       decoration: BoxDecoration(
                         color: Theme.of(context).primaryColor,
                         shape: BoxShape.circle,
                         border: Border.all(
                           color: Theme.of(context).scaffoldBackgroundColor,
-                          width: 2,
+                          width: 2.w,
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.camera_alt,
                         color: Colors.white,
-                        size: 18,
+                        size: 18.sp,
                       ),
                     ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: 20.h),
           if (_isEditingProfile && !isGuest)
             Container(
-              width: 250,
+              width: 250.w,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(15.r),
                 color: themeViewModel.isDarkMode
                     ? Theme.of(context).cardColor
                     : Colors.white.withAlpha((255 * 0.8).round()),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withAlpha((255 * 0.05).round()),
-                    blurRadius: 10,
-                    offset: const Offset(0, 5),
+                    blurRadius: 10.r,
+                    offset: Offset(0, 5.h),
                   ),
                 ],
               ),
@@ -286,7 +287,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 controller: _displayNameController,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 24.sp,
                   fontWeight: FontWeight.bold,
                   color: Theme.of(context).textTheme.titleLarge?.color,
                 ),
@@ -296,14 +297,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: Theme.of(context).hintColor,
                   ),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(15),
+                    borderRadius: BorderRadius.circular(15.r),
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
                   fillColor: Colors.transparent,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 12.h,
                   ),
                 ),
               ),
@@ -313,17 +314,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               isGuest ? 'Guest User' : (user?.displayName ?? 'User'),
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 24.sp,
                 fontWeight: FontWeight.bold,
                 color: Theme.of(context).textTheme.titleLarge?.color,
               ),
             ),
-          const SizedBox(height: 8),
+          SizedBox(height: 8.h),
           Text(
             isGuest ? 'Signed in as guest' : (user?.email ?? ''),
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 16.sp,
               color: isGuest
                   ? Colors.amber.shade800
                   : Theme.of(context).textTheme.bodyMedium?.color,
@@ -674,7 +675,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Text(
                             'Guest Account',
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 18.sp,
                               fontWeight: FontWeight.bold,
                               color:
                                   Theme.of(context).textTheme.titleLarge?.color,
@@ -687,7 +688,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       'You are currently using a guest account. Your data is stored locally and will be lost if you uninstall the app or clear app data.',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 14.sp,
                         color: Theme.of(context).textTheme.bodyMedium?.color,
                         height: 1.4,
                       ),
@@ -721,7 +722,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: Text(
                                   text,
                                   style: TextStyle(
-                                    fontSize: 13,
+                                    fontSize: 13.sp,
                                     color: Colors.green.shade700,
                                   ),
                                 ),
@@ -781,10 +782,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           Colors.white),
                                     ),
                                   )
-                                : const Text(
+                                : Text(
                                     'Upgrade Account',
                                     style: TextStyle(
-                                      fontSize: 16,
+                                      fontSize: 16.sp,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -801,7 +802,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 child: Text(
                                   'Or connect with',
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: 14.sp,
                                     color: Theme.of(context)
                                         .textTheme
                                         .bodySmall

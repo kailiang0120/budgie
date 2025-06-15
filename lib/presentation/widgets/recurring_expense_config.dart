@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../domain/entities/recurring_expense.dart';
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
@@ -65,23 +66,23 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(20.r),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(16.w),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Recurring Settings',
               style: TextStyle(
                 fontFamily: AppTheme.fontFamily,
-                fontSize: 18,
+                fontSize: 18.sp,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.primaryColor,
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16.h),
 
             // Frequency selection
             CustomDropdownField<String>(
@@ -127,7 +128,7 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
 
             // Conditional fields based on frequency
             if (_selectedFrequency == RecurringFrequency.weekly) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: 16.h),
               CustomDropdownField<String>(
                 value: _selectedDayOfWeek?.displayName ??
                     AppConstants.daysOfWeek.first,
@@ -148,7 +149,7 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
             ],
 
             if (_selectedFrequency == RecurringFrequency.monthly) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: 16.h),
               CustomDropdownField<String>(
                 value: _selectedDayOfMonth?.toString() ?? '1',
                 items: AppConstants.getDaysOfMonth(),
@@ -169,16 +170,16 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
 
             // End date selection (optional)
             if (_selectedFrequency != RecurringFrequency.oneTime) ...[
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: 16.h),
+              Text(
                 'End Date (Optional)',
                 style: TextStyle(
                   fontFamily: AppTheme.fontFamily,
-                  fontSize: 14,
+                  fontSize: 14.sp,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 8),
+              SizedBox(height: 8.h),
               if (_selectedEndDate != null)
                 DateTimePickerField(
                   dateTime: _selectedEndDate!,
@@ -217,9 +218,9 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
                   icon: const Icon(Icons.calendar_today),
                   label: const Text('Set End Date'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 12,
-                      horizontal: 16,
+                    padding: EdgeInsets.symmetric(
+                      vertical: 12.h,
+                      horizontal: 16.w,
                     ),
                     backgroundColor:
                         AppTheme.primaryColor.withValues(alpha: 0.1),
@@ -228,14 +229,14 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
                   ),
                 ),
               if (_selectedEndDate != null) ...[
-                const SizedBox(height: 8),
+                SizedBox(height: 8.h),
                 Row(
                   children: [
                     Expanded(
                       child: Text(
                         'Recurring until ${_formatDate(_selectedEndDate!)}',
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: TextStyle(
+                          fontSize: 12.sp,
                           color: Colors.grey,
                         ),
                       ),
@@ -256,26 +257,26 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
 
             // Help text
             if (_selectedFrequency != RecurringFrequency.oneTime) ...[
-              const SizedBox(height: 16),
+              SizedBox(height: 16.h),
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: EdgeInsets.all(8.w),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16.r),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.info_outline,
-                      size: 16,
+                      size: 16.sp,
                       color: AppTheme.primaryColor,
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8.w),
                     Expanded(
                       child: Text(
                         _getHelpText(),
-                        style: const TextStyle(
-                          fontSize: 12,
+                        style: TextStyle(
+                          fontSize: 12.sp,
                           color: AppTheme.primaryColor,
                           fontFamily: AppTheme.fontFamily,
                         ),

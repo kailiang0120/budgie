@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 // 全局路由观察者，用于监听路由变化
 final fabRouteObserver = RouteObserver<PageRoute>();
@@ -141,7 +142,7 @@ class _AnimatedFloatButtonState extends State<AnimatedFloatButton>
         backgroundColor: widget.backgroundColor,
         shape: widget.shape,
         enableFeedback: widget.enableFeedback,
-        elevation: widget.elevation,
+        elevation: widget.elevation ?? 6.0.r,
         child: widget.child,
       ),
     );

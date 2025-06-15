@@ -1,148 +1,169 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'dart:io';
 
 import 'permission_handler_service.dart';
 import 'notification_manager_service.dart';
+import 'settings_service.dart';
 
-/// Comprehensive service for managing notification permissions with user-friendly workflows
-/// Provides high-level methods that handle the complete permission flow including user guidance
+/// Comprehensive service for managing notification permissions with user-friendly workflows.
+/// Provides high-level methods that handle the complete permission flow, including user guidance.
+/// This class is the single source of truth for enabling and disabling notification services.
 class NotificationPermissionService {
-  static final NotificationPermissionService _instance =
-      NotificationPermissionService._internal();
-  factory NotificationPermissionService() => _instance;
-  NotificationPermissionService._internal();
+  final PermissionHandlerService _permissionHandler;
+  final NotificationManagerService _notificationManager;
+  final SettingsService _settingsService;
 
-  final PermissionHandlerService _permissionHandler =
-      PermissionHandlerService();
-  late final NotificationManagerService _notificationManager;
+  /// Constructs a NotificationPermissionService with required dependencies.
+  NotificationPermissionService({
+    required PermissionHandlerService permissionHandler,
+    required NotificationManagerService notificationManager,
+    required SettingsService settingsService,
+  })  : _permissionHandler = permissionHandler,
+        _notificationManager = notificationManager,
+        _settingsService = settingsService;
 
-  /// Initialize the service with notification manager dependency
-  void initialize(NotificationManagerService notificationManager) {
-    _notificationManager = notificationManager;
-  }
-
-  /// Enable notifications with complete workflow and user guidance
+  /// Enables notifications with a complete, robust workflow and user guidance.
+  /// This is the primary entry point for turning on notification features.
   Future<NotificationPermissionResult> enableNotifications(
       BuildContext context) async {
     try {
       debugPrint(
-          '🔔 NotificationPermissionService: Starting enable workflow...');
+          '🔔 NotificationPermissionService: Starting robust enable workflow...');
 
-      // Step 1: Check if already enabled
-      final alreadyEnabled = await _permissionHandler.hasAllPermissions();
-      if (alreadyEnabled) {
-        await _notificationManager.startListening();
-        return NotificationPermissionResult.success(
-            'Notifications already enabled');
+      // Step 1: Verify the user's in-app setting. This is the master switch.
+      if (!_settingsService.allowNotification) {
+        debugPrint(
+            '⚠️ NotificationPermissionService: Aborting. User has not enabled notifications in app settings.');
+        return NotificationPermissionResult.cancelled(
+            'User has not enabled notifications in app settings.');
       }
 
-      // Step 2: Request basic notification permission
-      final basicGranted =
-          await _permissionHandler.requestNotificationPermission();
-      if (!basicGranted) {
+      // Step 2: Check if services are already running.
+      if (_notificationManager.isListening) {
+        debugPrint('✅ NotificationPermissionService: Already listening.');
+        return NotificationPermissionResult.success(
+            'Notifications already enabled and running.');
+      }
+
+      // Step 3: Request necessary OS-level permissions.
+      final permissionsGranted =
+          await _requestAllPermissionsWithGuidance(context);
+      if (!permissionsGranted) {
+        // If permissions were denied, update the setting to reflect this.
+        await _settingsService.updateNotificationSetting(false);
         return NotificationPermissionResult.denied(
-            'Basic notification permission denied');
+            'OS-level permissions were denied.');
       }
 
-      // Step 3: For Android, handle notification listener permission
-      if (Platform.isAndroid) {
-        final hasListenerPermission =
-            await _permissionHandler.hasNotificationListenerPermission();
+      // Step 4: All checks passed, initialize and start the service.
+      await _notificationManager.initialize();
+      await _notificationManager.startListening();
 
-        if (!hasListenerPermission) {
-          // Show explanation dialog
-          final shouldProceed = await _showListenerPermissionDialog(context);
-          if (!shouldProceed) {
-            return NotificationPermissionResult.cancelled(
-                'User cancelled listener permission');
-          }
-
-          // Open settings for user to grant permission
-          await _permissionHandler.requestNotificationListenerPermission();
-
-          // Show guidance
-          if (context.mounted) {
-            _showPermissionGuidance(context, isEnabling: true);
-          }
-
-          return NotificationPermissionResult.pending(
-              'Notification listener permission pending user action');
-        }
-      }
-
-      // Step 4: Start listening if all permissions are granted
-      final allGranted = await _permissionHandler.hasAllPermissions();
-      if (allGranted) {
-        await _notificationManager.startListening();
-        return NotificationPermissionResult.success(
-            'Notifications enabled successfully');
-      }
-
-      return NotificationPermissionResult.pending(
-          'Some permissions still pending');
-    } catch (e) {
+      debugPrint(
+          '✅ NotificationPermissionService: Enable workflow completed successfully.');
+      return NotificationPermissionResult.success(
+          'Notifications enabled successfully.');
+    } catch (e, stackTrace) {
       debugPrint(
           '❌ NotificationPermissionService: Error enabling notifications: $e');
+      debugPrint('📍 Stack trace: $stackTrace');
+      // Ensure setting is turned off on failure.
+      await _settingsService.updateNotificationSetting(false);
       return NotificationPermissionResult.error(
-          'Failed to enable notifications: $e');
+          'A critical error occurred while enabling notifications.');
     }
   }
 
-  /// Disable notifications with complete workflow and user guidance
+  /// Disables notifications and stops all related services.
   Future<NotificationPermissionResult> disableNotifications(
       BuildContext context) async {
     try {
       debugPrint(
           '🔔 NotificationPermissionService: Starting disable workflow...');
 
-      // Step 1: Stop notification listening
+      // Step 1: Stop the notification listening service immediately.
       await _notificationManager.stopListening();
 
-      // Step 2: For Android, offer to revoke system permissions
+      // Step 2: For Android, offer to guide the user to revoke system permissions for complete privacy.
       if (Platform.isAndroid) {
         final canRevoke =
             await _permissionHandler.canRevokeNotificationAccess();
-
         if (canRevoke && context.mounted) {
           final shouldRevoke = await _showRevokePermissionDialog(context);
           if (shouldRevoke) {
             await _permissionHandler
                 .requestRevokeNotificationListenerPermission();
-
             if (context.mounted) {
               _showPermissionGuidance(context, isEnabling: false);
             }
-
-            return NotificationPermissionResult.success(
-                'Notifications disabled, system permission revocation pending');
           }
         }
       }
 
+      debugPrint(
+          '✅ NotificationPermissionService: Disable workflow completed.');
       return NotificationPermissionResult.success(
-          'Notifications disabled successfully');
-    } catch (e) {
+          'Notifications disabled successfully.');
+    } catch (e, stackTrace) {
       debugPrint(
           '❌ NotificationPermissionService: Error disabling notifications: $e');
+      debugPrint('📍 Stack trace: $stackTrace');
       return NotificationPermissionResult.error(
-          'Failed to disable notifications: $e');
+          'An error occurred while disabling notifications.');
     }
   }
 
-  /// Check current permission status
+  /// Requests all necessary permissions with user-friendly dialogs for guidance.
+  Future<bool> _requestAllPermissionsWithGuidance(BuildContext context) async {
+    // Request basic notification permission first.
+    final basicGranted =
+        await _permissionHandler.requestNotificationPermission();
+    if (!basicGranted) {
+      debugPrint('❌ Basic notification permission denied by user.');
+      return false;
+    }
+
+    // For Android, handle the special notification listener permission.
+    if (Platform.isAndroid) {
+      final hasListenerPermission =
+          await _permissionHandler.hasNotificationListenerPermission();
+      if (!hasListenerPermission) {
+        if (!context.mounted) return false;
+        final shouldProceed = await _showListenerPermissionDialog(context);
+        if (!shouldProceed) {
+          debugPrint('❌ User cancelled the listener permission flow.');
+          return false;
+        }
+
+        // Open settings and provide guidance. We cannot await the result here.
+        await _permissionHandler.requestNotificationListenerPermission();
+        if (context.mounted) {
+          _showPermissionGuidance(context, isEnabling: true);
+        }
+        // The app must re-check permission status upon resuming.
+        // For this flow, we assume the user will grant it and proceed.
+      }
+    }
+
+    // Final check. In a real-world scenario, you might want to await user returning from settings.
+    return _permissionHandler.hasAllPermissions();
+  }
+
+  /// Check current permission status.
   Future<NotificationPermissionStatus> getPermissionStatus() async {
     try {
       final hasBasic = await _permissionHandler.hasNotificationPermission();
       final hasListener =
           await _permissionHandler.hasNotificationListenerPermission();
       final isListening = _notificationManager.isListening;
+      final isEnabledInSettings = _settingsService.allowNotification;
 
       return NotificationPermissionStatus(
         hasBasicPermission: hasBasic,
         hasListenerPermission: hasListener,
         isListening: isListening,
-        isFullyEnabled: hasBasic && hasListener && isListening,
+        isFullyEnabled:
+            isEnabledInSettings && hasBasic && hasListener && isListening,
       );
     } catch (e) {
       debugPrint('❌ NotificationPermissionService: Error checking status: $e');
@@ -155,7 +176,7 @@ class NotificationPermissionService {
     }
   }
 
-  // Private helper methods
+  // Private helper methods for UI dialogs
 
   Future<bool> _showListenerPermissionDialog(BuildContext context) async {
     return await showDialog<bool>(

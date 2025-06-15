@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
 import '../viewmodels/auth_viewmodel.dart';
 import '../widgets/auth_button.dart';
 import '../widgets/custom_text_field.dart';
+import '../widgets/responsive_logo.dart';
 import '../../core/constants/routes.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,6 +19,8 @@ class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<Offset> _panelAnimation;
+  late final Animation<double> _logoScaleAnimation;
+  late final Animation<double> _logoFadeAnimation;
   late AuthViewModel _authViewModel;
   bool _isLoading = false;
   bool _isGuestLoading = false;
@@ -33,13 +37,42 @@ class _LoginScreenState extends State<LoginScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(
+          milliseconds: 1000), // Longer duration to sync with hero transition
     );
+
     _panelAnimation = Tween<Offset>(
       begin: const Offset(0, 1), // start off‐screen below
       end: Offset.zero, // slide into place
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-    _controller.forward();
+    ).animate(CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.4, 1.0,
+            curve: Curves.easeOutCubic))); // Start after hero transition
+
+    // Minimal logo animation - let Hero handle most of the transition
+    _logoScaleAnimation = Tween<double>(
+      begin: 1.0, // No initial scaling to let Hero handle it
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.6, 1.0, curve: Curves.easeOut),
+    ));
+
+    _logoFadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.3, 0.7, curve: Curves.easeOut), // Sync with hero
+    ));
+
+    // Delay the animation start to let Hero transition complete first
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) {
+        _controller.forward();
+      }
+    });
+
     _authViewModel = Provider.of<AuthViewModel>(context, listen: false);
   }
 
@@ -68,28 +101,29 @@ class _LoginScreenState extends State<LoginScreen>
                 // Top half with the hero logo
                 Expanded(
                   flex: 3,
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Hero(
-                          tag: 'logo',
-                          child: ClipRRect(
-                            child: Container(
-                              width: size.width * 0.3,
-                              height: size.width * 0.37,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.rectangle,
-                                image: DecorationImage(
-                                  image: AssetImage(
-                                      'assets/images/budgie_logo.png'),
-                                  fit: BoxFit.cover,
+                  child: SafeArea(
+                    child: AnimatedBuilder(
+                      animation: _controller,
+                      builder: (context, child) {
+                        return Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Transform.scale(
+                                scale: _logoScaleAnimation.value,
+                                child: FadeTransition(
+                                  opacity: _logoFadeAnimation,
+                                  child: const ResponsiveLogo(
+                                    heroTag: 'logo',
+                                    logoSize: LogoSize.large,
+                                    showShadow: true,
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ),
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -101,15 +135,15 @@ class _LoginScreenState extends State<LoginScreen>
                     position: _panelAnimation,
                     child: Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 32,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24.w,
+                        vertical: 32.h,
                       ),
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         color: Color(0xFFFBFCF8),
                         borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(35),
-                          topRight: Radius.circular(35),
+                          topLeft: Radius.circular(35.r),
+                          topRight: Radius.circular(35.r),
                         ),
                       ),
                       child: _showEmailSignIn
@@ -130,48 +164,48 @@ class _LoginScreenState extends State<LoginScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
+        Text(
           'Sign in to continue',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontFamily: 'Lexend',
-            fontSize: 28,
+            fontSize: 28.sp,
             fontWeight: FontWeight.w300,
             color: Colors.black87,
           ),
         ),
-        const SizedBox(height: 24),
+        SizedBox(height: 24.h),
 
         // Apple Sign-in
         AuthButton(
           label: 'Sign in with Apple',
           leadingIcon: Image.asset(
             'assets/icons/apple_logo.png',
-            width: 24,
-            height: 24,
+            width: 24.w,
+            height: 24.h,
           ),
           backgroundColor: Colors.black,
           onPressed: () {
             // TODO: implement Apple auth
           },
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16.h),
 
         // Google Sign-in
         AuthButton(
           label: _isLoading ? 'Signing in...' : 'Sign in with Google',
           leadingIcon: _isLoading
-              ? const SizedBox(
-                  width: 24,
-                  height: 24,
+              ? SizedBox(
+                  width: 24.w,
+                  height: 24.h,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2,
+                    strokeWidth: 2.w,
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.black87),
                   ),
                 )
               : Image.asset(
                   'assets/icons/google_logo.png',
-                  width: 24,
+                  width: 24.w,
                 ),
           backgroundColor: Colors.white,
           textColor: Colors.black87,
@@ -179,14 +213,14 @@ class _LoginScreenState extends State<LoginScreen>
               ? () {}
               : _handleGoogleSignIn,
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16.h),
 
         // Email Sign-in
         AuthButton(
           label: 'Sign in with Email',
-          leadingIcon: const Icon(
+          leadingIcon: Icon(
             Icons.email_outlined,
-            size: 24,
+            size: 24.sp,
             color: Colors.white,
           ),
           backgroundColor: Colors.blue.shade700,
@@ -199,23 +233,23 @@ class _LoginScreenState extends State<LoginScreen>
                   });
                 },
         ),
-        const SizedBox(height: 16),
+        SizedBox(height: 16.h),
 
         // Guest Sign-in
         AuthButton(
           label: _isGuestLoading ? 'Signing in...' : 'Continue as Guest',
           leadingIcon: _isGuestLoading
-              ? const SizedBox(
-                  width: 24,
-                  height: 24,
+              ? SizedBox(
+                  width: 24.w,
+                  height: 24.h,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2,
+                    strokeWidth: 2.w,
                     valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
                   ),
                 )
-              : const Icon(
+              : Icon(
                   Icons.person_outline,
-                  size: 24,
+                  size: 24.sp,
                   color: Colors.white,
                 ),
           backgroundColor: Colors.grey.shade700,
@@ -228,11 +262,11 @@ class _LoginScreenState extends State<LoginScreen>
 
         TextButton(
           onPressed: () {},
-          child: const Text(
+          child: Text(
             '2025 Budgie',
             style: TextStyle(
               fontFamily: 'Lexend',
-              fontSize: 16,
+              fontSize: 16.sp,
               fontWeight: FontWeight.w400,
               color: Colors.black54,
             ),
@@ -260,22 +294,22 @@ class _LoginScreenState extends State<LoginScreen>
                     });
                   },
                 ),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Sign in with Email',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontFamily: 'Lexend',
-                      fontSize: 24,
+                      fontSize: 24.sp,
                       fontWeight: FontWeight.w300,
                       color: Colors.black87,
                     ),
                   ),
                 ),
-                const SizedBox(width: 48), // Balance the back button
+                SizedBox(width: 48.w), // Balance the back button
               ],
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 24.h),
 
             // Email field
             CustomTextField(
@@ -294,7 +328,7 @@ class _LoginScreenState extends State<LoginScreen>
                 return null;
               },
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16.h),
 
             // Password field
             CustomTextField(
@@ -313,7 +347,7 @@ class _LoginScreenState extends State<LoginScreen>
                 return null;
               },
             ),
-            const SizedBox(height: 24),
+            SizedBox(height: 24.h),
 
             // Sign in and Create Account buttons
             Row(
@@ -325,14 +359,14 @@ class _LoginScreenState extends State<LoginScreen>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue.shade700,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
                     ),
                     child: _isEmailSignInLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
+                        ? SizedBox(
+                            height: 20.h,
+                            width: 20.w,
                             child: CircularProgressIndicator(
-                              strokeWidth: 2,
+                              strokeWidth: 2.w,
                               valueColor:
                                   AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
@@ -340,7 +374,7 @@ class _LoginScreenState extends State<LoginScreen>
                         : const Text('Sign In'),
                   ),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: 16.w),
                 Expanded(
                   child: ElevatedButton(
                     onPressed:
@@ -348,7 +382,7 @@ class _LoginScreenState extends State<LoginScreen>
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey.shade800,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: EdgeInsets.symmetric(vertical: 12.h),
                     ),
                     child: const Text('Create Account'),
                   ),
@@ -357,7 +391,7 @@ class _LoginScreenState extends State<LoginScreen>
             ),
 
             Padding(
-              padding: const EdgeInsets.only(top: 16),
+              padding: EdgeInsets.only(top: 16.h),
               child: TextButton(
                 onPressed: () {
                   // TODO: Implement forgot password

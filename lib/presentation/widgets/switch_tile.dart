@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class SwitchTile extends StatelessWidget {
   final String title;
@@ -24,7 +25,7 @@ class SwitchTile extends StatelessWidget {
           title: Text(
             title,
             style: TextStyle(
-              fontSize: 16,
+              fontSize: 16.sp,
               color: enabled
                   ? Theme.of(context).textTheme.titleLarge?.color
                   : Theme.of(context).disabledColor,
@@ -34,6 +35,7 @@ class SwitchTile extends StatelessWidget {
               ? Text(
                   subtitle!,
                   style: TextStyle(
+                    fontSize: 12.sp,
                     color: enabled
                         ? Theme.of(context).textTheme.bodyMedium?.color
                         : Theme.of(context).disabledColor,
@@ -50,10 +52,10 @@ class SwitchTile extends StatelessWidget {
           enabled: enabled,
         ),
         Divider(
-          height: 1,
-          thickness: 1,
-          indent: 18,
-          endIndent: 25,
+          height: 1.h,
+          thickness: 1.h,
+          indent: 18.w,
+          endIndent: 25.w,
           color: Theme.of(context).dividerColor,
         ),
       ],

@@ -18,15 +18,17 @@ class SettingsService extends ChangeNotifier {
   bool _allowNotification = false;
   bool _autoBudget = false;
   bool _improveAccuracy = false;
+  bool _automaticRebalanceSuggestions = false;
 
   // Flag to prevent notification loops in tests
-  final bool _notifyListenersEnabled = false;
+  final bool _notifyListenersEnabled = true;
 
   String get currency => _currency;
   String get theme => _theme;
   bool get allowNotification => _allowNotification;
   bool get autoBudget => _autoBudget;
   bool get improveAccuracy => _improveAccuracy;
+  bool get automaticRebalanceSuggestions => _automaticRebalanceSuggestions;
 
   SettingsService({
     required LocalDataSource localDataSource,
@@ -47,6 +49,7 @@ class SettingsService extends ChangeNotifier {
           'allowNotification': _allowNotification,
           'autoBudget': _autoBudget,
           'improveAccuracy': _improveAccuracy,
+          'automaticRebalanceSuggestions': _automaticRebalanceSuggestions,
         },
       };
 
@@ -128,6 +131,11 @@ class SettingsService extends ChangeNotifier {
                     ? (userData['settings']
                         as Map<String, dynamic>)['improveAccuracy']
                     : userData['improveAccuracy'] ?? false,
+            'automaticRebalanceSuggestions': (userData['settings'] != null &&
+                    userData['settings'] is Map)
+                ? (userData['settings']
+                    as Map<String, dynamic>)['automaticRebalanceSuggestions']
+                : userData['automaticRebalanceSuggestions'] ?? false,
           },
         };
 
@@ -150,25 +158,71 @@ class SettingsService extends ChangeNotifier {
   }
 
   // Background sync with Firebase (non-blocking)
-  void _backgroundSyncWithFirebase(String userId) async {
+  Future<void> _backgroundSyncWithFirebase(String userId) async {
     try {
       final isConnected = await _connectivityService.isConnected;
       if (!isConnected) return;
 
+      debugPrint('🔧 SettingsService: Background sync with Firebase');
+
       final doc = await _firestore.collection('users').doc(userId).get();
-      final firebaseData = doc.data();
+      if (doc.exists && doc.data() != null) {
+        final userData = doc.data()!;
+        final lastModified = userData['updatedAt'] as Timestamp?;
 
-      if (firebaseData != null) {
-        // Compare timestamps or force sync (simplified approach: always sync from Firebase)
-        await _loadUserSettings(firebaseData);
-        await _localDataSource.saveUserSettings(userId, firebaseData);
-        await _localDataSource.markUserSettingsAsSynced(userId);
-        notifyListeners();
+        // Only sync if Firebase data is newer than what we have locally
+        if (lastModified != null) {
+          final firebaseTime = lastModified.toDate();
+          final now = DateTime.now();
 
-        debugPrint('🔧 SettingsService: Background sync completed');
+          // Only sync if Firebase data is not too old (within last 24 hours)
+          if (now.difference(firebaseTime).inHours < 24) {
+            await _loadUserSettings(userData);
+
+            // Save updated settings to local storage
+            final settingsForLocal = {
+              'currency': userData['currency'] ?? 'MYR',
+              'theme': userData['theme'] ?? 'light',
+              'settings': {
+                'allowNotification': (userData['settings'] != null &&
+                        userData['settings'] is Map)
+                    ? (userData['settings']
+                        as Map<String, dynamic>)['allowNotification']
+                    : userData['allowNotification'] ?? false,
+                'autoBudget': (userData['settings'] != null &&
+                        userData['settings'] is Map)
+                    ? (userData['settings']
+                        as Map<String, dynamic>)['autoBudget']
+                    : userData['autoBudget'] ?? false,
+                'improveAccuracy': (userData['settings'] != null &&
+                        userData['settings'] is Map)
+                    ? (userData['settings']
+                        as Map<String, dynamic>)['improveAccuracy']
+                    : userData['improveAccuracy'] ?? false,
+                'automaticRebalanceSuggestions':
+                    (userData['settings'] != null &&
+                            userData['settings'] is Map)
+                        ? (userData['settings'] as Map<String, dynamic>)[
+                            'automaticRebalanceSuggestions']
+                        : userData['automaticRebalanceSuggestions'] ?? false,
+              },
+            };
+
+            await _localDataSource.saveUserSettings(userId, settingsForLocal);
+            await _localDataSource.markUserSettingsAsSynced(userId);
+
+            // Notify listeners about the update
+            if (_notifyListenersEnabled) {
+              notifyListeners();
+            }
+
+            debugPrint('🔧 SettingsService: Background sync completed');
+          }
+        }
       }
     } catch (e) {
       debugPrint('🔧 SettingsService: Background sync failed: $e');
+      // Don't rethrow - this is a background operation
     }
   }
 
@@ -194,9 +248,13 @@ class SettingsService extends ChangeNotifier {
       _autoBudget = settings['autoBudget'] ?? userData['autoBudget'] ?? false;
       _improveAccuracy =
           settings['improveAccuracy'] ?? userData['improveAccuracy'] ?? false;
+      _automaticRebalanceSuggestions =
+          settings['automaticRebalanceSuggestions'] ??
+              userData['automaticRebalanceSuggestions'] ??
+              false;
 
       debugPrint(
-          '🔧 SettingsService: Loaded settings - currency=$_currency, theme=$_theme, allowNotification=$_allowNotification, autoBudget=$_autoBudget, improveAccuracy=$_improveAccuracy');
+          '🔧 SettingsService: Loaded settings - currency=$_currency, theme=$_theme, allowNotification=$_allowNotification, autoBudget=$_autoBudget, improveAccuracy=$_improveAccuracy, automaticRebalanceSuggestions=$_automaticRebalanceSuggestions');
     } catch (e) {
       debugPrint('🔧 SettingsService: Error loading user settings: $e');
       rethrow;
@@ -212,6 +270,7 @@ class SettingsService extends ChangeNotifier {
       const defaultAllowNotification = false;
       const defaultAutoBudget = false;
       const defaultImproveAccuracy = false;
+      const defaultAutomaticRebalanceSuggestions = false;
 
       final defaultSettings = {
         'currency': defaultCurrency,
@@ -220,6 +279,7 @@ class SettingsService extends ChangeNotifier {
           'allowNotification': defaultAllowNotification,
           'autoBudget': defaultAutoBudget,
           'improveAccuracy': defaultImproveAccuracy,
+          'automaticRebalanceSuggestions': defaultAutomaticRebalanceSuggestions,
         },
       };
 
@@ -236,6 +296,8 @@ class SettingsService extends ChangeNotifier {
             'allowNotification': defaultAllowNotification,
             'autoBudget': defaultAutoBudget,
             'improveAccuracy': defaultImproveAccuracy,
+            'automaticRebalanceSuggestions':
+                defaultAutomaticRebalanceSuggestions,
           },
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -250,6 +312,7 @@ class SettingsService extends ChangeNotifier {
       _allowNotification = defaultAllowNotification;
       _autoBudget = defaultAutoBudget;
       _improveAccuracy = defaultImproveAccuracy;
+      _automaticRebalanceSuggestions = defaultAutomaticRebalanceSuggestions;
 
       debugPrint(
           '🔧 SettingsService: Default settings created for user $userId');
@@ -292,6 +355,7 @@ class SettingsService extends ChangeNotifier {
           'allowNotification': _allowNotification,
           'autoBudget': _autoBudget,
           'improveAccuracy': _improveAccuracy,
+          'automaticRebalanceSuggestions': _automaticRebalanceSuggestions,
         },
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -312,9 +376,17 @@ class SettingsService extends ChangeNotifier {
         final oldCurrency = _currency;
         _currency = newCurrency;
 
-        // Save to local storage first
-        final settings = currentSettings;
-        settings['currency'] = newCurrency;
+        // Create settings object for saving
+        final settings = {
+          'currency': newCurrency,
+          'theme': _theme,
+          'settings': {
+            'allowNotification': _allowNotification,
+            'autoBudget': _autoBudget,
+            'improveAccuracy': _improveAccuracy,
+            'automaticRebalanceSuggestions': _automaticRebalanceSuggestions,
+          },
+        };
         await _localDataSource.saveUserSettings(user.uid, settings);
 
         // Try to sync with Firebase if connected
@@ -364,9 +436,17 @@ class SettingsService extends ChangeNotifier {
       if (user != null) {
         _theme = newTheme;
 
-        // Save to local storage first
-        final settings = currentSettings;
-        settings['theme'] = newTheme;
+        // Create settings object for saving
+        final settings = {
+          'currency': _currency,
+          'theme': newTheme,
+          'settings': {
+            'allowNotification': _allowNotification,
+            'autoBudget': _autoBudget,
+            'improveAccuracy': _improveAccuracy,
+            'automaticRebalanceSuggestions': _automaticRebalanceSuggestions,
+          },
+        };
         await _localDataSource.saveUserSettings(user.uid, settings);
 
         // Try to sync with Firebase if connected
@@ -393,8 +473,18 @@ class SettingsService extends ChangeNotifier {
       if (user != null) {
         _allowNotification = allowNotification;
 
-        // Save to local storage first
-        await _localDataSource.saveUserSettings(user.uid, currentSettings);
+        // Create settings object for saving
+        final settings = {
+          'currency': _currency,
+          'theme': _theme,
+          'settings': {
+            'allowNotification': allowNotification,
+            'autoBudget': _autoBudget,
+            'improveAccuracy': _improveAccuracy,
+            'automaticRebalanceSuggestions': _automaticRebalanceSuggestions,
+          },
+        };
+        await _localDataSource.saveUserSettings(user.uid, settings);
 
         // Try to sync with Firebase if connected
         final isConnected = await _connectivityService.isConnected;
@@ -404,6 +494,7 @@ class SettingsService extends ChangeNotifier {
               'allowNotification': allowNotification,
               'autoBudget': _autoBudget,
               'improveAccuracy': _improveAccuracy,
+              'automaticRebalanceSuggestions': _automaticRebalanceSuggestions,
             },
           }, SetOptions(merge: true));
 
@@ -423,10 +514,22 @@ class SettingsService extends ChangeNotifier {
     try {
       final user = _auth.currentUser;
       if (user != null) {
+        // Update both settings to keep them synchronized
         _autoBudget = autoBudget;
+        _automaticRebalanceSuggestions = autoBudget; // Keep in sync
 
-        // Save to local storage first
-        await _localDataSource.saveUserSettings(user.uid, currentSettings);
+        // Create settings object for saving
+        final settings = {
+          'currency': _currency,
+          'theme': _theme,
+          'settings': {
+            'allowNotification': _allowNotification,
+            'autoBudget': autoBudget,
+            'improveAccuracy': _improveAccuracy,
+            'automaticRebalanceSuggestions': autoBudget, // Use the same value
+          },
+        };
+        await _localDataSource.saveUserSettings(user.uid, settings);
 
         // Try to sync with Firebase if connected
         final isConnected = await _connectivityService.isConnected;
@@ -436,6 +539,7 @@ class SettingsService extends ChangeNotifier {
               'allowNotification': _allowNotification,
               'autoBudget': autoBudget,
               'improveAccuracy': _improveAccuracy,
+              'automaticRebalanceSuggestions': autoBudget, // Use the same value
             },
           }, SetOptions(merge: true));
 
@@ -457,8 +561,18 @@ class SettingsService extends ChangeNotifier {
       if (user != null) {
         _improveAccuracy = improveAccuracy;
 
-        // Save to local storage first
-        await _localDataSource.saveUserSettings(user.uid, currentSettings);
+        // Create settings object for saving
+        final settings = {
+          'currency': _currency,
+          'theme': _theme,
+          'settings': {
+            'allowNotification': _allowNotification,
+            'autoBudget': _autoBudget,
+            'improveAccuracy': improveAccuracy,
+            'automaticRebalanceSuggestions': _automaticRebalanceSuggestions,
+          },
+        };
+        await _localDataSource.saveUserSettings(user.uid, settings);
 
         // Try to sync with Firebase if connected
         final isConnected = await _connectivityService.isConnected;
@@ -468,6 +582,7 @@ class SettingsService extends ChangeNotifier {
               'allowNotification': _allowNotification,
               'autoBudget': _autoBudget,
               'improveAccuracy': improveAccuracy,
+              'automaticRebalanceSuggestions': _automaticRebalanceSuggestions,
             },
           }, SetOptions(merge: true));
 
@@ -479,6 +594,51 @@ class SettingsService extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('Error updating improve accuracy setting: $e');
+    }
+  }
+
+  // Update automatic rebalance suggestions setting with offline support
+  Future<void> updateAutomaticRebalanceSuggestions(bool enabled) async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        // Update both settings to keep them synchronized
+        _automaticRebalanceSuggestions = enabled;
+        _autoBudget = enabled; // Keep autoBudget in sync
+
+        // Create settings object for saving
+        final settings = {
+          'currency': _currency,
+          'theme': _theme,
+          'settings': {
+            'allowNotification': _allowNotification,
+            'autoBudget': enabled, // Use the same value
+            'improveAccuracy': _improveAccuracy,
+            'automaticRebalanceSuggestions': enabled,
+          },
+        };
+        await _localDataSource.saveUserSettings(user.uid, settings);
+
+        // Try to sync with Firebase if connected
+        final isConnected = await _connectivityService.isConnected;
+        if (isConnected) {
+          await _firestore.collection('users').doc(user.uid).set({
+            'settings': {
+              'allowNotification': _allowNotification,
+              'autoBudget': enabled, // Use the same value
+              'improveAccuracy': _improveAccuracy,
+              'automaticRebalanceSuggestions': enabled,
+            },
+          }, SetOptions(merge: true));
+
+          await _localDataSource.markUserSettingsAsSynced(user.uid);
+        }
+
+        notifyListeners();
+        debugPrint('Auto budget reallocation setting updated to: $enabled');
+      }
+    } catch (e) {
+      debugPrint('Error updating auto budget reallocation setting: $e');
     }
   }
 }

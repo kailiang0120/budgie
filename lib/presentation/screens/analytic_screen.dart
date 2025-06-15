@@ -1,5 +1,6 @@
 // Add budget screen no longer needed
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -17,7 +18,7 @@ import 'add_expense_screen.dart';
 import '../../core/constants/routes.dart';
 import '../../core/router/page_transition.dart';
 import '../../data/infrastructure/services/settings_service.dart';
-import '../../domain/services/google_ai_expense_prediction_service.dart';
+import '../../domain/services/ai_expense_prediction_service.dart';
 import '../../domain/services/budget_reallocation_service.dart';
 import '../../data/models/ai_response_models.dart';
 import '../../di/injection_container.dart' as di;
@@ -290,7 +291,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
           Provider.of<BudgetViewModel>(context, listen: false);
 
       // Get the AI service
-      final aiService = di.sl<GoogleAIExpensePredictionService>();
+      final aiService = di.sl<AIExpensePredictionService>();
 
       // Initialize the service if needed
       await aiService.initialize();
@@ -316,13 +317,13 @@ class _AnalyticScreenState extends State<AnalyticScreen>
       }
 
       // Calculate target date (tomorrow)
-      final targetMonth = DateTime.now().add(const Duration(days: 1));
+      final targetDate = DateTime.now().add(const Duration(days: 1));
 
       // Get prediction
-      final result = await aiService.predictExpenses(
+      final result = await aiService.predictNextDayExpenses(
         pastExpenses: expenses,
         currentBudget: budget,
-        targetMonth: targetMonth,
+        targetDate: targetDate,
         userProfile: {
           'location': 'Malaysia',
           'currency': budget.currency,
@@ -403,12 +404,12 @@ class _AnalyticScreenState extends State<AnalyticScreen>
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                const Expanded(
+                Icon(Icons.check_circle, color: Colors.white, size: 20),
+                SizedBox(width: 8),
+                Expanded(
                   child: Text(
                     'Budget successfully reallocated based on AI predictions!',
                     style: TextStyle(color: Colors.white),
@@ -417,7 +418,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
               ],
             ),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
+            duration: Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -475,9 +476,9 @@ class _AnalyticScreenState extends State<AnalyticScreen>
           Icon(
             isAuthError ? Icons.analytics_rounded : Icons.error_outline,
             color: Colors.red[300],
-            size: 48,
+            size: 48.sp,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           Text(
             isAuthError
                 ? 'Login to analyze your spending habits'
@@ -485,7 +486,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
             style: TextStyle(color: Colors.red[300]),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: 24.h),
           if (isAuthError)
             ElevatedButton(
               onPressed: _navigateToLogin,
@@ -510,10 +511,24 @@ class _AnalyticScreenState extends State<AnalyticScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Analytic'),
-        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         automaticallyImplyLeading: false,
+        title: Text(
+          'Analytic',
+          style:
+              TextStyle(color: Theme.of(context).textTheme.titleLarge?.color),
+        ),
+        centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(1.h),
+          child: Container(
+            color: Theme.of(context).dividerColor,
+            height: 0.5.h,
+          ),
+        ),
       ),
       body: _isLoading
           ? Center(
@@ -533,14 +548,13 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                   },
                   child: CustomScrollView(
                     slivers: [
-                      // 顶部间距
-                      const SliverPadding(
-                        padding: EdgeInsets.only(top: 16.0),
+                      SliverPadding(
+                        padding: EdgeInsets.only(top: 16.h),
                         sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
                       ),
 
                       SliverPadding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        padding: EdgeInsets.symmetric(horizontal: 16.w),
                         sliver: SliverToBoxAdapter(
                           child: Row(
                             children: [
@@ -554,30 +568,30 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                                   showDaySelection: false,
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              SizedBox(width: 12.w),
                               Container(
                                 decoration: BoxDecoration(
                                   color: Theme.of(context)
                                       .colorScheme
                                       .primary
                                       .withAlpha((255 * 0.1).toInt()),
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(12.r),
                                 ),
                                 child: Material(
                                   color: Colors.transparent,
                                   child: InkWell(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(12.r),
                                     onTap: _isLoadingPrediction
                                         ? null
                                         : _getAIPrediction,
                                     child: Padding(
-                                      padding: const EdgeInsets.all(12.0),
+                                      padding: EdgeInsets.all(12.w),
                                       child: _isLoadingPrediction
                                           ? SizedBox(
-                                              width: 24,
-                                              height: 24,
+                                              width: 24.w,
+                                              height: 24.h,
                                               child: CircularProgressIndicator(
-                                                strokeWidth: 2,
+                                                strokeWidth: 2.w,
                                                 color: Theme.of(context)
                                                     .colorScheme
                                                     .primary,
@@ -588,7 +602,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                                               color: Theme.of(context)
                                                   .colorScheme
                                                   .primary,
-                                              size: 24,
+                                              size: 24.sp,
                                             ),
                                     ),
                                   ),
@@ -602,8 +616,8 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                       // AI Prediction Result Card
                       if (_predictionResult != null || _predictionError != null)
                         SliverPadding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0, vertical: 8.0),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 16.w, vertical: 8.h),
                           sliver: SliverToBoxAdapter(
                             child: _buildAIPredictionCard(context),
                           ),
@@ -611,8 +625,8 @@ class _AnalyticScreenState extends State<AnalyticScreen>
 
                       // Category Distribution Pie Chart
                       SliverPadding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0, vertical: 16.0),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 16.w, vertical: 16.h),
                         sliver: SliverToBoxAdapter(
                           child: _buildCategoryDistributionCard(context),
                         ),
@@ -620,8 +634,8 @@ class _AnalyticScreenState extends State<AnalyticScreen>
 
                       // Spending Trends Visualization
                       SliverPadding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0, vertical: 8.0),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 16.w, vertical: 8.h),
                         sliver: SliverToBoxAdapter(
                           child: _buildSpendingTrendsCard(context),
                         ),
@@ -629,8 +643,8 @@ class _AnalyticScreenState extends State<AnalyticScreen>
 
                       // Budget card has been removed from the analytics screen
 
-                      const SliverPadding(
-                        padding: EdgeInsets.only(bottom: 80.0),
+                      SliverPadding(
+                        padding: EdgeInsets.only(bottom: 80.h),
                         sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
                       ),
                     ],
@@ -668,9 +682,10 @@ class _AnalyticScreenState extends State<AnalyticScreen>
   Widget _buildAIPredictionCard(BuildContext context) {
     if (_predictionError != null) {
       return Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(16.w),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -679,25 +694,25 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                   Icon(
                     Icons.lightbulb_outline,
                     color: Colors.red[400],
-                    size: 24,
+                    size: 24.sp,
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8.w),
                   Text(
                     'AI Prediction Error',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.bold,
                       color: Colors.red[400],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              SizedBox(height: 12.h),
               Text(
                 _predictionError!,
                 style: TextStyle(
                   color: Colors.red[300],
-                  fontSize: 14,
+                  fontSize: 14.sp,
                 ),
               ),
               const SizedBox(height: 16),
@@ -890,12 +905,15 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.grey[200]!,
-                      width: 1,
-                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withAlpha(100),
+                        blurRadius: 3,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Row(
                     children: [
@@ -910,8 +928,8 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                         child: Center(
                           child: Text(
                             '${index + 1}',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                             ),
@@ -930,9 +948,11 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                                 Expanded(
                                   child: Text(
                                     expense.categoryName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w600,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -1168,7 +1188,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                   IconButton(
                     onPressed: _isReallocating ? null : _reallocateBudget,
                     icon: _isReallocating
-                        ? SizedBox(
+                        ? const SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
@@ -1313,13 +1333,13 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                   Icon(
                     Icons.pie_chart,
                     color: Theme.of(context).colorScheme.primary,
-                    size: 24,
+                    size: 24.sp,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Category Distribution',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 18.sp,
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.primary,
                     ),
@@ -1329,7 +1349,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                   Text(
                     '${_selectedDate.year}-${_selectedDate.month}',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 14.sp,
                       color: Colors.grey[600],
                     ),
                   ),
@@ -1342,7 +1362,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                   children: [
                     Icon(
                       Icons.pie_chart_outline,
-                      size: 48,
+                      size: 48.sp,
                       color: Colors.grey[400],
                     ),
                     const SizedBox(height: 16),
@@ -1356,7 +1376,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                       'Try selecting a different month or adding expenses',
                       style: TextStyle(
                         color: Colors.grey[500],
-                        fontSize: 12,
+                        fontSize: 12.sp,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -1391,13 +1411,13 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                 Icon(
                   Icons.pie_chart,
                   color: Theme.of(context).colorScheme.primary,
-                  size: 24,
+                  size: 24.sp,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   'Category Distribution',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 16.sp,
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.primary,
                   ),
@@ -1407,7 +1427,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                 Text(
                   '${_selectedDate.year}-${_selectedDate.month}',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 12.sp,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -1417,13 +1437,11 @@ class _AnalyticScreenState extends State<AnalyticScreen>
 
             // Pie chart with fixed height and proper container
             Container(
-              height: 250,
+              height: 280.h,
               alignment: Alignment.center,
               child: _buildCustomPieChart(categoryTotals),
             ),
-
-            const SizedBox(height: 24),
-
+            SizedBox(height: 24.h),
             // Total amount - now using currency-converted values
             Center(
               child: RichText(
@@ -1433,7 +1451,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                       text: 'Total: ',
                       style: TextStyle(
                         color: Theme.of(context).textTheme.bodyLarge?.color,
-                        fontSize: 16,
+                        fontSize: 16.sp,
                       ),
                     ),
                     TextSpan(
@@ -1442,7 +1460,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.bold,
-                        fontSize: 18,
+                        fontSize: 18.sp,
                       ),
                     ),
                   ],
@@ -1464,22 +1482,22 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                   final percentage =
                       (entry.value / totalAmount * 100).toStringAsFixed(1);
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 4),
+                    margin: EdgeInsets.only(bottom: 4.h),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 12,
-                          height: 12,
+                          width: 12.w,
+                          height: 12.h,
                           decoration: BoxDecoration(
                             color: CategoryManager.getColorFromId(categoryId),
                             shape: BoxShape.circle,
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        SizedBox(width: 4.w),
                         Text(
                           '${CategoryManager.getNameFromId(categoryId)} ($percentage%)',
-                          style: const TextStyle(fontSize: 12),
+                          style: TextStyle(fontSize: 12.sp),
                         ),
                       ],
                     ),
@@ -1515,13 +1533,13 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                   Icon(
                     Icons.trending_up,
                     color: Theme.of(context).colorScheme.primary,
-                    size: 24,
+                    size: 24.sp,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     'Spending Trends',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 16.sp,
                       fontWeight: FontWeight.bold,
                       color: Theme.of(context).colorScheme.primary,
                     ),
@@ -1531,7 +1549,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                   Text(
                     '${_selectedDate.year}-${_selectedDate.month}',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 12.sp,
                       color: Colors.grey[600],
                     ),
                   ),
@@ -1544,28 +1562,28 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                   children: [
                     Icon(
                       Icons.show_chart,
-                      size: 48,
+                      size: 48.sp,
                       color: Colors.grey[400],
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: 16.h),
                     Text(
                       'No trend data available',
                       style: TextStyle(color: Colors.grey[600]),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8),
+                    SizedBox(height: 8.h),
                     Text(
                       'Add more expenses to see spending patterns',
                       style: TextStyle(
                         color: Colors.grey[500],
-                        fontSize: 12,
+                        fontSize: 12.sp,
                       ),
                       textAlign: TextAlign.center,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 40),
+              SizedBox(height: 40.h),
             ],
           ),
         ),
@@ -1584,13 +1602,13 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                 Icon(
                   Icons.trending_up,
                   color: Theme.of(context).colorScheme.primary,
-                  size: 24,
+                  size: 24.sp,
                 ),
                 const SizedBox(width: 8),
                 Text(
                   'Spending Trends',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 18.sp,
                     fontWeight: FontWeight.bold,
                     color: Theme.of(context).colorScheme.primary,
                   ),
@@ -1600,7 +1618,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                 Text(
                   '${_selectedDate.year}-${_selectedDate.month}',
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 14.sp,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -1628,13 +1646,14 @@ class _AnalyticScreenState extends State<AnalyticScreen>
 
     if (categoryTotals.isEmpty) {
       return SizedBox(
-        height: 120,
+        height: 120.h,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.category_outlined, size: 28, color: Colors.grey[400]),
-              const SizedBox(height: 8),
+              Icon(Icons.category_outlined,
+                  size: 28.sp, color: Colors.grey[400]),
+              SizedBox(height: 8.h),
               Text(
                 'No category data for this period',
                 style: TextStyle(color: Colors.grey[600]),
@@ -1659,14 +1678,14 @@ class _AnalyticScreenState extends State<AnalyticScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Top Categories',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 16.sp,
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12.h),
         ...topCategories.map((entry) {
           final percentage = entry.value / highestAmount;
           final category = entry.key;
@@ -1680,45 +1699,45 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                   children: [
                     Icon(
                       CategoryManager.getIcon(category),
-                      size: 16,
+                      size: 16.sp,
                       color: CategoryManager.getColor(category),
                     ),
-                    const SizedBox(width: 8),
+                    SizedBox(width: 8.w),
                     Text(
                       CategoryManager.getName(category),
-                      style: const TextStyle(fontSize: 14),
+                      style: TextStyle(fontSize: 14.sp),
                     ),
-                    const Spacer(),
+                    Spacer(),
                     Text(
                       '${viewModel.currentCurrency} ${entry.value.toStringAsFixed(2)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                        fontSize: 14.sp,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                SizedBox(height: 6.h),
                 // Bar chart
                 Stack(
                   children: [
                     // Background bar
                     Container(
-                      height: 8,
+                      height: 8.h,
                       width: double.infinity,
                       decoration: BoxDecoration(
                         color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(4),
+                        borderRadius: BorderRadius.circular(4.r),
                       ),
                     ),
                     // Filled bar
                     FractionallySizedBox(
                       widthFactor: percentage,
                       child: Container(
-                        height: 8,
+                        height: 8.h,
                         decoration: BoxDecoration(
                           color: CategoryManager.getColor(category),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(4.r),
                         ),
                       ),
                     ),
@@ -1740,14 +1759,14 @@ class _AnalyticScreenState extends State<AnalyticScreen>
 
     if (expenses.isEmpty) {
       return SizedBox(
-        height: 150,
+        height: 150.h,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.date_range_outlined,
-                  size: 28, color: Colors.grey[400]),
-              const SizedBox(height: 8),
+                  size: 28.sp, color: Colors.grey[400]),
+              SizedBox(height: 8.h),
               Text(
                 'No daily spending data for ${_selectedDate.year}-${_selectedDate.month}',
                 style: TextStyle(color: Colors.grey[600]),
@@ -1755,7 +1774,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
               ),
               Text(
                 'Add expenses to see daily patterns',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                style: TextStyle(fontSize: 12.sp, color: Colors.grey[500]),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -1788,16 +1807,16 @@ class _AnalyticScreenState extends State<AnalyticScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Daily Spending Pattern',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 16.sp,
             fontWeight: FontWeight.w600,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: 12.h),
         SizedBox(
-          height: 120,
+          height: 120.h,
           child: Row(
             children: List.generate(daysInMonth, (index) {
               final day = index + 1;
@@ -1811,34 +1830,43 @@ class _AnalyticScreenState extends State<AnalyticScreen>
 
               return Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 1),
+                  padding: EdgeInsets.symmetric(horizontal: 1.w),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      // Bar
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        height: (100 * percentage).toDouble(),
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: isToday
-                              ? Theme.of(context).colorScheme.primary
-                              : Theme.of(context)
-                                  .colorScheme
-                                  .primary
-                                  .withAlpha((255 * 0.7).toInt()),
-                          borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(4)),
+                      // Bar - use Flexible to prevent overflow
+                      Flexible(
+                        flex: 8,
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          height: (80 * percentage)
+                              .toDouble()
+                              .h, // Reduced from 100 to 80
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: isToday
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .primary
+                                    .withAlpha((255 * 0.7).toInt()),
+                            borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(4.r)),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      // Day number
-                      Text(
-                        day.toString(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight:
-                              isToday ? FontWeight.bold : FontWeight.normal,
+                      SizedBox(height: 2.h), // Reduced spacing
+                      // Day number - use Flexible to prevent overflow
+                      Flexible(
+                        flex: 2,
+                        child: Text(
+                          day.toString(),
+                          style: TextStyle(
+                            fontSize: 9.sp, // Slightly smaller font
+                            fontWeight:
+                                isToday ? FontWeight.bold : FontWeight.normal,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -1861,10 +1889,10 @@ class _AnalyticScreenState extends State<AnalyticScreen>
           children: [
             Icon(
               Icons.pie_chart_outline,
-              size: 48,
+              size: 48.sp,
               color: Colors.grey[400],
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8.h),
             Text(
               'No data available',
               style: TextStyle(color: Colors.grey[600]),
@@ -1888,17 +1916,17 @@ class _AnalyticScreenState extends State<AnalyticScreen>
             value: value,
             title: '${percent.toStringAsFixed(0)}%',
             color: CategoryManager.getColorFromId(categoryId),
-            radius: 100,
-            titleStyle: const TextStyle(
-              fontSize: 16,
+            radius: 100.r,
+            titleStyle: TextStyle(
+              fontSize: 16.sp,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),
           );
         }).toList(),
-        sectionsSpace: 2,
-        centerSpaceRadius: 40,
-        startDegreeOffset: 180,
+        sectionsSpace: 2.r,
+        centerSpaceRadius: 40.r,
+        startDegreeOffset: 180.r,
       ),
     );
   }

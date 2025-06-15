@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../utils/category_manager.dart';
 
@@ -23,9 +24,9 @@ class ExpensePieChart extends StatelessWidget {
             value: entry.value,
             title: '${percent.toStringAsFixed(0)}%',
             color: CategoryManager.getColor(categoryId),
-            radius: 100,
-            titleStyle: const TextStyle(
-              fontSize: 16,
+            radius: 100.r,
+            titleStyle: TextStyle(
+              fontSize: 16.sp,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),

@@ -638,6 +638,13 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
   late final GeneratedColumn<String> categoriesJson = GeneratedColumn<String>(
       'categories_json', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _savingMeta = const VerificationMeta('saving');
+  @override
+  late final GeneratedColumn<double> saving = GeneratedColumn<double>(
+      'saving', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0.0));
   static const VerificationMeta _isSyncedMeta =
       const VerificationMeta('isSynced');
   @override
@@ -655,8 +662,16 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
       'last_modified', aliasedName, false,
       type: DriftSqlType.dateTime, requiredDuringInsert: true);
   @override
-  List<GeneratedColumn> get $columns =>
-      [monthId, userId, total, left, categoriesJson, isSynced, lastModified];
+  List<GeneratedColumn> get $columns => [
+        monthId,
+        userId,
+        total,
+        left,
+        categoriesJson,
+        saving,
+        isSynced,
+        lastModified
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -699,6 +714,10 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
     } else if (isInserting) {
       context.missing(_categoriesJsonMeta);
     }
+    if (data.containsKey('saving')) {
+      context.handle(_savingMeta,
+          saving.isAcceptableOrUnknown(data['saving']!, _savingMeta));
+    }
     if (data.containsKey('is_synced')) {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
@@ -730,6 +749,8 @@ class $BudgetsTable extends Budgets with TableInfo<$BudgetsTable, Budget> {
           .read(DriftSqlType.double, data['${effectivePrefix}left'])!,
       categoriesJson: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}categories_json'])!,
+      saving: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}saving'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
       lastModified: attachedDatabase.typeMapping.read(
@@ -749,6 +770,7 @@ class Budget extends DataClass implements Insertable<Budget> {
   final double total;
   final double left;
   final String categoriesJson;
+  final double saving;
   final bool isSynced;
   final DateTime lastModified;
   const Budget(
@@ -757,6 +779,7 @@ class Budget extends DataClass implements Insertable<Budget> {
       required this.total,
       required this.left,
       required this.categoriesJson,
+      required this.saving,
       required this.isSynced,
       required this.lastModified});
   @override
@@ -767,6 +790,7 @@ class Budget extends DataClass implements Insertable<Budget> {
     map['total'] = Variable<double>(total);
     map['left'] = Variable<double>(left);
     map['categories_json'] = Variable<String>(categoriesJson);
+    map['saving'] = Variable<double>(saving);
     map['is_synced'] = Variable<bool>(isSynced);
     map['last_modified'] = Variable<DateTime>(lastModified);
     return map;
@@ -779,6 +803,7 @@ class Budget extends DataClass implements Insertable<Budget> {
       total: Value(total),
       left: Value(left),
       categoriesJson: Value(categoriesJson),
+      saving: Value(saving),
       isSynced: Value(isSynced),
       lastModified: Value(lastModified),
     );
@@ -793,6 +818,7 @@ class Budget extends DataClass implements Insertable<Budget> {
       total: serializer.fromJson<double>(json['total']),
       left: serializer.fromJson<double>(json['left']),
       categoriesJson: serializer.fromJson<String>(json['categoriesJson']),
+      saving: serializer.fromJson<double>(json['saving']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       lastModified: serializer.fromJson<DateTime>(json['lastModified']),
     );
@@ -806,6 +832,7 @@ class Budget extends DataClass implements Insertable<Budget> {
       'total': serializer.toJson<double>(total),
       'left': serializer.toJson<double>(left),
       'categoriesJson': serializer.toJson<String>(categoriesJson),
+      'saving': serializer.toJson<double>(saving),
       'isSynced': serializer.toJson<bool>(isSynced),
       'lastModified': serializer.toJson<DateTime>(lastModified),
     };
@@ -817,6 +844,7 @@ class Budget extends DataClass implements Insertable<Budget> {
           double? total,
           double? left,
           String? categoriesJson,
+          double? saving,
           bool? isSynced,
           DateTime? lastModified}) =>
       Budget(
@@ -825,6 +853,7 @@ class Budget extends DataClass implements Insertable<Budget> {
         total: total ?? this.total,
         left: left ?? this.left,
         categoriesJson: categoriesJson ?? this.categoriesJson,
+        saving: saving ?? this.saving,
         isSynced: isSynced ?? this.isSynced,
         lastModified: lastModified ?? this.lastModified,
       );
@@ -837,6 +866,7 @@ class Budget extends DataClass implements Insertable<Budget> {
       categoriesJson: data.categoriesJson.present
           ? data.categoriesJson.value
           : this.categoriesJson,
+      saving: data.saving.present ? data.saving.value : this.saving,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       lastModified: data.lastModified.present
           ? data.lastModified.value
@@ -852,6 +882,7 @@ class Budget extends DataClass implements Insertable<Budget> {
           ..write('total: $total, ')
           ..write('left: $left, ')
           ..write('categoriesJson: $categoriesJson, ')
+          ..write('saving: $saving, ')
           ..write('isSynced: $isSynced, ')
           ..write('lastModified: $lastModified')
           ..write(')'))
@@ -859,8 +890,8 @@ class Budget extends DataClass implements Insertable<Budget> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      monthId, userId, total, left, categoriesJson, isSynced, lastModified);
+  int get hashCode => Object.hash(monthId, userId, total, left, categoriesJson,
+      saving, isSynced, lastModified);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -870,6 +901,7 @@ class Budget extends DataClass implements Insertable<Budget> {
           other.total == this.total &&
           other.left == this.left &&
           other.categoriesJson == this.categoriesJson &&
+          other.saving == this.saving &&
           other.isSynced == this.isSynced &&
           other.lastModified == this.lastModified);
 }
@@ -880,6 +912,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
   final Value<double> total;
   final Value<double> left;
   final Value<String> categoriesJson;
+  final Value<double> saving;
   final Value<bool> isSynced;
   final Value<DateTime> lastModified;
   final Value<int> rowid;
@@ -889,6 +922,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     this.total = const Value.absent(),
     this.left = const Value.absent(),
     this.categoriesJson = const Value.absent(),
+    this.saving = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.lastModified = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -899,6 +933,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     required double total,
     required double left,
     required String categoriesJson,
+    this.saving = const Value.absent(),
     this.isSynced = const Value.absent(),
     required DateTime lastModified,
     this.rowid = const Value.absent(),
@@ -914,6 +949,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     Expression<double>? total,
     Expression<double>? left,
     Expression<String>? categoriesJson,
+    Expression<double>? saving,
     Expression<bool>? isSynced,
     Expression<DateTime>? lastModified,
     Expression<int>? rowid,
@@ -924,6 +960,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
       if (total != null) 'total': total,
       if (left != null) 'left': left,
       if (categoriesJson != null) 'categories_json': categoriesJson,
+      if (saving != null) 'saving': saving,
       if (isSynced != null) 'is_synced': isSynced,
       if (lastModified != null) 'last_modified': lastModified,
       if (rowid != null) 'rowid': rowid,
@@ -936,6 +973,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
       Value<double>? total,
       Value<double>? left,
       Value<String>? categoriesJson,
+      Value<double>? saving,
       Value<bool>? isSynced,
       Value<DateTime>? lastModified,
       Value<int>? rowid}) {
@@ -945,6 +983,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
       total: total ?? this.total,
       left: left ?? this.left,
       categoriesJson: categoriesJson ?? this.categoriesJson,
+      saving: saving ?? this.saving,
       isSynced: isSynced ?? this.isSynced,
       lastModified: lastModified ?? this.lastModified,
       rowid: rowid ?? this.rowid,
@@ -969,6 +1008,9 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
     if (categoriesJson.present) {
       map['categories_json'] = Variable<String>(categoriesJson.value);
     }
+    if (saving.present) {
+      map['saving'] = Variable<double>(saving.value);
+    }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
@@ -989,6 +1031,7 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
           ..write('total: $total, ')
           ..write('left: $left, ')
           ..write('categoriesJson: $categoriesJson, ')
+          ..write('saving: $saving, ')
           ..write('isSynced: $isSynced, ')
           ..write('lastModified: $lastModified, ')
           ..write('rowid: $rowid')
@@ -2248,6 +2291,17 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
       defaultConstraints: GeneratedColumn.constraintIsAlways(
           'CHECK ("improve_accuracy" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _automaticRebalanceSuggestionsMeta =
+      const VerificationMeta('automaticRebalanceSuggestions');
+  @override
+  late final GeneratedColumn<bool> automaticRebalanceSuggestions =
+      GeneratedColumn<bool>(
+          'automatic_rebalance_suggestions', aliasedName, false,
+          type: DriftSqlType.bool,
+          requiredDuringInsert: false,
+          defaultConstraints: GeneratedColumn.constraintIsAlways(
+              'CHECK ("automatic_rebalance_suggestions" IN (0, 1))'),
+          defaultValue: const Constant(false));
   static const VerificationMeta _lastModifiedMeta =
       const VerificationMeta('lastModified');
   @override
@@ -2275,6 +2329,7 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
         allowNotification,
         autoBudget,
         improveAccuracy,
+        automaticRebalanceSuggestions,
         lastModified,
         isSynced
       ];
@@ -2333,6 +2388,13 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
           improveAccuracy.isAcceptableOrUnknown(
               data['improve_accuracy']!, _improveAccuracyMeta));
     }
+    if (data.containsKey('automatic_rebalance_suggestions')) {
+      context.handle(
+          _automaticRebalanceSuggestionsMeta,
+          automaticRebalanceSuggestions.isAcceptableOrUnknown(
+              data['automatic_rebalance_suggestions']!,
+              _automaticRebalanceSuggestionsMeta));
+    }
     if (data.containsKey('last_modified')) {
       context.handle(
           _lastModifiedMeta,
@@ -2372,6 +2434,9 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
           .read(DriftSqlType.bool, data['${effectivePrefix}auto_budget'])!,
       improveAccuracy: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}improve_accuracy'])!,
+      automaticRebalanceSuggestions: attachedDatabase.typeMapping.read(
+          DriftSqlType.bool,
+          data['${effectivePrefix}automatic_rebalance_suggestions'])!,
       lastModified: attachedDatabase.typeMapping.read(
           DriftSqlType.dateTime, data['${effectivePrefix}last_modified'])!,
       isSynced: attachedDatabase.typeMapping
@@ -2395,6 +2460,7 @@ class User extends DataClass implements Insertable<User> {
   final bool allowNotification;
   final bool autoBudget;
   final bool improveAccuracy;
+  final bool automaticRebalanceSuggestions;
   final DateTime lastModified;
   final bool isSynced;
   const User(
@@ -2407,6 +2473,7 @@ class User extends DataClass implements Insertable<User> {
       required this.allowNotification,
       required this.autoBudget,
       required this.improveAccuracy,
+      required this.automaticRebalanceSuggestions,
       required this.lastModified,
       required this.isSynced});
   @override
@@ -2427,6 +2494,8 @@ class User extends DataClass implements Insertable<User> {
     map['allow_notification'] = Variable<bool>(allowNotification);
     map['auto_budget'] = Variable<bool>(autoBudget);
     map['improve_accuracy'] = Variable<bool>(improveAccuracy);
+    map['automatic_rebalance_suggestions'] =
+        Variable<bool>(automaticRebalanceSuggestions);
     map['last_modified'] = Variable<DateTime>(lastModified);
     map['is_synced'] = Variable<bool>(isSynced);
     return map;
@@ -2448,6 +2517,7 @@ class User extends DataClass implements Insertable<User> {
       allowNotification: Value(allowNotification),
       autoBudget: Value(autoBudget),
       improveAccuracy: Value(improveAccuracy),
+      automaticRebalanceSuggestions: Value(automaticRebalanceSuggestions),
       lastModified: Value(lastModified),
       isSynced: Value(isSynced),
     );
@@ -2466,6 +2536,8 @@ class User extends DataClass implements Insertable<User> {
       allowNotification: serializer.fromJson<bool>(json['allowNotification']),
       autoBudget: serializer.fromJson<bool>(json['autoBudget']),
       improveAccuracy: serializer.fromJson<bool>(json['improveAccuracy']),
+      automaticRebalanceSuggestions:
+          serializer.fromJson<bool>(json['automaticRebalanceSuggestions']),
       lastModified: serializer.fromJson<DateTime>(json['lastModified']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
     );
@@ -2483,6 +2555,8 @@ class User extends DataClass implements Insertable<User> {
       'allowNotification': serializer.toJson<bool>(allowNotification),
       'autoBudget': serializer.toJson<bool>(autoBudget),
       'improveAccuracy': serializer.toJson<bool>(improveAccuracy),
+      'automaticRebalanceSuggestions':
+          serializer.toJson<bool>(automaticRebalanceSuggestions),
       'lastModified': serializer.toJson<DateTime>(lastModified),
       'isSynced': serializer.toJson<bool>(isSynced),
     };
@@ -2498,6 +2572,7 @@ class User extends DataClass implements Insertable<User> {
           bool? allowNotification,
           bool? autoBudget,
           bool? improveAccuracy,
+          bool? automaticRebalanceSuggestions,
           DateTime? lastModified,
           bool? isSynced}) =>
       User(
@@ -2510,6 +2585,8 @@ class User extends DataClass implements Insertable<User> {
         allowNotification: allowNotification ?? this.allowNotification,
         autoBudget: autoBudget ?? this.autoBudget,
         improveAccuracy: improveAccuracy ?? this.improveAccuracy,
+        automaticRebalanceSuggestions:
+            automaticRebalanceSuggestions ?? this.automaticRebalanceSuggestions,
         lastModified: lastModified ?? this.lastModified,
         isSynced: isSynced ?? this.isSynced,
       );
@@ -2530,6 +2607,9 @@ class User extends DataClass implements Insertable<User> {
       improveAccuracy: data.improveAccuracy.present
           ? data.improveAccuracy.value
           : this.improveAccuracy,
+      automaticRebalanceSuggestions: data.automaticRebalanceSuggestions.present
+          ? data.automaticRebalanceSuggestions.value
+          : this.automaticRebalanceSuggestions,
       lastModified: data.lastModified.present
           ? data.lastModified.value
           : this.lastModified,
@@ -2549,6 +2629,8 @@ class User extends DataClass implements Insertable<User> {
           ..write('allowNotification: $allowNotification, ')
           ..write('autoBudget: $autoBudget, ')
           ..write('improveAccuracy: $improveAccuracy, ')
+          ..write(
+              'automaticRebalanceSuggestions: $automaticRebalanceSuggestions, ')
           ..write('lastModified: $lastModified, ')
           ..write('isSynced: $isSynced')
           ..write(')'))
@@ -2566,6 +2648,7 @@ class User extends DataClass implements Insertable<User> {
       allowNotification,
       autoBudget,
       improveAccuracy,
+      automaticRebalanceSuggestions,
       lastModified,
       isSynced);
   @override
@@ -2581,6 +2664,8 @@ class User extends DataClass implements Insertable<User> {
           other.allowNotification == this.allowNotification &&
           other.autoBudget == this.autoBudget &&
           other.improveAccuracy == this.improveAccuracy &&
+          other.automaticRebalanceSuggestions ==
+              this.automaticRebalanceSuggestions &&
           other.lastModified == this.lastModified &&
           other.isSynced == this.isSynced);
 }
@@ -2595,6 +2680,7 @@ class UsersCompanion extends UpdateCompanion<User> {
   final Value<bool> allowNotification;
   final Value<bool> autoBudget;
   final Value<bool> improveAccuracy;
+  final Value<bool> automaticRebalanceSuggestions;
   final Value<DateTime> lastModified;
   final Value<bool> isSynced;
   final Value<int> rowid;
@@ -2608,6 +2694,7 @@ class UsersCompanion extends UpdateCompanion<User> {
     this.allowNotification = const Value.absent(),
     this.autoBudget = const Value.absent(),
     this.improveAccuracy = const Value.absent(),
+    this.automaticRebalanceSuggestions = const Value.absent(),
     this.lastModified = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2622,6 +2709,7 @@ class UsersCompanion extends UpdateCompanion<User> {
     this.allowNotification = const Value.absent(),
     this.autoBudget = const Value.absent(),
     this.improveAccuracy = const Value.absent(),
+    this.automaticRebalanceSuggestions = const Value.absent(),
     required DateTime lastModified,
     this.isSynced = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -2637,6 +2725,7 @@ class UsersCompanion extends UpdateCompanion<User> {
     Expression<bool>? allowNotification,
     Expression<bool>? autoBudget,
     Expression<bool>? improveAccuracy,
+    Expression<bool>? automaticRebalanceSuggestions,
     Expression<DateTime>? lastModified,
     Expression<bool>? isSynced,
     Expression<int>? rowid,
@@ -2651,6 +2740,8 @@ class UsersCompanion extends UpdateCompanion<User> {
       if (allowNotification != null) 'allow_notification': allowNotification,
       if (autoBudget != null) 'auto_budget': autoBudget,
       if (improveAccuracy != null) 'improve_accuracy': improveAccuracy,
+      if (automaticRebalanceSuggestions != null)
+        'automatic_rebalance_suggestions': automaticRebalanceSuggestions,
       if (lastModified != null) 'last_modified': lastModified,
       if (isSynced != null) 'is_synced': isSynced,
       if (rowid != null) 'rowid': rowid,
@@ -2667,6 +2758,7 @@ class UsersCompanion extends UpdateCompanion<User> {
       Value<bool>? allowNotification,
       Value<bool>? autoBudget,
       Value<bool>? improveAccuracy,
+      Value<bool>? automaticRebalanceSuggestions,
       Value<DateTime>? lastModified,
       Value<bool>? isSynced,
       Value<int>? rowid}) {
@@ -2680,6 +2772,8 @@ class UsersCompanion extends UpdateCompanion<User> {
       allowNotification: allowNotification ?? this.allowNotification,
       autoBudget: autoBudget ?? this.autoBudget,
       improveAccuracy: improveAccuracy ?? this.improveAccuracy,
+      automaticRebalanceSuggestions:
+          automaticRebalanceSuggestions ?? this.automaticRebalanceSuggestions,
       lastModified: lastModified ?? this.lastModified,
       isSynced: isSynced ?? this.isSynced,
       rowid: rowid ?? this.rowid,
@@ -2716,6 +2810,10 @@ class UsersCompanion extends UpdateCompanion<User> {
     if (improveAccuracy.present) {
       map['improve_accuracy'] = Variable<bool>(improveAccuracy.value);
     }
+    if (automaticRebalanceSuggestions.present) {
+      map['automatic_rebalance_suggestions'] =
+          Variable<bool>(automaticRebalanceSuggestions.value);
+    }
     if (lastModified.present) {
       map['last_modified'] = Variable<DateTime>(lastModified.value);
     }
@@ -2740,6 +2838,8 @@ class UsersCompanion extends UpdateCompanion<User> {
           ..write('allowNotification: $allowNotification, ')
           ..write('autoBudget: $autoBudget, ')
           ..write('improveAccuracy: $improveAccuracy, ')
+          ..write(
+              'automaticRebalanceSuggestions: $automaticRebalanceSuggestions, ')
           ..write('lastModified: $lastModified, ')
           ..write('isSynced: $isSynced, ')
           ..write('rowid: $rowid')
@@ -3067,6 +3167,346 @@ class ExchangeRatesCompanion extends UpdateCompanion<ExchangeRate> {
   }
 }
 
+class $BudgetSuggestionsTable extends BudgetSuggestions
+    with TableInfo<$BudgetSuggestionsTable, BudgetSuggestion> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BudgetSuggestionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _monthIdMeta =
+      const VerificationMeta('monthId');
+  @override
+  late final GeneratedColumn<String> monthId = GeneratedColumn<String>(
+      'month_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+      'user_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _suggestionsMeta =
+      const VerificationMeta('suggestions');
+  @override
+  late final GeneratedColumn<String> suggestions = GeneratedColumn<String>(
+      'suggestions', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _timestampMeta =
+      const VerificationMeta('timestamp');
+  @override
+  late final GeneratedColumn<DateTime> timestamp = GeneratedColumn<DateTime>(
+      'timestamp', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _isReadMeta = const VerificationMeta('isRead');
+  @override
+  late final GeneratedColumn<bool> isRead = GeneratedColumn<bool>(
+      'is_read', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("is_read" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, monthId, userId, suggestions, timestamp, isRead];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'budget_suggestions';
+  @override
+  VerificationContext validateIntegrity(Insertable<BudgetSuggestion> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('month_id')) {
+      context.handle(_monthIdMeta,
+          monthId.isAcceptableOrUnknown(data['month_id']!, _monthIdMeta));
+    } else if (isInserting) {
+      context.missing(_monthIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('suggestions')) {
+      context.handle(
+          _suggestionsMeta,
+          suggestions.isAcceptableOrUnknown(
+              data['suggestions']!, _suggestionsMeta));
+    } else if (isInserting) {
+      context.missing(_suggestionsMeta);
+    }
+    if (data.containsKey('timestamp')) {
+      context.handle(_timestampMeta,
+          timestamp.isAcceptableOrUnknown(data['timestamp']!, _timestampMeta));
+    } else if (isInserting) {
+      context.missing(_timestampMeta);
+    }
+    if (data.containsKey('is_read')) {
+      context.handle(_isReadMeta,
+          isRead.isAcceptableOrUnknown(data['is_read']!, _isReadMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  BudgetSuggestion map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BudgetSuggestion(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      monthId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}month_id'])!,
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
+      suggestions: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}suggestions'])!,
+      timestamp: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}timestamp'])!,
+      isRead: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}is_read'])!,
+    );
+  }
+
+  @override
+  $BudgetSuggestionsTable createAlias(String alias) {
+    return $BudgetSuggestionsTable(attachedDatabase, alias);
+  }
+}
+
+class BudgetSuggestion extends DataClass
+    implements Insertable<BudgetSuggestion> {
+  final int id;
+  final String monthId;
+  final String userId;
+  final String suggestions;
+  final DateTime timestamp;
+  final bool isRead;
+  const BudgetSuggestion(
+      {required this.id,
+      required this.monthId,
+      required this.userId,
+      required this.suggestions,
+      required this.timestamp,
+      required this.isRead});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['month_id'] = Variable<String>(monthId);
+    map['user_id'] = Variable<String>(userId);
+    map['suggestions'] = Variable<String>(suggestions);
+    map['timestamp'] = Variable<DateTime>(timestamp);
+    map['is_read'] = Variable<bool>(isRead);
+    return map;
+  }
+
+  BudgetSuggestionsCompanion toCompanion(bool nullToAbsent) {
+    return BudgetSuggestionsCompanion(
+      id: Value(id),
+      monthId: Value(monthId),
+      userId: Value(userId),
+      suggestions: Value(suggestions),
+      timestamp: Value(timestamp),
+      isRead: Value(isRead),
+    );
+  }
+
+  factory BudgetSuggestion.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BudgetSuggestion(
+      id: serializer.fromJson<int>(json['id']),
+      monthId: serializer.fromJson<String>(json['monthId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      suggestions: serializer.fromJson<String>(json['suggestions']),
+      timestamp: serializer.fromJson<DateTime>(json['timestamp']),
+      isRead: serializer.fromJson<bool>(json['isRead']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'monthId': serializer.toJson<String>(monthId),
+      'userId': serializer.toJson<String>(userId),
+      'suggestions': serializer.toJson<String>(suggestions),
+      'timestamp': serializer.toJson<DateTime>(timestamp),
+      'isRead': serializer.toJson<bool>(isRead),
+    };
+  }
+
+  BudgetSuggestion copyWith(
+          {int? id,
+          String? monthId,
+          String? userId,
+          String? suggestions,
+          DateTime? timestamp,
+          bool? isRead}) =>
+      BudgetSuggestion(
+        id: id ?? this.id,
+        monthId: monthId ?? this.monthId,
+        userId: userId ?? this.userId,
+        suggestions: suggestions ?? this.suggestions,
+        timestamp: timestamp ?? this.timestamp,
+        isRead: isRead ?? this.isRead,
+      );
+  BudgetSuggestion copyWithCompanion(BudgetSuggestionsCompanion data) {
+    return BudgetSuggestion(
+      id: data.id.present ? data.id.value : this.id,
+      monthId: data.monthId.present ? data.monthId.value : this.monthId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      suggestions:
+          data.suggestions.present ? data.suggestions.value : this.suggestions,
+      timestamp: data.timestamp.present ? data.timestamp.value : this.timestamp,
+      isRead: data.isRead.present ? data.isRead.value : this.isRead,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BudgetSuggestion(')
+          ..write('id: $id, ')
+          ..write('monthId: $monthId, ')
+          ..write('userId: $userId, ')
+          ..write('suggestions: $suggestions, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('isRead: $isRead')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, monthId, userId, suggestions, timestamp, isRead);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BudgetSuggestion &&
+          other.id == this.id &&
+          other.monthId == this.monthId &&
+          other.userId == this.userId &&
+          other.suggestions == this.suggestions &&
+          other.timestamp == this.timestamp &&
+          other.isRead == this.isRead);
+}
+
+class BudgetSuggestionsCompanion extends UpdateCompanion<BudgetSuggestion> {
+  final Value<int> id;
+  final Value<String> monthId;
+  final Value<String> userId;
+  final Value<String> suggestions;
+  final Value<DateTime> timestamp;
+  final Value<bool> isRead;
+  const BudgetSuggestionsCompanion({
+    this.id = const Value.absent(),
+    this.monthId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.suggestions = const Value.absent(),
+    this.timestamp = const Value.absent(),
+    this.isRead = const Value.absent(),
+  });
+  BudgetSuggestionsCompanion.insert({
+    this.id = const Value.absent(),
+    required String monthId,
+    required String userId,
+    required String suggestions,
+    required DateTime timestamp,
+    this.isRead = const Value.absent(),
+  })  : monthId = Value(monthId),
+        userId = Value(userId),
+        suggestions = Value(suggestions),
+        timestamp = Value(timestamp);
+  static Insertable<BudgetSuggestion> custom({
+    Expression<int>? id,
+    Expression<String>? monthId,
+    Expression<String>? userId,
+    Expression<String>? suggestions,
+    Expression<DateTime>? timestamp,
+    Expression<bool>? isRead,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (monthId != null) 'month_id': monthId,
+      if (userId != null) 'user_id': userId,
+      if (suggestions != null) 'suggestions': suggestions,
+      if (timestamp != null) 'timestamp': timestamp,
+      if (isRead != null) 'is_read': isRead,
+    });
+  }
+
+  BudgetSuggestionsCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? monthId,
+      Value<String>? userId,
+      Value<String>? suggestions,
+      Value<DateTime>? timestamp,
+      Value<bool>? isRead}) {
+    return BudgetSuggestionsCompanion(
+      id: id ?? this.id,
+      monthId: monthId ?? this.monthId,
+      userId: userId ?? this.userId,
+      suggestions: suggestions ?? this.suggestions,
+      timestamp: timestamp ?? this.timestamp,
+      isRead: isRead ?? this.isRead,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (monthId.present) {
+      map['month_id'] = Variable<String>(monthId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (suggestions.present) {
+      map['suggestions'] = Variable<String>(suggestions.value);
+    }
+    if (timestamp.present) {
+      map['timestamp'] = Variable<DateTime>(timestamp.value);
+    }
+    if (isRead.present) {
+      map['is_read'] = Variable<bool>(isRead.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BudgetSuggestionsCompanion(')
+          ..write('id: $id, ')
+          ..write('monthId: $monthId, ')
+          ..write('userId: $userId, ')
+          ..write('suggestions: $suggestions, ')
+          ..write('timestamp: $timestamp, ')
+          ..write('isRead: $isRead')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -3077,12 +3517,21 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $RecurringExpensesTable(this);
   late final $UsersTable users = $UsersTable(this);
   late final $ExchangeRatesTable exchangeRates = $ExchangeRatesTable(this);
+  late final $BudgetSuggestionsTable budgetSuggestions =
+      $BudgetSuggestionsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [expenses, budgets, syncQueue, recurringExpenses, users, exchangeRates];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+        expenses,
+        budgets,
+        syncQueue,
+        recurringExpenses,
+        users,
+        exchangeRates,
+        budgetSuggestions
+      ];
 }
 
 typedef $$ExpensesTableCreateCompanionBuilder = ExpensesCompanion Function({
@@ -3329,6 +3778,7 @@ typedef $$BudgetsTableCreateCompanionBuilder = BudgetsCompanion Function({
   required double total,
   required double left,
   required String categoriesJson,
+  Value<double> saving,
   Value<bool> isSynced,
   required DateTime lastModified,
   Value<int> rowid,
@@ -3339,6 +3789,7 @@ typedef $$BudgetsTableUpdateCompanionBuilder = BudgetsCompanion Function({
   Value<double> total,
   Value<double> left,
   Value<String> categoriesJson,
+  Value<double> saving,
   Value<bool> isSynced,
   Value<DateTime> lastModified,
   Value<int> rowid,
@@ -3366,6 +3817,7 @@ class $$BudgetsTableTableManager extends RootTableManager<
             Value<double> total = const Value.absent(),
             Value<double> left = const Value.absent(),
             Value<String> categoriesJson = const Value.absent(),
+            Value<double> saving = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<DateTime> lastModified = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -3376,6 +3828,7 @@ class $$BudgetsTableTableManager extends RootTableManager<
             total: total,
             left: left,
             categoriesJson: categoriesJson,
+            saving: saving,
             isSynced: isSynced,
             lastModified: lastModified,
             rowid: rowid,
@@ -3386,6 +3839,7 @@ class $$BudgetsTableTableManager extends RootTableManager<
             required double total,
             required double left,
             required String categoriesJson,
+            Value<double> saving = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             required DateTime lastModified,
             Value<int> rowid = const Value.absent(),
@@ -3396,6 +3850,7 @@ class $$BudgetsTableTableManager extends RootTableManager<
             total: total,
             left: left,
             categoriesJson: categoriesJson,
+            saving: saving,
             isSynced: isSynced,
             lastModified: lastModified,
             rowid: rowid,
@@ -3428,6 +3883,11 @@ class $$BudgetsTableFilterComposer
 
   ColumnFilters<String> get categoriesJson => $state.composableBuilder(
       column: $state.table.categoriesJson,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<double> get saving => $state.composableBuilder(
+      column: $state.table.saving,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
 
@@ -3467,6 +3927,11 @@ class $$BudgetsTableOrderingComposer
 
   ColumnOrderings<String> get categoriesJson => $state.composableBuilder(
       column: $state.table.categoriesJson,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<double> get saving => $state.composableBuilder(
+      column: $state.table.saving,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
 
@@ -3948,6 +4413,7 @@ typedef $$UsersTableCreateCompanionBuilder = UsersCompanion Function({
   Value<bool> allowNotification,
   Value<bool> autoBudget,
   Value<bool> improveAccuracy,
+  Value<bool> automaticRebalanceSuggestions,
   required DateTime lastModified,
   Value<bool> isSynced,
   Value<int> rowid,
@@ -3962,6 +4428,7 @@ typedef $$UsersTableUpdateCompanionBuilder = UsersCompanion Function({
   Value<bool> allowNotification,
   Value<bool> autoBudget,
   Value<bool> improveAccuracy,
+  Value<bool> automaticRebalanceSuggestions,
   Value<DateTime> lastModified,
   Value<bool> isSynced,
   Value<int> rowid,
@@ -3993,6 +4460,7 @@ class $$UsersTableTableManager extends RootTableManager<
             Value<bool> allowNotification = const Value.absent(),
             Value<bool> autoBudget = const Value.absent(),
             Value<bool> improveAccuracy = const Value.absent(),
+            Value<bool> automaticRebalanceSuggestions = const Value.absent(),
             Value<DateTime> lastModified = const Value.absent(),
             Value<bool> isSynced = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -4007,6 +4475,7 @@ class $$UsersTableTableManager extends RootTableManager<
             allowNotification: allowNotification,
             autoBudget: autoBudget,
             improveAccuracy: improveAccuracy,
+            automaticRebalanceSuggestions: automaticRebalanceSuggestions,
             lastModified: lastModified,
             isSynced: isSynced,
             rowid: rowid,
@@ -4021,6 +4490,7 @@ class $$UsersTableTableManager extends RootTableManager<
             Value<bool> allowNotification = const Value.absent(),
             Value<bool> autoBudget = const Value.absent(),
             Value<bool> improveAccuracy = const Value.absent(),
+            Value<bool> automaticRebalanceSuggestions = const Value.absent(),
             required DateTime lastModified,
             Value<bool> isSynced = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -4035,6 +4505,7 @@ class $$UsersTableTableManager extends RootTableManager<
             allowNotification: allowNotification,
             autoBudget: autoBudget,
             improveAccuracy: improveAccuracy,
+            automaticRebalanceSuggestions: automaticRebalanceSuggestions,
             lastModified: lastModified,
             isSynced: isSynced,
             rowid: rowid,
@@ -4089,6 +4560,12 @@ class $$UsersTableFilterComposer
       column: $state.table.improveAccuracy,
       builder: (column, joinBuilders) =>
           ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<bool> get automaticRebalanceSuggestions => $state
+      .composableBuilder(
+          column: $state.table.automaticRebalanceSuggestions,
+          builder: (column, joinBuilders) =>
+              ColumnFilters(column, joinBuilders: joinBuilders));
 
   ColumnFilters<DateTime> get lastModified => $state.composableBuilder(
       column: $state.table.lastModified,
@@ -4148,6 +4625,12 @@ class $$UsersTableOrderingComposer
       column: $state.table.improveAccuracy,
       builder: (column, joinBuilders) =>
           ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<bool> get automaticRebalanceSuggestions =>
+      $state.composableBuilder(
+          column: $state.table.automaticRebalanceSuggestions,
+          builder: (column, joinBuilders) =>
+              ColumnOrderings(column, joinBuilders: joinBuilders));
 
   ColumnOrderings<DateTime> get lastModified => $state.composableBuilder(
       column: $state.table.lastModified,
@@ -4288,6 +4771,145 @@ class $$ExchangeRatesTableOrderingComposer
           ColumnOrderings(column, joinBuilders: joinBuilders));
 }
 
+typedef $$BudgetSuggestionsTableCreateCompanionBuilder
+    = BudgetSuggestionsCompanion Function({
+  Value<int> id,
+  required String monthId,
+  required String userId,
+  required String suggestions,
+  required DateTime timestamp,
+  Value<bool> isRead,
+});
+typedef $$BudgetSuggestionsTableUpdateCompanionBuilder
+    = BudgetSuggestionsCompanion Function({
+  Value<int> id,
+  Value<String> monthId,
+  Value<String> userId,
+  Value<String> suggestions,
+  Value<DateTime> timestamp,
+  Value<bool> isRead,
+});
+
+class $$BudgetSuggestionsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $BudgetSuggestionsTable,
+    BudgetSuggestion,
+    $$BudgetSuggestionsTableFilterComposer,
+    $$BudgetSuggestionsTableOrderingComposer,
+    $$BudgetSuggestionsTableCreateCompanionBuilder,
+    $$BudgetSuggestionsTableUpdateCompanionBuilder> {
+  $$BudgetSuggestionsTableTableManager(
+      _$AppDatabase db, $BudgetSuggestionsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          filteringComposer:
+              $$BudgetSuggestionsTableFilterComposer(ComposerState(db, table)),
+          orderingComposer: $$BudgetSuggestionsTableOrderingComposer(
+              ComposerState(db, table)),
+          updateCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            Value<String> monthId = const Value.absent(),
+            Value<String> userId = const Value.absent(),
+            Value<String> suggestions = const Value.absent(),
+            Value<DateTime> timestamp = const Value.absent(),
+            Value<bool> isRead = const Value.absent(),
+          }) =>
+              BudgetSuggestionsCompanion(
+            id: id,
+            monthId: monthId,
+            userId: userId,
+            suggestions: suggestions,
+            timestamp: timestamp,
+            isRead: isRead,
+          ),
+          createCompanionCallback: ({
+            Value<int> id = const Value.absent(),
+            required String monthId,
+            required String userId,
+            required String suggestions,
+            required DateTime timestamp,
+            Value<bool> isRead = const Value.absent(),
+          }) =>
+              BudgetSuggestionsCompanion.insert(
+            id: id,
+            monthId: monthId,
+            userId: userId,
+            suggestions: suggestions,
+            timestamp: timestamp,
+            isRead: isRead,
+          ),
+        ));
+}
+
+class $$BudgetSuggestionsTableFilterComposer
+    extends FilterComposer<_$AppDatabase, $BudgetSuggestionsTable> {
+  $$BudgetSuggestionsTableFilterComposer(super.$state);
+  ColumnFilters<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get monthId => $state.composableBuilder(
+      column: $state.table.monthId,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get userId => $state.composableBuilder(
+      column: $state.table.userId,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<String> get suggestions => $state.composableBuilder(
+      column: $state.table.suggestions,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<DateTime> get timestamp => $state.composableBuilder(
+      column: $state.table.timestamp,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+
+  ColumnFilters<bool> get isRead => $state.composableBuilder(
+      column: $state.table.isRead,
+      builder: (column, joinBuilders) =>
+          ColumnFilters(column, joinBuilders: joinBuilders));
+}
+
+class $$BudgetSuggestionsTableOrderingComposer
+    extends OrderingComposer<_$AppDatabase, $BudgetSuggestionsTable> {
+  $$BudgetSuggestionsTableOrderingComposer(super.$state);
+  ColumnOrderings<int> get id => $state.composableBuilder(
+      column: $state.table.id,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get monthId => $state.composableBuilder(
+      column: $state.table.monthId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get userId => $state.composableBuilder(
+      column: $state.table.userId,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<String> get suggestions => $state.composableBuilder(
+      column: $state.table.suggestions,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<DateTime> get timestamp => $state.composableBuilder(
+      column: $state.table.timestamp,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+
+  ColumnOrderings<bool> get isRead => $state.composableBuilder(
+      column: $state.table.isRead,
+      builder: (column, joinBuilders) =>
+          ColumnOrderings(column, joinBuilders: joinBuilders));
+}
+
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
@@ -4303,4 +4925,6 @@ class $AppDatabaseManager {
       $$UsersTableTableManager(_db, _db.users);
   $$ExchangeRatesTableTableManager get exchangeRates =>
       $$ExchangeRatesTableTableManager(_db, _db.exchangeRates);
+  $$BudgetSuggestionsTableTableManager get budgetSuggestions =>
+      $$BudgetSuggestionsTableTableManager(_db, _db.budgetSuggestions);
 }

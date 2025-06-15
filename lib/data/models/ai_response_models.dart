@@ -75,12 +75,14 @@ class BudgetData {
   final double totalBudget;
   final double remainingBudget;
   final Map<String, CategoryBudgetData> categoryBudgets;
+  final double saving;
   final String currency;
 
   BudgetData({
     required this.totalBudget,
     required this.remainingBudget,
     required this.categoryBudgets,
+    required this.saving,
     required this.currency,
   });
 
@@ -99,6 +101,7 @@ class BudgetData {
       totalBudget: budget.total,
       remainingBudget: budget.left,
       categoryBudgets: categoryBudgets,
+      saving: budget.saving,
       currency: budget.currency,
     );
   }
@@ -110,6 +113,7 @@ class BudgetData {
       'categoryBudgets': categoryBudgets.map(
         (key, value) => MapEntry(key, value.toJson()),
       ),
+      'saving': saving,
       'currency': currency,
     };
   }

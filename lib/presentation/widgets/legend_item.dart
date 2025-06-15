@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../utils/category_manager.dart';
 import '../../domain/entities/category.dart';
 
@@ -17,23 +18,23 @@ class LegendItem extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 12.w,
+          height: 12.h,
           decoration: BoxDecoration(
             color: catEnum != null
                 ? CategoryManager.getColor(catEnum)
                 : CategoryManager.getColorFromId(category),
-            borderRadius: BorderRadius.circular(45),
+            borderRadius: BorderRadius.circular(45.r),
           ),
         ),
-        const SizedBox(width: 8),
+        SizedBox(width: 8.w),
         Text(
           catEnum != null
               ? CategoryManager.getName(catEnum)
               : CategoryManager.getNameFromId(category),
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'Lexend',
-            fontSize: 12,
+            fontSize: 12.sp,
           ),
         ),
       ],

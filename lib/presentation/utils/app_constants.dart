@@ -7,21 +7,9 @@ class AppConstants {
     'MYR',
     'USD',
     'EUR',
-    'GBP',
     'SGD',
     'JPY',
     'CNY',
-    'THB',
-    'INR',
-    'AUD',
-    'CAD',
-    'HKD',
-    'KRW',
-    'CHF',
-    'NZD',
-    'PHP',
-    'VND',
-    'IDR'
   ];
 
   /// Get all supported currencies from formatter
@@ -31,9 +19,11 @@ class AppConstants {
 
   /// Payment methods list
   static const List<String> paymentMethods = [
-    'Credit Card',
+    'Card',
     'Cash',
-    'e-Wallet'
+    'E-Wallet',
+    'Bank Transfer',
+    'Other'
   ];
 
   /// Recurring payment options

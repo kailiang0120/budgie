@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../utils/app_theme.dart';
 
 class CustomCard extends StatelessWidget {
@@ -10,9 +11,9 @@ class CustomCard extends StatelessWidget {
 
   final double borderRadius;
 
-  final EdgeInsetsGeometry padding;
+  final EdgeInsetsGeometry? padding;
 
-  final EdgeInsetsGeometry margin;
+  final EdgeInsetsGeometry? margin;
 
   final Border? border;
 
@@ -30,14 +31,18 @@ class CustomCard extends StatelessWidget {
     this.color,
     this.elevation = 2.0,
     this.borderRadius = 15.0,
-    this.padding = const EdgeInsets.all(16.0),
-    this.margin = const EdgeInsets.only(bottom: 16.0),
+    this.padding,
+    this.margin,
     this.border,
     this.onTap,
     this.showSplash = true,
     this.width,
     this.height,
   }) : super(key: key);
+
+  // Default responsive padding and margin
+  EdgeInsetsGeometry get _defaultPadding => EdgeInsets.all(16.w);
+  EdgeInsetsGeometry get _defaultMargin => EdgeInsets.only(bottom: 16.h);
 
   @override
   Widget build(BuildContext context) {
@@ -48,25 +53,25 @@ class CustomCard extends StatelessWidget {
         : Colors.black.withAlpha((255 * 0.1).toInt());
 
     final card = Container(
-      width: width,
-      height: height,
-      margin: margin,
+      width: width?.w,
+      height: height?.h,
+      margin: margin ?? _defaultMargin,
       decoration: BoxDecoration(
         color: effectiveColor,
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: BorderRadius.circular(borderRadius.r),
         border: border,
         boxShadow: elevation > 0
             ? [
                 BoxShadow(
                   color: shadowColor,
-                  blurRadius: elevation * 2,
-                  offset: Offset(0, elevation),
+                  blurRadius: (elevation * 2).r,
+                  offset: Offset(0, elevation.h),
                 ),
               ]
             : null,
       ),
       child: Padding(
-        padding: padding,
+        padding: padding ?? _defaultPadding,
         child: child,
       ),
     );
@@ -80,7 +85,7 @@ class CustomCard extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               onTap: onTap,
-              borderRadius: BorderRadius.circular(borderRadius),
+              borderRadius: BorderRadius.circular(borderRadius.r),
               child: card,
             ),
           )
@@ -90,6 +95,7 @@ class CustomCard extends StatelessWidget {
           );
   }
 
+  /// Create a card with a title
   factory CustomCard.withTitle({
     Key? key,
     required String title,
@@ -99,8 +105,8 @@ class CustomCard extends StatelessWidget {
     Color? color,
     double elevation = 2.0,
     double borderRadius = 15.0,
-    EdgeInsetsGeometry padding = const EdgeInsets.all(16.0),
-    EdgeInsetsGeometry margin = const EdgeInsets.only(bottom: 16.0),
+    EdgeInsetsGeometry? padding,
+    EdgeInsetsGeometry? margin,
     Border? border,
     VoidCallback? onTap,
     bool showSplash = true,
@@ -133,22 +139,22 @@ class CustomCard extends StatelessWidget {
                   Icon(
                     icon,
                     color: iconColor ?? AppTheme.primaryColor,
-                    size: 20,
+                    size: 20.sp,
                   ),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8.w),
                 ],
                 Text(
                   title,
                   style: TextStyle(
                     fontFamily: AppTheme.fontFamily,
-                    fontSize: 18,
+                    fontSize: 18.sp,
                     fontWeight: FontWeight.w500,
                     color: titleColor,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16.h),
             child,
           ],
         );
@@ -156,7 +162,7 @@ class CustomCard extends StatelessWidget {
     );
   }
 
-  /// 创建一个带操作按钮的卡片
+  /// Create a card with an action button
   factory CustomCard.withAction({
     Key? key,
     required Widget child,
@@ -166,8 +172,8 @@ class CustomCard extends StatelessWidget {
     Color? color,
     double elevation = 2.0,
     double borderRadius = 15.0,
-    EdgeInsetsGeometry padding = const EdgeInsets.all(16.0),
-    EdgeInsetsGeometry margin = const EdgeInsets.only(bottom: 16.0),
+    EdgeInsetsGeometry? padding,
+    EdgeInsetsGeometry? margin,
     Border? border,
     VoidCallback? onTap,
     bool showSplash = true,
@@ -190,14 +196,14 @@ class CustomCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           child,
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
               onPressed: onActionPressed,
               icon: Icon(
                 actionIcon ?? Icons.arrow_forward,
-                size: 18,
+                size: 18.sp,
               ),
               label: Text(actionText),
               style: TextButton.styleFrom(

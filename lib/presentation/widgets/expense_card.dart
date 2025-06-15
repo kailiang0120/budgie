@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../domain/entities/expense.dart';
@@ -28,11 +29,6 @@ class _ExpenseCardState extends State<ExpenseCard>
   late Animation<Offset> _slideAnimation;
   bool _isSwipeOpened = false;
 
-  // Constants for button sizing and positioning
-  static const double cardMinHeight = 80.0;
-  static const double buttonSize = 56.0; // Round buttons size
-  static const double buttonMargin = 8.0;
-
   @override
   void initState() {
     super.initState();
@@ -42,8 +38,7 @@ class _ExpenseCardState extends State<ExpenseCard>
     );
     _slideAnimation = Tween<Offset>(
       begin: Offset.zero,
-      end:
-          const Offset(-0.37, 0), // Slide further to fully reveal round buttons
+      end: Offset(-0.37.h, 0), // Slide further to fully reveal round buttons
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeInOutCubic,
@@ -88,13 +83,21 @@ class _ExpenseCardState extends State<ExpenseCard>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Delete Expense'),
-          content: const Text(
-              'Are you sure you want to delete this expense? This action cannot be undone.'),
+          title: Text(
+            'Delete Expense',
+            style: TextStyle(fontSize: 18.sp),
+          ),
+          content: Text(
+            'Are you sure you want to delete this expense? This action cannot be undone.',
+            style: TextStyle(fontSize: 14.sp),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(
+                'Cancel',
+                style: TextStyle(fontSize: 14.sp),
+              ),
             ),
             TextButton(
               onPressed: () {
@@ -104,7 +107,10 @@ class _ExpenseCardState extends State<ExpenseCard>
               style: TextButton.styleFrom(
                 foregroundColor: Colors.red,
               ),
-              child: const Text('Delete'),
+              child: Text(
+                'Delete',
+                style: TextStyle(fontSize: 14.sp),
+              ),
             ),
           ],
         );
@@ -157,7 +163,7 @@ class _ExpenseCardState extends State<ExpenseCard>
 
   void _onHorizontalDragUpdate(DragUpdateDetails details) {
     // Calculate the sensitivity of the swipe
-    const double sensitivity = 8.0;
+    double sensitivity = 8.0.w;
 
     if (details.delta.dx < -sensitivity && !_isSwipeOpened) {
       // Swipe left to show actions
@@ -199,12 +205,16 @@ class _ExpenseCardState extends State<ExpenseCard>
 
   String _getPaymentMethodString(PaymentMethod method) {
     switch (method) {
-      case PaymentMethod.creditCard:
-        return 'Credit Card';
+      case PaymentMethod.card:
+        return 'Card';
       case PaymentMethod.cash:
         return 'Cash';
       case PaymentMethod.eWallet:
-        return 'e-Wallet';
+        return 'E-Wallet';
+      case PaymentMethod.bankTransfer:
+        return 'Bank Transfer';
+      case PaymentMethod.other:
+        return 'Other';
     }
   }
 
@@ -215,15 +225,15 @@ class _ExpenseCardState extends State<ExpenseCard>
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      height: cardMinHeight,
+      margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
+      height: 80.h,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 2,
-            offset: const Offset(0, 4),
+            blurRadius: 2.r,
+            offset: Offset(0, 4.h),
           ),
         ],
       ),
@@ -233,7 +243,7 @@ class _ExpenseCardState extends State<ExpenseCard>
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16.r),
                 color: isDarkMode
                     ? Colors.grey.shade900.withValues(alpha: 0.3)
                     : Colors.grey.shade300,
@@ -243,17 +253,17 @@ class _ExpenseCardState extends State<ExpenseCard>
                 children: [
                   // Edit Button - Round with fixed ratio
                   Container(
-                    width: buttonSize,
-                    height: buttonSize,
-                    margin: const EdgeInsets.only(right: buttonMargin),
+                    width: 56.w,
+                    height: 56.w,
+                    margin: EdgeInsets.only(right: 8.w),
                     decoration: BoxDecoration(
                       color: AppTheme.primaryColor,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
                           color: AppTheme.primaryColor.withValues(alpha: 0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+                          blurRadius: 4.r,
+                          offset: Offset(0, 2.h),
                         ),
                       ],
                     ),
@@ -261,11 +271,11 @@ class _ExpenseCardState extends State<ExpenseCard>
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: _navigateToEdit,
-                        borderRadius: BorderRadius.circular(buttonSize / 2),
-                        child: const Icon(
+                        borderRadius: BorderRadius.circular(28.r),
+                        child: Icon(
                           Icons.edit_rounded,
                           color: Colors.white,
-                          size: 24,
+                          size: 24.sp,
                         ),
                       ),
                     ),
@@ -273,17 +283,17 @@ class _ExpenseCardState extends State<ExpenseCard>
 
                   // Delete Button - Round with fixed ratio
                   Container(
-                    width: buttonSize,
-                    height: buttonSize,
-                    margin: const EdgeInsets.only(right: 16),
+                    width: 56.w,
+                    height: 56.w,
+                    margin: EdgeInsets.only(right: 16.w),
                     decoration: BoxDecoration(
                       color: Colors.red.shade500,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
                           color: Colors.red.shade500.withValues(alpha: 0.2),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+                          blurRadius: 4.r,
+                          offset: Offset(0, 2.h),
                         ),
                       ],
                     ),
@@ -291,11 +301,11 @@ class _ExpenseCardState extends State<ExpenseCard>
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: _showDeleteConfirmation,
-                        borderRadius: BorderRadius.circular(buttonSize / 2),
-                        child: const Icon(
+                        borderRadius: BorderRadius.circular(28.r),
+                        child: Icon(
                           Icons.delete_rounded,
                           color: Colors.white,
-                          size: 24,
+                          size: 24.sp,
                         ),
                       ),
                     ),
@@ -313,26 +323,26 @@ class _ExpenseCardState extends State<ExpenseCard>
               onHorizontalDragUpdate: _onHorizontalDragUpdate,
               onHorizontalDragEnd: _onHorizontalDragEnd,
               child: Container(
-                height: cardMinHeight,
+                height: 80.h,
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16.r),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
+                      blurRadius: 12.r,
+                      offset: Offset(0, 4.h),
                     ),
                   ],
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: EdgeInsets.all(16.w),
                   child: Row(
                     children: [
                       // Category Icon
                       Container(
-                        width: 48,
-                        height: 48,
+                        width: 48.w,
+                        height: 48.h,
                         decoration: BoxDecoration(
                           color:
                               CategoryManager.getColor(widget.expense.category),
@@ -341,18 +351,18 @@ class _ExpenseCardState extends State<ExpenseCard>
                         child: Icon(
                           CategoryManager.getIcon(widget.expense.category),
                           color: Colors.white,
-                          size: 24,
+                          size: 24.sp,
                           shadows: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 5,
-                              offset: const Offset(0, 5),
+                              blurRadius: 5.r,
+                              offset: Offset(0, 5.h),
                             ),
                           ],
                         ),
                       ),
 
-                      const SizedBox(width: 16),
+                      SizedBox(width: 12.w),
 
                       // Expense Details
                       Expanded(
@@ -365,7 +375,7 @@ class _ExpenseCardState extends State<ExpenseCard>
                               style: TextStyle(
                                 fontFamily: AppTheme.fontFamily,
                                 fontWeight: FontWeight.w600,
-                                fontSize: 16,
+                                fontSize: 16.sp,
                                 color: Theme.of(context)
                                     .textTheme
                                     .bodyLarge
@@ -374,12 +384,12 @@ class _ExpenseCardState extends State<ExpenseCard>
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(height: 4),
+                            SizedBox(height: 4.h),
                             Text(
                               '${dateFormat.format(widget.expense.date)} at ${timeFormat.format(widget.expense.date)}',
                               style: TextStyle(
                                 fontFamily: AppTheme.fontFamily,
-                                fontSize: 12,
+                                fontSize: 9.sp,
                                 color: Theme.of(context)
                                     .textTheme
                                     .bodyMedium
@@ -400,18 +410,18 @@ class _ExpenseCardState extends State<ExpenseCard>
                             '${widget.expense.currency} ${widget.expense.amount.toStringAsFixed(2)}',
                             style: TextStyle(
                               fontFamily: AppTheme.fontFamily,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 14.sp,
                               color:
                                   Theme.of(context).textTheme.bodyLarge?.color,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4.h),
                           Text(
                             _getPaymentMethodString(widget.expense.method),
                             style: TextStyle(
                               fontFamily: AppTheme.fontFamily,
-                              fontSize: 12,
+                              fontSize: 9.sp,
                               color: Theme.of(context)
                                   .textTheme
                                   .bodyMedium

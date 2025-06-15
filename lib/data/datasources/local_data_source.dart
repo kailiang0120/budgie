@@ -2,6 +2,7 @@ import '../../domain/entities/budget.dart';
 import '../../domain/entities/expense.dart';
 import '../../domain/entities/recurring_expense.dart';
 import '../../domain/entities/user.dart';
+import '../../domain/entities/budget_suggestion.dart';
 
 /// Abstract interface for local data source operations
 abstract class LocalDataSource {
@@ -41,6 +42,12 @@ abstract class LocalDataSource {
   Future<List<String>> getUnsyncedBudgetIds(String userId);
   Future<void> markBudgetAsSynced(String monthId, String userId);
   Future<void> clearAllBudgetSyncOperations(String userId);
+
+  // Budget suggestions operations
+  Future<void> saveBudgetSuggestion(BudgetSuggestion suggestion);
+  Future<BudgetSuggestion?> getLatestBudgetSuggestion(
+      String monthId, String userId);
+  Future<void> markBudgetSuggestionAsRead(int id);
 
   // Synchronization operations
   Future<void> addToSyncQueue(

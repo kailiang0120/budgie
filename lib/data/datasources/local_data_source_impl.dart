@@ -9,6 +9,7 @@ import '../../domain/entities/expense.dart' as domain;
 import '../../domain/entities/recurring_expense.dart' as domain;
 import '../../domain/entities/user.dart' as domain;
 import '../../domain/entities/category.dart';
+import '../../domain/entities/budget_suggestion.dart' as domain;
 import '../local/database/app_database.dart';
 import 'local_data_source.dart';
 
@@ -85,29 +86,47 @@ class LocalDataSourceImpl implements LocalDataSource {
   @override
   Future<void> saveUserSettings(
       String userId, Map<String, dynamic> settings) async {
-    // Extract nested settings if present
-    final settingsMap = settings['settings'] as Map<String, dynamic>? ?? {};
+    try {
+      debugPrint('💾 LocalDataSource: Saving user settings for user: $userId');
+      debugPrint('💾 LocalDataSource: Settings data: $settings');
 
-    final companion = UsersCompanion(
-      id: Value(userId),
-      currency: Value(settings['currency'] as String? ?? 'MYR'),
-      theme: Value(settings['theme'] as String? ?? 'light'),
-      // Handle both nested and root-level format
-      allowNotification: Value(settingsMap['allowNotification'] as bool? ??
-          settings['allowNotification'] as bool? ??
-          false),
-      autoBudget: Value(settingsMap['autoBudget'] as bool? ??
-          settings['autoBudget'] as bool? ??
-          false),
-      improveAccuracy: Value(settingsMap['improveAccuracy'] as bool? ??
-          settings['improveAccuracy'] as bool? ??
-          false),
-      lastModified: Value(DateTime.now()),
-      isSynced: const Value(false),
-    );
+      final settingsMap = settings['settings'] as Map<String, dynamic>? ?? {};
 
-    await _database.into(_database.users).insertOnConflictUpdate(companion);
-    await addToSyncQueue('user_settings', userId, userId, 'update');
+      final companion = UsersCompanion(
+        id: Value(userId),
+        currency: Value(settings['currency'] as String? ?? 'MYR'),
+        theme: Value(settings['theme'] as String? ?? 'light'),
+        // Handle both nested and root-level format
+        allowNotification: Value(settingsMap['allowNotification'] as bool? ??
+            settings['allowNotification'] as bool? ??
+            false),
+        autoBudget: Value(settingsMap['autoBudget'] as bool? ??
+            settings['autoBudget'] as bool? ??
+            false),
+        improveAccuracy: Value(settingsMap['improveAccuracy'] as bool? ??
+            settings['improveAccuracy'] as bool? ??
+            false),
+        lastModified: Value(DateTime.now()),
+        isSynced: const Value(false),
+      );
+
+      debugPrint('💾 LocalDataSource: Created companion object with values:');
+      debugPrint('  - currency: ${companion.currency.value}');
+      debugPrint('  - theme: ${companion.theme.value}');
+      debugPrint('  - allowNotification: ${companion.allowNotification.value}');
+      debugPrint('  - autoBudget: ${companion.autoBudget.value}');
+      debugPrint('  - improveAccuracy: ${companion.improveAccuracy.value}');
+
+      await _database.into(_database.users).insertOnConflictUpdate(companion);
+      debugPrint('💾 LocalDataSource: User settings saved to database');
+
+      await addToSyncQueue('user_settings', userId, userId, 'update');
+      debugPrint('💾 LocalDataSource: Added to sync queue');
+    } catch (e, stackTrace) {
+      debugPrint('❌ LocalDataSource: Error saving user settings: $e');
+      debugPrint('❌ LocalDataSource: Stack trace: $stackTrace');
+      rethrow;
+    }
   }
 
   @override
@@ -474,10 +493,43 @@ class LocalDataSourceImpl implements LocalDataSource {
           domain.CategoryBudget.fromMap(Map<String, dynamic>.from(value));
     });
 
+    // Calculate total allocated to categories
+    final totalAllocated = categories.values
+        .fold(0.0, (sum, categoryBudget) => sum + categoryBudget.budget);
+
+    // Calculate expected saving
+    final expectedSaving = budgetRow.total - totalAllocated;
+
+    // Check if saving field needs to be updated (for backward compatibility)
+    bool needsUpdate = false;
+    double actualSaving = budgetRow.saving;
+
+    // If saving is 0 but we expect it to be different, or if it doesn't match calculation
+    if ((budgetRow.saving == 0.0 && expectedSaving != 0.0) ||
+        (budgetRow.saving != expectedSaving && expectedSaving >= 0)) {
+      actualSaving = expectedSaving;
+      needsUpdate = true;
+    }
+
+    // If we need to update the saving field in the database
+    if (needsUpdate) {
+      try {
+        await (_database.update(_database.budgets)
+              ..where((tbl) =>
+                  tbl.monthId.equals(monthId) & tbl.userId.equals(userId)))
+            .write(BudgetsCompanion(saving: Value(actualSaving)));
+        print('Updated saving field for budget $monthId: $actualSaving');
+      } catch (e) {
+        print('Error updating saving field: $e');
+        // Continue with calculated value even if database update fails
+      }
+    }
+
     return domain.Budget(
       total: budgetRow.total,
       left: budgetRow.left,
       categories: categories,
+      saving: actualSaving,
     );
   }
 
@@ -493,6 +545,7 @@ class LocalDataSourceImpl implements LocalDataSource {
             total: budget.total,
             left: budget.left,
             categoriesJson: categoriesJson,
+            saving: Value(budget.saving),
             lastModified: DateTime.now(),
             isSynced: Value(isSynced),
           ),
@@ -531,6 +584,52 @@ class LocalDataSourceImpl implements LocalDataSource {
           ..where(
               (tbl) => tbl.monthId.equals(monthId) & tbl.userId.equals(userId)))
         .write(const BudgetsCompanion(isSynced: Value(true)));
+  }
+
+  // Budget suggestions operations
+  @override
+  Future<void> saveBudgetSuggestion(domain.BudgetSuggestion suggestion) async {
+    final companion = BudgetSuggestionsCompanion.insert(
+      monthId: suggestion.monthId,
+      userId: suggestion.userId,
+      suggestions: suggestion.suggestions,
+      timestamp: suggestion.timestamp,
+      isRead: Value(suggestion.isRead),
+    );
+    await _database
+        .into(_database.budgetSuggestions)
+        .insertOnConflictUpdate(companion);
+  }
+
+  @override
+  Future<domain.BudgetSuggestion?> getLatestBudgetSuggestion(
+      String monthId, String userId) async {
+    final query = _database.select(_database.budgetSuggestions)
+      ..where((tbl) => tbl.monthId.equals(monthId) & tbl.userId.equals(userId))
+      ..orderBy([(tbl) => OrderingTerm.desc(tbl.timestamp)])
+      ..limit(1);
+
+    final suggestion = await query.getSingleOrNull();
+
+    if (suggestion == null) {
+      return null;
+    }
+
+    return domain.BudgetSuggestion(
+      id: suggestion.id,
+      monthId: suggestion.monthId,
+      userId: suggestion.userId,
+      suggestions: suggestion.suggestions,
+      timestamp: suggestion.timestamp,
+      isRead: suggestion.isRead,
+    );
+  }
+
+  @override
+  Future<void> markBudgetSuggestionAsRead(int id) async {
+    await (_database.update(_database.budgetSuggestions)
+          ..where((tbl) => tbl.id.equals(id)))
+        .write(const BudgetSuggestionsCompanion(isRead: Value(true)));
   }
 
   // Sync operations

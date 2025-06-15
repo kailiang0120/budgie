@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import '../../domain/entities/budget.dart';
 import '../viewmodels/budget_viewmodel.dart';
@@ -138,9 +139,9 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
   }
 
   void _setupListeners() {
-    // Listen for total budget changes, calculate savings
+    // Listen for changes to both total budget and allocated budget to calculate savings
     _totalAllocatedNotifier.addListener(_calculateSavings);
-    // Don't add _totalBudgetNotifier listener here since we add it in initState
+    _totalBudgetNotifier.addListener(_calculateSavings);
 
     // Create controllers for each category
     for (final catId in _budgetCategoryIds) {
@@ -341,11 +342,17 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
           final month = int.tryParse(parts[1]);
 
           if (year != null && month != null) {
+            // Calculate total allocated to categories
+            final totalAllocated =
+                cats.values.fold(0.0, (sum, cat) => sum + cat.budget);
+
             // Create new budget object with current currency
             final newBudget = Budget(
               total: totalBudget,
               left: totalBudget,
               categories: cats,
+              saving: totalBudget -
+                  totalAllocated, // Calculate saving as unallocated budget
               currency: _currency, // Use the current currency from settings
             );
 
@@ -496,7 +503,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(16.w),
           children: [
             // //Date picker button for selecting budget month
             // DatePickerButton(
@@ -526,7 +533,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 20),
+                  SizedBox(height: 20.h),
 
                   // 预算分配进度
                   ValueListenableBuilder<double?>(
@@ -777,7 +784,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
 
                       // Add percentage slider for budget allocation
                       Padding(
-                        padding: const EdgeInsets.only(left: 52.0, bottom: 8.0),
+                        padding: EdgeInsets.only(left: 52.w, bottom: 8.h),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -788,7 +795,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                 Text(
                                   'Allocation:',
                                   style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 12.sp,
                                     color: Colors.grey[600],
                                   ),
                                 ),
@@ -798,10 +805,10 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                     // Only show percentages if total budget is set
                                     if (totalBudget == null ||
                                         totalBudget <= 0) {
-                                      return const Text(
+                                      return Text(
                                         'Set total budget first',
                                         style: TextStyle(
-                                          fontSize: 12,
+                                          fontSize: 12.sp,
                                           fontStyle: FontStyle.italic,
                                           color: Colors.grey,
                                         ),
@@ -811,7 +818,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                     return Text(
                                       '${_categoryPercentages[catId]?.toStringAsFixed(1) ?? '0.0'}%',
                                       style: TextStyle(
-                                        fontSize: 12,
+                                        fontSize: 12.sp,
                                         fontWeight: FontWeight.w600,
                                         color: categoryColor,
                                       ),
@@ -833,13 +840,12 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                   opacity: isEnabled ? 1.0 : 0.5,
                                   child: SliderTheme(
                                     data: SliderTheme.of(context).copyWith(
-                                      trackHeight: 4.0,
-                                      thumbShape: const RoundSliderThumbShape(
-                                        enabledThumbRadius: 6.0,
+                                      trackHeight: 4.h,
+                                      thumbShape: RoundSliderThumbShape(
+                                        enabledThumbRadius: 6.r,
                                       ),
-                                      overlayShape:
-                                          const RoundSliderOverlayShape(
-                                        overlayRadius: 14.0,
+                                      overlayShape: RoundSliderOverlayShape(
+                                        overlayRadius: 14.r,
                                       ),
                                       activeTrackColor: categoryColor,
                                       inactiveTrackColor: Colors.grey.shade200,
@@ -893,8 +899,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                       // 类别预算剩余信息
                       if (hasExistingBudget) ...[
                         Padding(
-                          padding:
-                              const EdgeInsets.only(left: 52.0, bottom: 16.0),
+                          padding: EdgeInsets.only(left: 52.w, bottom: 16.h),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -905,37 +910,38 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                   Text(
                                     'Remaining:',
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 12.sp,
                                       color: Colors.grey[600],
                                     ),
                                   ),
                                   Text(
                                     '$currencySymbol${remainingBudget.toStringAsFixed(2)}',
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 12.sp,
                                       fontWeight: FontWeight.w600,
                                       color: statusColor,
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
+                              SizedBox(height: 4.h),
                               Stack(
                                 children: [
                                   Container(
-                                    height: 4,
+                                    height: 4.h,
                                     decoration: BoxDecoration(
                                       color: Colors.grey.shade200,
-                                      borderRadius: BorderRadius.circular(2),
+                                      borderRadius: BorderRadius.circular(2.r),
                                     ),
                                   ),
                                   FractionallySizedBox(
                                     widthFactor: budgetPercentage,
                                     child: Container(
-                                      height: 4,
+                                      height: 4.h,
                                       decoration: BoxDecoration(
                                         color: statusColor,
-                                        borderRadius: BorderRadius.circular(2),
+                                        borderRadius:
+                                            BorderRadius.circular(2.r),
                                       ),
                                     ),
                                   ),
@@ -954,21 +960,20 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         ),
       ),
       bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16.0),
-        margin: const EdgeInsets.only(bottom: 16),
+        padding: EdgeInsets.all(16.w),
+        margin: EdgeInsets.only(bottom: 16.h),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withAlpha((255 * 0.05).toInt()),
-              blurRadius: 10,
-              offset: const Offset(0, -5),
+              blurRadius: 10.r,
+              offset: Offset(0, -5.h),
             ),
           ],
         ),
         child: SubmitButton(
           text: '${AppConstants.saveButtonText} ${AppConstants.setBudgetTitle}',
-          loadingText: AppConstants.savingText,
           isLoading: _isSubmitting,
           onPressed: _saveBudget,
           icon: Icons.save,
