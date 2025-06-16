@@ -3,10 +3,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../entities/expense.dart';
+import '../../entities/recurring_expense.dart';
 import '../../entities/category.dart' as app_category;
 import '../../repositories/expenses_repository.dart';
 import '../../../data/infrastructure/errors/app_error.dart';
-import '../../../data/infrastructure/monitoring/performance_monitor.dart';
 import '../../../data/infrastructure/network/connectivity_service.dart';
 import '../../../data/infrastructure/services/sync_service.dart';
 import '../../../di/injection_container.dart' as di;
@@ -25,9 +25,7 @@ class LoadExpensesUseCase {
   /// Load expenses from local database
   Future<List<Expense>> loadFromLocalDatabase() async {
     try {
-      PerformanceMonitor.startTimer('load_local_expenses');
       final localExpenses = await _expensesRepository.getExpenses();
-      PerformanceMonitor.stopTimer('load_local_expenses');
       return localExpenses;
     } catch (e, stackTrace) {
       final appError = AppError.from(e, stackTrace);
@@ -46,8 +44,6 @@ class LoadExpensesUseCase {
 
       final userId = currentUser.uid;
 
-      PerformanceMonitor.startTimer('load_expenses');
-
       Query expensesQuery = FirebaseFirestore.instance
           .collection('users')
           .doc(userId)
@@ -58,7 +54,6 @@ class LoadExpensesUseCase {
       final snapshot = await expensesQuery.get();
       final expenses = processExpensesDocs(snapshot.docs);
 
-      PerformanceMonitor.stopTimer('load_expenses');
       return expenses;
     } catch (e, stackTrace) {
       final appError = AppError.from(e, stackTrace);
@@ -94,6 +89,19 @@ class LoadExpensesUseCase {
             orElse: () => PaymentMethod.cash,
           );
 
+          // Parse recurring details from embedded field
+          RecurringDetails? recurringDetails;
+          final recurringData =
+              documentData['recurringDetails'] as Map<String, dynamic>?;
+          if (recurringData != null) {
+            try {
+              recurringDetails = RecurringDetails.fromJson(recurringData);
+            } catch (e) {
+              debugPrint(
+                  'Error parsing recurring details in LoadExpensesUseCase: $e');
+            }
+          }
+
           return Expense(
             id: doc.id,
             remark: documentData['remark'] as String? ?? '',
@@ -101,7 +109,9 @@ class LoadExpensesUseCase {
             date: date,
             category: category,
             method: method,
+            description: documentData['description'] as String?,
             currency: documentData['currency'] as String? ?? 'MYR',
+            recurringDetails: recurringDetails,
           );
         })
         .whereType<Expense>()

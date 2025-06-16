@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:async';
 import '../../domain/entities/user.dart' as domain;
 import '../../domain/repositories/auth_repository.dart';
-import '../../data/infrastructure/monitoring/performance_monitor.dart';
+
 import '../../domain/usecase/auth/sign_in_with_email_usecase.dart';
 import '../../domain/usecase/auth/create_user_with_email_usecase.dart';
 import '../../domain/usecase/auth/sign_in_with_google_usecase.dart';
@@ -136,7 +136,6 @@ class AuthViewModel extends ChangeNotifier {
   /// Refresh authentication state to ensure current user info is up-to-date
   Future<void> refreshAuthState() async {
     try {
-      PerformanceMonitor.startTimer('refresh_auth_state');
       _isLoading = true;
       _error = null;
       notifyListeners();
@@ -148,7 +147,6 @@ class AuthViewModel extends ChangeNotifier {
       _currentUser = null;
     } finally {
       _isLoading = false;
-      PerformanceMonitor.stopTimer('refresh_auth_state');
       notifyListeners();
     }
   }

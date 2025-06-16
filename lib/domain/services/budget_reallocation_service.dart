@@ -4,7 +4,6 @@ import '../entities/category.dart';
 import '../repositories/budget_repository.dart';
 import '../../data/models/ai_response_models.dart';
 import '../../data/infrastructure/errors/app_error.dart';
-import '../../data/infrastructure/monitoring/performance_monitor.dart';
 
 /// Service for reallocating budget based on AI predictions and spending patterns
 /// Implements business logic for smart budget redistribution
@@ -26,8 +25,7 @@ class BudgetReallocationService {
       debugPrint(
           '🔄 BudgetReallocationService: Starting budget reallocation...');
 
-      return await PerformanceMonitor.measureAsync('budget_reallocation',
-          () async {
+      return await Future.microtask(() async {
         // Validate input data
         _validateReallocationData(currentBudget, predictions);
 

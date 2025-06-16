@@ -3,7 +3,6 @@ import '../../repositories/expenses_repository.dart';
 import '../../repositories/budget_repository.dart';
 import '../../services/budget_calculation_service.dart';
 import '../../../data/infrastructure/errors/app_error.dart';
-import '../../../data/infrastructure/monitoring/performance_monitor.dart';
 
 /// Use case for adding a new expense
 class AddExpenseUseCase {
@@ -23,7 +22,7 @@ class AddExpenseUseCase {
   Future<void> execute(Expense expense, List<Expense> allExpenses) async {
     try {
       // Add expense to database
-      await PerformanceMonitor.measureAsync('add_expense', () async {
+      await Future.microtask(() async {
         return await _expensesRepository.addExpense(expense);
       });
 

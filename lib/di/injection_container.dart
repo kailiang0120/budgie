@@ -6,11 +6,9 @@ import 'package:flutter/foundation.dart';
 import '../data/repositories/auth_repository_impl.dart';
 import '../data/repositories/expenses_repository_impl.dart';
 import '../data/repositories/budget_repository_impl.dart';
-import '../data/repositories/recurring_expenses_repository_impl.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/expenses_repository.dart';
 import '../domain/repositories/budget_repository.dart';
-import '../domain/repositories/recurring_expenses_repository.dart';
 import '../presentation/viewmodels/auth_viewmodel.dart';
 import '../presentation/viewmodels/expenses_viewmodel.dart';
 import '../presentation/viewmodels/budget_viewmodel.dart';
@@ -407,15 +405,6 @@ class DependencyContainer {
         connectivityService: sl(),
       ),
     );
-
-    sl.registerLazySingleton<RecurringExpensesRepository>(
-      () => RecurringExpensesRepositoryImpl(
-        firestore: sl<FirebaseFirestore>(),
-        auth: sl<FirebaseAuth>(),
-        localDataSource: sl(),
-        connectivityService: sl(),
-      ),
-    );
   }
 
   static void _registerCoreDomainServices() {
@@ -689,7 +678,6 @@ class DependencyContainer {
       'ProcessRecurringExpensesUseCase',
       () => ProcessRecurringExpensesUseCase(
         expensesRepository: sl(),
-        recurringExpensesRepository: sl(),
       ),
       InitializationPriority.background,
     );

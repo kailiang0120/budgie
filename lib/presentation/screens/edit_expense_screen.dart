@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../domain/entities/expense.dart';
 import '../../domain/entities/category.dart';
 import '../../domain/entities/recurring_expense.dart';
-import '../../domain/repositories/recurring_expenses_repository.dart';
+
 import '../viewmodels/expenses_viewmodel.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
@@ -14,6 +14,8 @@ import '../widgets/custom_dropdown_field.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/date_time_picker_field.dart';
 import '../widgets/recurring_expense_config.dart';
+import '../widgets/switch_tile.dart';
+import '../widgets/submit_button.dart';
 import '../../data/infrastructure/errors/app_error.dart';
 import '../../data/infrastructure/services/settings_service.dart';
 import '../../di/injection_container.dart' as di;
@@ -41,8 +43,9 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
   late final ValueNotifier<DateTime> _selectedDateTime;
   late final ValueNotifier<Category> _selectedCategory;
   late final ValueNotifier<String> _selectedPaymentMethod;
+  late final ValueNotifier<bool> _isRecurring;
   final ValueNotifier<RecurringFrequency> _recurringFrequency =
-      ValueNotifier<RecurringFrequency>(RecurringFrequency.oneTime);
+      ValueNotifier<RecurringFrequency>(RecurringFrequency.weekly);
   final ValueNotifier<int?> _recurringDayOfMonth = ValueNotifier<int?>(null);
   final ValueNotifier<DayOfWeek?> _recurringDayOfWeek =
       ValueNotifier<DayOfWeek?>(null);
@@ -51,10 +54,6 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
 
   // Services
   final _settingsService = di.sl<SettingsService>();
-  final _recurringExpensesRepository = di.sl<RecurringExpensesRepository>();
-
-  // Recurring expense data
-  RecurringExpense? _originalRecurringExpense;
 
   // Payment method mapping
   final Map<String, PaymentMethod> _paymentMethodMap = {
@@ -87,45 +86,19 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
     _selectedPaymentMethod =
         ValueNotifier<String>(_getPaymentMethodString(widget.expense.method));
     _currency.value = widget.expense.currency;
+    _isRecurring = ValueNotifier<bool>(widget.expense.isRecurring);
 
-    // Load recurring expense data if this expense is part of a recurring series
-    if (widget.expense.recurringExpenseId != null) {
-      await _loadRecurringExpenseData();
-    } else {
-      // Set default frequency to one-time if not a recurring expense
-      _recurringFrequency.value = RecurringFrequency.oneTime;
-      setState(() {
-        _isLoadingRecurringData = false;
-      });
+    // Load recurring details from embedded field
+    if (widget.expense.recurringDetails != null) {
+      _recurringFrequency.value = widget.expense.recurringDetails!.frequency;
+      _recurringDayOfMonth.value = widget.expense.recurringDetails!.dayOfMonth;
+      _recurringDayOfWeek.value = widget.expense.recurringDetails!.dayOfWeek;
+      _recurringEndDate.value = widget.expense.recurringDetails!.endDate;
     }
-  }
 
-  Future<void> _loadRecurringExpenseData() async {
-    try {
-      if (widget.expense.recurringExpenseId != null) {
-        // Get all recurring expenses and find the one with matching ID
-        final allRecurringExpenses =
-            await _recurringExpensesRepository.getRecurringExpenses();
-        _originalRecurringExpense = allRecurringExpenses.firstWhere(
-          (expense) => expense.id == widget.expense.recurringExpenseId,
-          orElse: () => throw Exception('Recurring expense not found'),
-        );
-
-        if (_originalRecurringExpense != null) {
-          // Set recurring configuration values
-          _recurringFrequency.value = _originalRecurringExpense!.frequency;
-          _recurringDayOfMonth.value = _originalRecurringExpense!.dayOfMonth;
-          _recurringDayOfWeek.value = _originalRecurringExpense!.dayOfWeek;
-          _recurringEndDate.value = _originalRecurringExpense!.endDate;
-        }
-      }
-    } catch (e) {
-      debugPrint('Error loading recurring expense data: $e');
-    } finally {
-      setState(() {
-        _isLoadingRecurringData = false;
-      });
-    }
+    setState(() {
+      _isLoadingRecurringData = false;
+    });
   }
 
   String _getPaymentMethodString(PaymentMethod method) {
@@ -152,6 +125,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
     _selectedDateTime.dispose();
     _selectedCategory.dispose();
     _selectedPaymentMethod.dispose();
+    _isRecurring.dispose();
     _recurringFrequency.dispose();
     _recurringDayOfMonth.dispose();
     _recurringDayOfWeek.dispose();
@@ -198,95 +172,34 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
           throw Exception('Remark cannot be empty');
         }
 
-        String? recurringExpenseId = widget.expense.recurringExpenseId;
-
-        // Handle recurring expense updates
-        if (_recurringFrequency.value != RecurringFrequency.oneTime) {
-          if (_originalRecurringExpense != null) {
-            // Update existing recurring expense
-            final updatedRecurringExpense = RecurringExpense(
-              id: _originalRecurringExpense!.id,
-              frequency: _recurringFrequency.value,
-              dayOfMonth:
-                  _recurringFrequency.value == RecurringFrequency.monthly
-                      ? _recurringDayOfMonth.value
-                      : null,
-              dayOfWeek: _recurringFrequency.value == RecurringFrequency.weekly
-                  ? _recurringDayOfWeek.value
-                  : null,
-              startDate: _originalRecurringExpense!.startDate,
-              endDate: _recurringEndDate.value,
-              isActive: true,
-              lastProcessedDate: _originalRecurringExpense!.lastProcessedDate,
-              expenseRemark: remarkText,
-              expenseAmount: amount,
-              expenseCategoryId: _selectedCategory.value.id,
-              expensePaymentMethod: _selectedPaymentMethod.value
-                  .toLowerCase()
-                  .replaceAll(' ', ''),
-              expenseCurrency: _currency.value,
-              expenseDescription: _recurringFrequency.value.displayName,
-            );
-
-            await _recurringExpensesRepository
-                .updateRecurringExpense(updatedRecurringExpense);
-          } else {
-            // Create new recurring expense
-            final newRecurringExpense = RecurringExpense(
-              id: '', // Let repository assign ID
-              frequency: _recurringFrequency.value,
-              dayOfMonth:
-                  _recurringFrequency.value == RecurringFrequency.monthly
-                      ? _recurringDayOfMonth.value
-                      : null,
-              dayOfWeek: _recurringFrequency.value == RecurringFrequency.weekly
-                  ? _recurringDayOfWeek.value
-                  : null,
-              startDate: _selectedDateTime.value,
-              endDate: _recurringEndDate.value,
-              isActive: true,
-              lastProcessedDate: _selectedDateTime.value,
-              expenseRemark: remarkText,
-              expenseAmount: amount,
-              expenseCategoryId: _selectedCategory.value.id,
-              expensePaymentMethod: _selectedPaymentMethod.value
-                  .toLowerCase()
-                  .replaceAll(' ', ''),
-              expenseCurrency: _currency.value,
-              expenseDescription: _recurringFrequency.value.displayName,
-            );
-
-            final createdRecurringExpense = await _recurringExpensesRepository
-                .addRecurringExpense(newRecurringExpense);
-            recurringExpenseId = createdRecurringExpense.id;
-          }
-        } else if (_originalRecurringExpense != null) {
-          // User changed from recurring to one-time, deactivate the recurring expense
-          // and explicitly set dayOfMonth and dayOfWeek to null
-          final deactivatedRecurringExpense =
-              _originalRecurringExpense!.copyWith(
-            isActive: false,
-            dayOfMonth: null,
-            dayOfWeek: null,
+        // Create recurring details if this is a recurring expense
+        RecurringDetails? recurringDetails;
+        if (_isRecurring.value) {
+          recurringDetails = RecurringDetails(
+            frequency: _recurringFrequency.value,
+            dayOfMonth: _recurringFrequency.value == RecurringFrequency.monthly
+                ? _recurringDayOfMonth.value
+                : null,
+            dayOfWeek: _recurringFrequency.value == RecurringFrequency.weekly
+                ? _recurringDayOfWeek.value
+                : null,
+            endDate: _recurringEndDate.value,
           );
-          await _recurringExpensesRepository
-              .updateRecurringExpense(deactivatedRecurringExpense);
-          recurringExpenseId = null;
         }
 
-        // Create updated expense
-        final updatedExpense = Expense(
-          id: widget.expense.id, // Keep the same ID
+        // Create updated expense with embedded recurring details
+        final updatedExpense = widget.expense.copyWith(
           remark: remarkText,
           amount: amount,
           date: _selectedDateTime.value,
           category: _selectedCategory.value,
           method: _getPaymentMethodEnum(_selectedPaymentMethod.value),
-          description: _recurringFrequency.value == RecurringFrequency.oneTime
-              ? "One-time Payment"
-              : _recurringFrequency.value.displayName,
+          description: _isRecurring.value
+              ? _recurringFrequency.value.displayName
+              : "One-time Payment",
           currency: _currency.value,
-          recurringExpenseId: recurringExpenseId,
+          recurringDetails: recurringDetails,
+          clearRecurringDetails: !_isRecurring.value,
         );
 
         await viewModel.updateExpense(updatedExpense);
@@ -299,7 +212,8 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
               duration: Duration(seconds: 2),
             ),
           );
-          Navigator.of(context).pop(true); // Return true to indicate success
+          Navigator.of(context)
+              .pop(true); // Return true to indicate successful update
         }
       } catch (e, stackTrace) {
         final error = AppError.from(e, stackTrace);
@@ -330,8 +244,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Delete Expense'),
-          content: const Text(
-              'Are you sure you want to delete this expense? This action cannot be undone.'),
+          content: const Text('Are you sure you want to delete this expense?'),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
@@ -342,10 +255,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                 Navigator.of(context).pop();
                 _deleteExpense();
               },
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.red,
-              ),
-              child: const Text('Delete'),
+              child: const Text('Delete', style: TextStyle(color: Colors.red)),
             ),
           ],
         );
@@ -366,11 +276,12 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Expense deleted successfully'),
-            backgroundColor: Colors.red,
+            backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
         );
-        Navigator.of(context).pop(true); // Return true to indicate success
+        Navigator.of(context)
+            .pop(true); // Return true to indicate successful delete
       }
     } catch (e, stackTrace) {
       final error = AppError.from(e, stackTrace);
@@ -394,6 +305,10 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
     }
   }
 
+  PaymentMethod _getPaymentMethodEnum(String paymentMethodString) {
+    return _paymentMethodMap[paymentMethodString] ?? PaymentMethod.cash;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -401,7 +316,8 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(
+              context, false), // Return false when no action taken
         ),
         title: const Text('Edit Expense'),
         centerTitle: true,
@@ -487,8 +403,8 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                       CustomTextField(
                         controller: _remarkController,
                         labelText: 'Remark',
-                        prefixIcon: Icons.note,
                         isRequired: true,
+                        prefixIcon: Icons.note,
                       ),
                       SizedBox(height: 16.h),
 
@@ -497,11 +413,11 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                         builder: (context, selectedDateTime, _) {
                           return DateTimePickerField(
                             dateTime: selectedDateTime,
-                            onDateChanged: (date) {
-                              _selectedDateTime.value = date;
+                            onDateChanged: (dateTime) {
+                              _selectedDateTime.value = dateTime;
                             },
-                            onTimeChanged: (time) {
-                              _selectedDateTime.value = time;
+                            onTimeChanged: (dateTime) {
+                              _selectedDateTime.value = dateTime;
                             },
                             onCurrentTimePressed: _setCurrentDateTime,
                           );
@@ -528,175 +444,81 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                       ),
                       SizedBox(height: 16.h),
 
-                      // Recurring expense configuration
-                      ValueListenableBuilder<RecurringFrequency>(
-                        valueListenable: _recurringFrequency,
-                        builder: (context, frequency, _) {
-                          return ValueListenableBuilder<int?>(
-                            valueListenable: _recurringDayOfMonth,
-                            builder: (context, dayOfMonth, _) {
-                              return ValueListenableBuilder<DayOfWeek?>(
-                                valueListenable: _recurringDayOfWeek,
-                                builder: (context, dayOfWeek, _) {
-                                  return ValueListenableBuilder<DateTime?>(
-                                    valueListenable: _recurringEndDate,
-                                    builder: (context, endDate, _) {
-                                      return RecurringExpenseConfig(
-                                        initialFrequency: frequency,
-                                        initialDayOfMonth: dayOfMonth,
-                                        initialDayOfWeek: dayOfWeek,
-                                        initialEndDate: endDate,
-                                        onFrequencyChanged: (newFrequency) {
-                                          _recurringFrequency.value =
-                                              newFrequency;
-                                        },
-                                        onDayOfMonthChanged: (newDayOfMonth) {
-                                          _recurringDayOfMonth.value =
-                                              newDayOfMonth;
-                                        },
-                                        onDayOfWeekChanged: (newDayOfWeek) {
-                                          _recurringDayOfWeek.value =
-                                              newDayOfWeek;
-                                        },
-                                        onEndDateChanged: (newEndDate) {
-                                          _recurringEndDate.value = newEndDate;
-                                        },
-                                      );
-                                    },
-                                  );
+                      // Recurring expense toggle and configuration
+                      ValueListenableBuilder<bool>(
+                        valueListenable: _isRecurring,
+                        builder: (context, isRecurring, _) {
+                          return Column(
+                            children: [
+                              SwitchListTile(
+                                title: Text(
+                                  'Recurring Expense',
+                                  style: TextStyle(
+                                    fontSize: 16.sp,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  'Set up automatic recurring payments',
+                                  style: TextStyle(
+                                    fontSize: 11.sp,
+                                    fontWeight: FontWeight.w300,
+                                  ),
+                                ),
+                                value: isRecurring,
+                                onChanged: (value) {
+                                  _isRecurring.value = value;
                                 },
-                              );
-                            },
+                              ),
+                              if (isRecurring) ...[
+                                SizedBox(height: 16.h),
+                                RecurringExpenseConfig(
+                                  initialFrequency: _recurringFrequency.value,
+                                  initialDayOfMonth: _recurringDayOfMonth.value,
+                                  initialDayOfWeek: _recurringDayOfWeek.value,
+                                  initialEndDate: _recurringEndDate.value,
+                                  onFrequencyChanged: (newFrequency) {
+                                    _recurringFrequency.value = newFrequency;
+                                  },
+                                  onDayOfMonthChanged: (newDayOfMonth) {
+                                    _recurringDayOfMonth.value = newDayOfMonth;
+                                  },
+                                  onDayOfWeekChanged: (newDayOfWeek) {
+                                    _recurringDayOfWeek.value = newDayOfWeek;
+                                  },
+                                  onEndDateChanged: (newEndDate) {
+                                    _recurringEndDate.value = newEndDate;
+                                  },
+                                ),
+                              ],
+                            ],
                           );
                         },
                       ),
                       SizedBox(height: 24.h),
 
-                      // Update button - Square with corner radius
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56.h, // Square-ish height
-                        child: ElevatedButton(
-                          onPressed: _isSubmitting || _isDeleting
-                              ? null
-                              : _handleUpdate,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 24.w,
-                              vertical: 16.h,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(12.r), // Corner radius
-                            ),
-                            elevation: 2,
+                      // Update and Delete buttons
+                      Column(
+                        children: [
+                          SubmitButton(
+                            text: 'Update',
+                            isLoading: _isSubmitting,
+                            onPressed: _isSubmitting || _isDeleting
+                                ? () {}
+                                : _handleUpdate,
+                            icon: Icons.update,
                           ),
-                          child: _isSubmitting
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    SizedBox(
-                                      width: 20.w,
-                                      height: 20.h,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.w,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    SizedBox(width: 12.w),
-                                    Text(
-                                      'Updating...',
-                                      style: TextStyle(
-                                        fontFamily: AppTheme.fontFamily,
-                                        fontSize: 16.sp,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.update_rounded, size: 22.sp),
-                                    SizedBox(width: 8.w),
-                                    Text(
-                                      'Update Expense',
-                                      style: TextStyle(
-                                        fontFamily: AppTheme.fontFamily,
-                                        fontSize: 16.sp,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      ),
-                      SizedBox(height: 16.h),
-
-                      // Delete button - Square with corner radius
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56.h, // Square-ish height
-                        child: ElevatedButton(
-                          onPressed: _isSubmitting || _isDeleting
-                              ? null
-                              : _handleDelete,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red,
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 24.w,
-                              vertical: 16.h,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(12.r), // Corner radius
-                            ),
-                            elevation: 2,
+                          SizedBox(height: 16.h),
+                          SubmitButton(
+                            text: 'Delete',
+                            isLoading: _isDeleting,
+                            onPressed: _isSubmitting || _isDeleting
+                                ? () {}
+                                : _handleDelete,
+                            icon: Icons.delete,
+                            color: Colors.red,
                           ),
-                          child: _isDeleting
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    SizedBox(
-                                      width: 20.w,
-                                      height: 20.h,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.w,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    SizedBox(width: 12.w),
-                                    Text(
-                                      'Deleting...',
-                                      style: TextStyle(
-                                        fontFamily: AppTheme.fontFamily,
-                                        fontSize: 16.sp,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.delete_rounded, size: 22.sp),
-                                    SizedBox(width: 8.w),
-                                    Text(
-                                      'Delete Expense',
-                                      style: TextStyle(
-                                        fontFamily: AppTheme.fontFamily,
-                                        fontSize: 16.sp,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
@@ -704,9 +526,5 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
               ),
       ),
     );
-  }
-
-  PaymentMethod _getPaymentMethodEnum(String methodString) {
-    return _paymentMethodMap[methodString] ?? PaymentMethod.cash;
   }
 }

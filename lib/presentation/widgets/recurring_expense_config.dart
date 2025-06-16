@@ -39,6 +39,9 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
   DayOfWeek? _selectedDayOfWeek;
   DateTime? _selectedEndDate;
 
+  // Only weekly and monthly frequencies are available
+  final List<String> _frequencyOptions = ['Weekly', 'Monthly'];
+
   @override
   void initState() {
     super.initState();
@@ -87,7 +90,7 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
             // Frequency selection
             CustomDropdownField<String>(
               value: _selectedFrequency.displayName,
-              items: AppConstants.recurringOptions,
+              items: _frequencyOptions,
               labelText: 'Frequency',
               onChanged: (value) {
                 if (value != null) {
@@ -168,124 +171,118 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
               ),
             ],
 
-            // End date selection (optional)
-            if (_selectedFrequency != RecurringFrequency.oneTime) ...[
-              SizedBox(height: 16.h),
-              Text(
-                'End Date (Optional)',
-                style: TextStyle(
-                  fontFamily: AppTheme.fontFamily,
-                  fontSize: 14.sp,
-                  fontWeight: FontWeight.w500,
+            // End date selection (optional) - now always shown for recurring expenses
+            SizedBox(height: 16.h),
+            Text(
+              'End Date (Optional)',
+              style: TextStyle(
+                fontFamily: AppTheme.fontFamily,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            SizedBox(height: 8.h),
+            if (_selectedEndDate != null)
+              DateTimePickerField(
+                dateTime: _selectedEndDate!,
+                onDateChanged: (date) {
+                  setState(() {
+                    _selectedEndDate = date;
+                  });
+                  widget.onEndDateChanged(date);
+                },
+                onTimeChanged: (time) {
+                  // Just update the date without changing time
+                  setState(() {
+                    _selectedEndDate = time;
+                  });
+                  widget.onEndDateChanged(time);
+                },
+                onCurrentTimePressed: () {
+                  final now = DateTime.now();
+                  setState(() {
+                    _selectedEndDate = now;
+                  });
+                  widget.onEndDateChanged(now);
+                },
+                showCurrentTimeButton: false,
+              )
+            else
+              ElevatedButton.icon(
+                onPressed: () {
+                  final tomorrow = DateTime.now().add(const Duration(days: 1));
+                  setState(() {
+                    _selectedEndDate = tomorrow;
+                  });
+                  widget.onEndDateChanged(tomorrow);
+                },
+                icon: const Icon(Icons.calendar_today),
+                label: const Text('Set End Date'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(
+                    vertical: 12.h,
+                    horizontal: 16.w,
+                  ),
+                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                  foregroundColor: AppTheme.primaryColor,
+                  elevation: 0,
                 ),
               ),
+            if (_selectedEndDate != null) ...[
               SizedBox(height: 8.h),
-              if (_selectedEndDate != null)
-                DateTimePickerField(
-                  dateTime: _selectedEndDate!,
-                  onDateChanged: (date) {
-                    setState(() {
-                      _selectedEndDate = date;
-                    });
-                    widget.onEndDateChanged(date);
-                  },
-                  onTimeChanged: (time) {
-                    // Just update the date without changing time
-                    setState(() {
-                      _selectedEndDate = time;
-                    });
-                    widget.onEndDateChanged(time);
-                  },
-                  onCurrentTimePressed: () {
-                    final now = DateTime.now();
-                    setState(() {
-                      _selectedEndDate = now;
-                    });
-                    widget.onEndDateChanged(now);
-                  },
-                  showCurrentTimeButton: false,
-                )
-              else
-                ElevatedButton.icon(
-                  onPressed: () {
-                    final tomorrow =
-                        DateTime.now().add(const Duration(days: 1));
-                    setState(() {
-                      _selectedEndDate = tomorrow;
-                    });
-                    widget.onEndDateChanged(tomorrow);
-                  },
-                  icon: const Icon(Icons.calendar_today),
-                  label: const Text('Set End Date'),
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(
-                      vertical: 12.h,
-                      horizontal: 16.w,
-                    ),
-                    backgroundColor:
-                        AppTheme.primaryColor.withValues(alpha: 0.1),
-                    foregroundColor: AppTheme.primaryColor,
-                    elevation: 0,
-                  ),
-                ),
-              if (_selectedEndDate != null) ...[
-                SizedBox(height: 8.h),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Recurring until ${_formatDate(_selectedEndDate!)}',
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          color: Colors.grey,
-                        ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Recurring until ${_formatDate(_selectedEndDate!)}',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: Colors.grey,
                       ),
                     ),
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _selectedEndDate = null;
-                        });
-                        widget.onEndDateChanged(null);
-                      },
-                      child: const Text('Remove'),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedEndDate = null;
+                      });
+                      widget.onEndDateChanged(null);
+                    },
+                    child: const Text('Remove'),
+                  ),
+                ],
+              ),
             ],
 
-            // Help text
-            if (_selectedFrequency != RecurringFrequency.oneTime) ...[
-              SizedBox(height: 16.h),
-              Container(
-                padding: EdgeInsets.all(8.w),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16.r),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16.sp,
-                      color: AppTheme.primaryColor,
-                    ),
-                    SizedBox(width: 8.w),
-                    Expanded(
-                      child: Text(
-                        _getHelpText(),
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          color: AppTheme.primaryColor,
-                          fontFamily: AppTheme.fontFamily,
-                        ),
+            // Help text - now always shown for recurring expenses
+            SizedBox(height: 16.h),
+            Container(
+              padding: EdgeInsets.all(8.w),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16.r),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 16.sp,
+                    color: AppTheme.primaryColor,
+                  ),
+                  SizedBox(width: 8.w),
+                  Expanded(
+                    child: Text(
+                      _getHelpText(),
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: AppTheme.primaryColor,
+                        fontFamily: AppTheme.fontFamily,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ],
         ),
       ),
@@ -294,8 +291,6 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
 
   RecurringFrequency? _getFrequencyFromDisplayName(String displayName) {
     switch (displayName) {
-      case 'One-time':
-        return RecurringFrequency.oneTime;
       case 'Weekly':
         return RecurringFrequency.weekly;
       case 'Monthly':
@@ -340,8 +335,6 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
             ? 'the $_selectedDayOfMonth${_getOrdinalSuffix(_selectedDayOfMonth!)}'
             : 'the selected day';
         return 'This expense will be automatically recorded on $dayText of each month.';
-      case RecurringFrequency.oneTime:
-        return '';
     }
   }
 

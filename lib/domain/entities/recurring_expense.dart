@@ -1,6 +1,5 @@
 /// Recurring frequency options
 enum RecurringFrequency {
-  oneTime,
   weekly,
   monthly,
 }
@@ -16,12 +15,10 @@ enum DayOfWeek {
   sunday,
 }
 
-/// Recurring expense configuration entity
-class RecurringExpense {
-  /// Unique identifier for the recurring expense
-  final String id;
-
-  /// Frequency of recurrence
+/// Recurring details entity for expenses with recurring status
+/// This will be stored as an embedded field within the expense document
+class RecurringDetails {
+  /// Frequency of recurrence (weekly or monthly only)
   final RecurringFrequency frequency;
 
   /// Day of month for monthly recurring (1-31)
@@ -31,76 +28,82 @@ class RecurringExpense {
   /// Day of week for weekly recurring
   final DayOfWeek? dayOfWeek;
 
-  /// Start date for the recurring pattern
-  final DateTime startDate;
-
-  /// End date for the recurring pattern (null means indefinite)
+  /// Optional end date for the recurring expense
   final DateTime? endDate;
 
-  /// Whether this recurring expense is active
-  final bool isActive;
-
-  /// Date when this recurring expense was last processed
-  final DateTime? lastProcessedDate;
-
-  /// The base expense template
-  final String expenseRemark;
-  final double expenseAmount;
-  final String expenseCategoryId;
-  final String expensePaymentMethod;
-  final String expenseCurrency;
-  final String? expenseDescription;
-
-  RecurringExpense({
-    required this.id,
+  RecurringDetails({
     required this.frequency,
     this.dayOfMonth,
     this.dayOfWeek,
-    required this.startDate,
     this.endDate,
-    this.isActive = true,
-    this.lastProcessedDate,
-    required this.expenseRemark,
-    required this.expenseAmount,
-    required this.expenseCategoryId,
-    required this.expensePaymentMethod,
-    required this.expenseCurrency,
-    this.expenseDescription,
-  });
+  }) : assert(
+            (frequency == RecurringFrequency.weekly && dayOfWeek != null) ||
+                (frequency == RecurringFrequency.monthly && dayOfMonth != null),
+            'Weekly frequency requires dayOfWeek, monthly frequency requires dayOfMonth');
 
-  /// Creates a copy of this RecurringExpense with the given fields replaced
-  RecurringExpense copyWith({
-    String? id,
+  /// Creates a copy of this RecurringDetails with the given fields replaced
+  RecurringDetails copyWith({
     RecurringFrequency? frequency,
     int? dayOfMonth,
     DayOfWeek? dayOfWeek,
-    DateTime? startDate,
     DateTime? endDate,
-    bool? isActive,
-    DateTime? lastProcessedDate,
-    String? expenseRemark,
-    double? expenseAmount,
-    String? expenseCategoryId,
-    String? expensePaymentMethod,
-    String? expenseCurrency,
-    String? expenseDescription,
   }) {
-    return RecurringExpense(
-      id: id ?? this.id,
+    return RecurringDetails(
       frequency: frequency ?? this.frequency,
       dayOfMonth: dayOfMonth ?? this.dayOfMonth,
       dayOfWeek: dayOfWeek ?? this.dayOfWeek,
-      startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
-      isActive: isActive ?? this.isActive,
-      lastProcessedDate: lastProcessedDate ?? this.lastProcessedDate,
-      expenseRemark: expenseRemark ?? this.expenseRemark,
-      expenseAmount: expenseAmount ?? this.expenseAmount,
-      expenseCategoryId: expenseCategoryId ?? this.expenseCategoryId,
-      expensePaymentMethod: expensePaymentMethod ?? this.expensePaymentMethod,
-      expenseCurrency: expenseCurrency ?? this.expenseCurrency,
-      expenseDescription: expenseDescription ?? this.expenseDescription,
     );
+  }
+
+  /// Convert to JSON for database storage
+  Map<String, dynamic> toJson() {
+    return {
+      'frequency': frequency.displayName,
+      'dayOfMonth': dayOfMonth,
+      'dayOfWeek': dayOfWeek?.displayName,
+      'endDate': endDate?.toIso8601String(),
+    };
+  }
+
+  /// Create from JSON
+  factory RecurringDetails.fromJson(Map<String, dynamic> json) {
+    return RecurringDetails(
+      frequency: RecurringFrequencyExtension.fromDisplayName(
+              json['frequency'] as String) ??
+          RecurringFrequencyExtension.fromId(json['frequency'] as String) ??
+          RecurringFrequency.monthly,
+      dayOfMonth: json['dayOfMonth'] as int?,
+      dayOfWeek: json['dayOfWeek'] != null
+          ? DayOfWeekExtension.fromDisplayName(json['dayOfWeek'] as String) ??
+              DayOfWeekExtension.fromId(json['dayOfWeek'] as String)
+          : null,
+      endDate: json['endDate'] != null
+          ? DateTime.parse(json['endDate'] as String)
+          : null,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RecurringDetails &&
+          runtimeType == other.runtimeType &&
+          frequency == other.frequency &&
+          dayOfMonth == other.dayOfMonth &&
+          dayOfWeek == other.dayOfWeek &&
+          endDate == other.endDate;
+
+  @override
+  int get hashCode =>
+      frequency.hashCode ^
+      dayOfMonth.hashCode ^
+      dayOfWeek.hashCode ^
+      endDate.hashCode;
+
+  @override
+  String toString() {
+    return 'RecurringDetails{frequency: $frequency, dayOfMonth: $dayOfMonth, dayOfWeek: $dayOfWeek, endDate: $endDate}';
   }
 }
 
@@ -112,8 +115,6 @@ extension RecurringFrequencyExtension on RecurringFrequency {
 
   String get displayName {
     switch (this) {
-      case RecurringFrequency.oneTime:
-        return 'One-time';
       case RecurringFrequency.weekly:
         return 'Weekly';
       case RecurringFrequency.monthly:
@@ -125,6 +126,16 @@ extension RecurringFrequencyExtension on RecurringFrequency {
     try {
       return RecurringFrequency.values.firstWhere(
         (frequency) => frequency.id == id,
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static RecurringFrequency? fromDisplayName(String displayName) {
+    try {
+      return RecurringFrequency.values.firstWhere(
+        (frequency) => frequency.displayName == displayName,
       );
     } catch (e) {
       return null;
@@ -181,6 +192,16 @@ extension DayOfWeekExtension on DayOfWeek {
     try {
       return DayOfWeek.values.firstWhere(
         (day) => day.id == id,
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static DayOfWeek? fromDisplayName(String displayName) {
+    try {
+      return DayOfWeek.values.firstWhere(
+        (day) => day.displayName == displayName,
       );
     } catch (e) {
       return null;

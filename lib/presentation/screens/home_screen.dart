@@ -256,8 +256,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           Text(
                             'Total Budget',
                             style: TextStyle(
-                              fontSize: 16.sp,
+                              fontSize: 20.sp,
                               color: Colors.grey,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                           SizedBox(height: 4.h),
@@ -359,7 +360,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     firstChild: const SizedBox.shrink(),
                     secondChild: budget.categories.isNotEmpty
                         ? Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               SizedBox(height: 16.h),
                               const Divider(),
@@ -377,7 +377,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   ),
                                   TextButton(
                                     onPressed: _navigateToBudgetScreen,
-                                    child: const Text('Edit Budget'),
+                                    child: Text(
+                                      'Edit Budget',
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -695,6 +701,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                   context,
                                   listen: false);
                               return ExpenseCard(
+                                key: ValueKey(
+                                    expenses[index].id), // Add unique key
                                 expense: expenses[index],
                                 onExpenseUpdated: () {
                                   // Refresh both expenses and budget data
@@ -748,9 +756,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               type: TransitionType.fadeAndSlideUp,
               settings: const RouteSettings(name: Routes.expenses),
             ),
-          ).then((_) {
-            // Refresh both expenses and budget data when returning from expense screen
-            if (!mounted) return;
+          ).then((result) {
+            // Only refresh data if an expense was actually added (result == true)
+            if (!mounted || result != true) return;
 
             // Refresh expenses first
             final expensesVM =

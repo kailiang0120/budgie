@@ -2,7 +2,6 @@ import '../../entities/budget.dart';
 import '../../entities/expense.dart';
 import '../../../data/infrastructure/services/currency_conversion_service.dart';
 import '../../../data/infrastructure/errors/app_error.dart';
-import '../../../data/infrastructure/monitoring/performance_monitor.dart';
 import '../../services/budget_calculation_service.dart';
 
 /// Use case for calculating budget remaining amounts
@@ -24,8 +23,7 @@ class CalculateBudgetRemainingUseCase {
           await _convertExpensesToBudgetCurrency(budget, expenses);
 
       // Use budget calculation service to calculate remaining budget
-      final updatedBudget =
-          await PerformanceMonitor.measureAsync('calculate_budget', () async {
+      final updatedBudget = await Future.microtask(() async {
         return await _budgetCalculationService.calculateBudget(
             budget, convertedExpenses);
       });

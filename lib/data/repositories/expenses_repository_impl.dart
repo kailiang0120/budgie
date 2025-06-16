@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../domain/entities/expense.dart';
+import '../../domain/entities/recurring_expense.dart';
 import '../../domain/entities/category.dart' as app_category;
 import '../../domain/repositories/expenses_repository.dart';
 import '../infrastructure/errors/app_error.dart';
@@ -76,6 +77,17 @@ class ExpensesRepositoryImpl implements ExpensesRepository {
             ? app_category.CategoryExtension.fromId(categoryString) ??
                 app_category.Category.others
             : app_category.Category.others;
+        // Parse recurring details from embedded field
+        RecurringDetails? recurringDetails;
+        final recurringData = data['recurringDetails'] as Map<String, dynamic>?;
+        if (recurringData != null) {
+          try {
+            recurringDetails = RecurringDetails.fromJson(recurringData);
+          } catch (e) {
+            debugPrint('Error parsing recurring details: $e');
+          }
+        }
+
         return Expense(
           id: doc.id,
           remark: data['remark'] as String? ?? '',
@@ -88,7 +100,7 @@ class ExpensesRepositoryImpl implements ExpensesRepository {
           ),
           description: data['description'] as String?,
           currency: data['currency'] as String? ?? 'MYR',
-          recurringExpenseId: data['recurringExpenseId'] as String?,
+          recurringDetails: recurringDetails,
         );
       }).toList();
 
@@ -139,7 +151,7 @@ class ExpensesRepositoryImpl implements ExpensesRepository {
           'method': expense.method.toString().split('.').last,
           'description': expense.description,
           'currency': expense.currency,
-          'recurringExpenseId': expense.recurringExpenseId,
+          'recurringDetails': expense.recurringDetails?.toJson(),
         };
 
         debugPrint('Expense document to save: $expenseDoc');
@@ -266,7 +278,7 @@ class ExpensesRepositoryImpl implements ExpensesRepository {
         'method': expense.method.toString().split('.').last,
         'description': expense.description,
         'currency': expense.currency,
-        'recurringExpenseId': expense.recurringExpenseId,
+        'recurringDetails': expense.recurringDetails?.toJson(),
       });
 
       // Mark as synced

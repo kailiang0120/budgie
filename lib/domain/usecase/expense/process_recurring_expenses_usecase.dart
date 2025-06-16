@@ -3,38 +3,36 @@ import 'package:flutter/foundation.dart';
 
 import '../../entities/expense.dart';
 import '../../entities/recurring_expense.dart';
-import '../../entities/category.dart' as app_category;
+
 import '../../repositories/expenses_repository.dart';
-import '../../repositories/recurring_expenses_repository.dart';
 import '../../../data/infrastructure/errors/app_error.dart';
 
 /// Use case for processing recurring expenses and generating automatic expenses
 class ProcessRecurringExpensesUseCase {
   final ExpensesRepository _expensesRepository;
-  final RecurringExpensesRepository _recurringExpensesRepository;
 
   ProcessRecurringExpensesUseCase({
     required ExpensesRepository expensesRepository,
-    required RecurringExpensesRepository recurringExpensesRepository,
-  })  : _expensesRepository = expensesRepository,
-        _recurringExpensesRepository = recurringExpensesRepository;
+  }) : _expensesRepository = expensesRepository;
 
   /// Manually trigger processing of recurring expenses
   Future<void> execute() async {
     await _processRecurringExpenses();
   }
 
-  /// Internal method to process all active recurring expenses
+  /// Internal method to process all expenses with recurring details
   Future<void> _processRecurringExpenses() async {
     try {
       debugPrint('🔄 Processing recurring expenses...');
 
-      final activeRecurringExpenses =
-          await _recurringExpensesRepository.getActiveRecurringExpenses();
+      // Get all expenses and filter for those with recurring details
+      final allExpenses = await _expensesRepository.getExpenses();
+      final recurringExpenses =
+          allExpenses.where((expense) => expense.isRecurring).toList();
       final now = DateTime.now();
 
-      for (final recurringExpense in activeRecurringExpenses) {
-        await _processIndividualRecurringExpense(recurringExpense, now);
+      for (final expense in recurringExpenses) {
+        await _processIndividualRecurringExpense(expense, now);
       }
 
       debugPrint('✅ Recurring expenses processing completed');
@@ -47,73 +45,70 @@ class ProcessRecurringExpensesUseCase {
 
   /// Process an individual recurring expense
   Future<void> _processIndividualRecurringExpense(
-    RecurringExpense recurringExpense,
+    Expense originalExpense,
     DateTime now,
   ) async {
     try {
-      // Calculate the next occurrence dates that need to be processed
-      final occurrences =
-          _calculateOccurrencesSinceLastProcessed(recurringExpense, now);
-
-      for (final occurrence in occurrences) {
-        await _createExpenseFromRecurring(recurringExpense, occurrence);
+      if (!originalExpense.isRecurring ||
+          originalExpense.recurringDetails == null) {
+        debugPrint(
+            '⚠️ Expense ${originalExpense.id} is not recurring or has no recurring details');
+        return;
       }
 
-      // Update the last processed date
+      final recurringDetails = originalExpense.recurringDetails!;
+
+      // Calculate the next occurrence dates that need to be processed
+      final occurrences = _calculateOccurrencesSinceLastProcessed(
+        originalExpense,
+        recurringDetails,
+        now,
+      );
+
+      for (final occurrence in occurrences) {
+        await _createExpenseFromRecurring(originalExpense, occurrence);
+      }
+
       if (occurrences.isNotEmpty) {
-        await _recurringExpensesRepository.updateLastProcessedDate(
-          recurringExpense.id,
-          occurrences.last,
-        );
         debugPrint(
-            '✅ Processed ${occurrences.length} occurrences for recurring expense: ${recurringExpense.expenseRemark}');
+            '✅ Processed ${occurrences.length} occurrences for recurring expense: ${originalExpense.remark}');
       }
     } catch (e, stackTrace) {
       final error = AppError.from(e, stackTrace);
       error.log();
       debugPrint(
-          '❌ Error processing recurring expense ${recurringExpense.id}: ${error.message}');
+          '❌ Error processing recurring expense ${originalExpense.id}: ${error.message}');
     }
   }
 
   /// Calculate all occurrence dates since last processed
   List<DateTime> _calculateOccurrencesSinceLastProcessed(
-    RecurringExpense recurringExpense,
+    Expense originalExpense,
+    RecurringDetails recurringDetails,
     DateTime now,
   ) {
     final occurrences = <DateTime>[];
 
-    if (recurringExpense.frequency == RecurringFrequency.oneTime) {
-      // One-time expenses don't repeat
-      return occurrences;
-    }
+    // Start from the original expense date
+    DateTime currentDate = originalExpense.date;
 
-    // Start from last processed date or start date
-    DateTime currentDate =
-        recurringExpense.lastProcessedDate ?? recurringExpense.startDate;
-
-    // If this is the first time processing and we're past the start date,
-    // begin from the next occurrence after start date
-    if (recurringExpense.lastProcessedDate == null &&
-        now.isAfter(recurringExpense.startDate)) {
-      currentDate =
-          _getNextOccurrence(recurringExpense, recurringExpense.startDate);
-    }
+    // Move to the next occurrence after the original date
+    currentDate = _getNextOccurrence(recurringDetails, currentDate);
 
     while (currentDate.isBefore(now) || _isSameDay(currentDate, now)) {
-      // Check if we've reached the end date
-      if (recurringExpense.endDate != null &&
-          currentDate.isAfter(recurringExpense.endDate!)) {
-        break;
-      }
-
       // Check if this occurrence should be added
-      if (_shouldProcessOccurrence(recurringExpense, currentDate, now)) {
+      if (_shouldProcessOccurrence(currentDate, now)) {
         occurrences.add(currentDate);
       }
 
       // Move to next occurrence
-      currentDate = _getNextOccurrence(recurringExpense, currentDate);
+      currentDate = _getNextOccurrence(recurringDetails, currentDate);
+
+      // Safety check to prevent infinite loops
+      if (occurrences.length > 100) {
+        debugPrint('⚠️ Too many occurrences calculated, stopping at 100');
+        break;
+      }
     }
 
     return occurrences;
@@ -121,7 +116,6 @@ class ProcessRecurringExpensesUseCase {
 
   /// Determine if an occurrence should be processed
   bool _shouldProcessOccurrence(
-    RecurringExpense recurringExpense,
     DateTime occurrence,
     DateTime now,
   ) {
@@ -130,64 +124,41 @@ class ProcessRecurringExpensesUseCase {
       return false;
     }
 
-    // Don't process if before start date
-    if (occurrence.isBefore(recurringExpense.startDate)) {
-      return false;
-    }
-
-    // Don't process if after end date
-    if (recurringExpense.endDate != null &&
-        occurrence.isAfter(recurringExpense.endDate!)) {
-      return false;
-    }
-
-    // If this is the first processing and occurrence is start date, process it
-    if (recurringExpense.lastProcessedDate == null &&
-        _isSameDay(occurrence, recurringExpense.startDate)) {
-      return true;
-    }
-
-    // Process if this occurrence is after the last processed date
-    return recurringExpense.lastProcessedDate == null ||
-        occurrence.isAfter(recurringExpense.lastProcessedDate!);
+    // Only process occurrences that are today or in the past
+    return true;
   }
 
   /// Get the next occurrence date based on frequency
   DateTime _getNextOccurrence(
-      RecurringExpense recurringExpense, DateTime currentDate) {
-    switch (recurringExpense.frequency) {
+      RecurringDetails recurringDetails, DateTime currentDate) {
+    switch (recurringDetails.frequency) {
       case RecurringFrequency.weekly:
-        return _getNextWeeklyOccurrence(recurringExpense, currentDate);
+        return _getNextWeeklyOccurrence(recurringDetails, currentDate);
       case RecurringFrequency.monthly:
-        return _getNextMonthlyOccurrence(recurringExpense, currentDate);
-      case RecurringFrequency.oneTime:
-        return currentDate; // Won't be used for one-time
+        return _getNextMonthlyOccurrence(recurringDetails, currentDate);
     }
   }
 
   /// Calculate next weekly occurrence
   DateTime _getNextWeeklyOccurrence(
-      RecurringExpense recurringExpense, DateTime currentDate) {
-    if (recurringExpense.dayOfWeek == null) {
-      // If no day specified, use the start date's day of week
-      final startDayOfWeek = recurringExpense.startDate.weekday;
-      return _getNextDateForWeekday(currentDate, startDayOfWeek);
+      RecurringDetails recurringDetails, DateTime currentDate) {
+    if (recurringDetails.dayOfWeek == null) {
+      throw Exception('Day of week is required for weekly recurring expenses');
     }
 
     return _getNextDateForWeekday(
-        currentDate, recurringExpense.dayOfWeek!.weekday);
+        currentDate, recurringDetails.dayOfWeek!.weekday);
   }
 
   /// Calculate next monthly occurrence
   DateTime _getNextMonthlyOccurrence(
-      RecurringExpense recurringExpense, DateTime currentDate) {
-    if (recurringExpense.dayOfMonth == null) {
-      // If no day specified, use the start date's day
-      return _getNextDateForDayOfMonth(
-          currentDate, recurringExpense.startDate.day);
+      RecurringDetails recurringDetails, DateTime currentDate) {
+    if (recurringDetails.dayOfMonth == null) {
+      throw Exception(
+          'Day of month is required for monthly recurring expenses');
     }
 
-    return _getNextDateForDayOfMonth(currentDate, recurringExpense.dayOfMonth!);
+    return _getNextDateForDayOfMonth(currentDate, recurringDetails.dayOfMonth!);
   }
 
   /// Get next date for a specific weekday
@@ -232,33 +203,21 @@ class ProcessRecurringExpensesUseCase {
 
   /// Create an expense from a recurring expense template
   Future<void> _createExpenseFromRecurring(
-    RecurringExpense recurringExpense,
+    Expense originalExpense,
     DateTime occurrenceDate,
   ) async {
     try {
-      // Convert category ID to Category enum
-      final category = app_category.CategoryExtension.fromId(
-              recurringExpense.expenseCategoryId) ??
-          app_category.Category.others;
-
-      // Convert payment method string to PaymentMethod enum
-      final paymentMethod = PaymentMethod.values.firstWhere(
-        (method) =>
-            method.toString().split('.').last ==
-            recurringExpense.expensePaymentMethod,
-        orElse: () => PaymentMethod.cash,
-      );
-
       final expense = Expense(
         id: '', // Let repository assign ID
-        remark: recurringExpense.expenseRemark,
-        amount: recurringExpense.expenseAmount,
+        remark: originalExpense.remark,
+        amount: originalExpense.amount,
         date: occurrenceDate,
-        category: category,
-        method: paymentMethod,
-        description: recurringExpense.expenseDescription,
-        currency: recurringExpense.expenseCurrency,
-        recurringExpenseId: recurringExpense.id,
+        category: originalExpense.category,
+        method: originalExpense.method,
+        description: originalExpense.description,
+        currency: originalExpense.currency,
+        recurringDetails:
+            null, // Generated expenses are not recurring themselves
       );
 
       await _expensesRepository.addExpense(expense);
@@ -280,27 +239,44 @@ class ProcessRecurringExpensesUseCase {
   }
 
   /// Calculate the next occurrence date for a recurring expense (public method for UI)
-  DateTime? calculateNextOccurrence(RecurringExpense recurringExpense) {
-    if (recurringExpense.frequency == RecurringFrequency.oneTime) {
+  Future<DateTime?> calculateNextOccurrence(String expenseId) async {
+    try {
+      final expenses = await _expensesRepository.getExpenses();
+      final originalExpense = expenses.firstWhere(
+        (expense) => expense.id == expenseId && expense.isRecurring,
+        orElse: () =>
+            throw Exception('Recurring expense not found: $expenseId'),
+      );
+
+      return _getNextOccurrence(
+          originalExpense.recurringDetails!, originalExpense.date);
+    } catch (e) {
+      debugPrint('❌ Error calculating next occurrence: $e');
       return null;
     }
-
-    final lastProcessed =
-        recurringExpense.lastProcessedDate ?? recurringExpense.startDate;
-
-    return _getNextOccurrence(recurringExpense, lastProcessed);
   }
 
   /// Check if a recurring expense is due for processing
-  bool isDueForProcessing(RecurringExpense recurringExpense) {
-    if (recurringExpense.frequency == RecurringFrequency.oneTime) {
+  Future<bool> isDueForProcessing(String expenseId) async {
+    try {
+      final expenses = await _expensesRepository.getExpenses();
+      final originalExpense = expenses.firstWhere(
+        (expense) => expense.id == expenseId && expense.isRecurring,
+        orElse: () =>
+            throw Exception('Recurring expense not found: $expenseId'),
+      );
+
+      final now = DateTime.now();
+      final occurrences = _calculateOccurrencesSinceLastProcessed(
+        originalExpense,
+        originalExpense.recurringDetails!,
+        now,
+      );
+
+      return occurrences.isNotEmpty;
+    } catch (e) {
+      debugPrint('❌ Error checking if due for processing: $e');
       return false;
     }
-
-    final now = DateTime.now();
-    final occurrences =
-        _calculateOccurrencesSinceLastProcessed(recurringExpense, now);
-
-    return occurrences.isNotEmpty;
   }
 }

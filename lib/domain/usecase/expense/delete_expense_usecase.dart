@@ -3,7 +3,6 @@ import '../../repositories/expenses_repository.dart';
 import '../../repositories/budget_repository.dart';
 import '../../services/budget_calculation_service.dart';
 import '../../../data/infrastructure/errors/app_error.dart';
-import '../../../data/infrastructure/monitoring/performance_monitor.dart';
 
 /// Use case for deleting an expense
 class DeleteExpenseUseCase {
@@ -24,7 +23,7 @@ class DeleteExpenseUseCase {
       List<Expense> allExpenses) async {
     try {
       // Delete expense
-      await PerformanceMonitor.measureAsync('delete_expense', () async {
+      await Future.microtask(() async {
         return await _expensesRepository.deleteExpense(expenseId);
       });
 

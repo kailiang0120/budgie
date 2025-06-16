@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
-import '../../domain/entities/expense.dart';
 import '../../domain/entities/category.dart';
+import '../../domain/entities/expense.dart';
 import '../../domain/entities/recurring_expense.dart';
-import '../../domain/repositories/recurring_expenses_repository.dart';
-import '../viewmodels/expenses_viewmodel.dart';
+import '../../data/infrastructure/services/settings_service.dart';
+import '../../data/infrastructure/services/data_collection_service.dart';
+import '../../domain/repositories/expenses_repository.dart';
+import '../../presentation/viewmodels/expenses_viewmodel.dart';
+import '../../presentation/widgets/recurring_expense_config.dart';
+import '../../di/injection_container.dart' as di;
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
 import '../utils/currency_formatter.dart';
@@ -13,7 +17,7 @@ import '../widgets/category_selector.dart';
 import '../widgets/custom_dropdown_field.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/date_time_picker_field.dart';
-import '../widgets/recurring_expense_config.dart';
+import '../widgets/submit_button.dart';
 import '../../data/infrastructure/errors/app_error.dart';
 import '../../data/infrastructure/services/settings_service.dart';
 import '../../data/infrastructure/services/data_collection_service.dart';
@@ -41,8 +45,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       ValueNotifier<Category>(Category.food);
   final ValueNotifier<String> _selectedPaymentMethod =
       ValueNotifier<String>('Cash');
+  final ValueNotifier<bool> _isRecurring = ValueNotifier<bool>(false);
   final ValueNotifier<RecurringFrequency> _recurringFrequency =
-      ValueNotifier<RecurringFrequency>(RecurringFrequency.oneTime);
+      ValueNotifier<RecurringFrequency>(RecurringFrequency.weekly);
   final ValueNotifier<int?> _recurringDayOfMonth = ValueNotifier<int?>(null);
   final ValueNotifier<DayOfWeek?> _recurringDayOfWeek =
       ValueNotifier<DayOfWeek?>(null);
@@ -51,7 +56,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   // Get services
   final _settingsService = di.sl<SettingsService>();
-  final _recurringExpensesRepository = di.sl<RecurringExpensesRepository>();
 
   // Payment method mapping
   final Map<String, PaymentMethod> _paymentMethodMap = {
@@ -78,6 +82,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     _selectedDateTime.dispose();
     _selectedCategory.dispose();
     _selectedPaymentMethod.dispose();
+    _isRecurring.dispose();
     _recurringFrequency.dispose();
     _recurringDayOfMonth.dispose();
     _recurringDayOfWeek.dispose();
@@ -120,12 +125,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           throw Exception('Remark cannot be empty');
         }
 
-        String? recurringExpenseId;
-
-        // If it's a recurring expense, create the recurring expense record first
-        if (_recurringFrequency.value != RecurringFrequency.oneTime) {
-          final recurringExpense = RecurringExpense(
-            id: '', // Let repository assign ID
+        // Create recurring details if this is a recurring expense
+        RecurringDetails? recurringDetails;
+        if (_isRecurring.value) {
+          recurringDetails = RecurringDetails(
             frequency: _recurringFrequency.value,
             dayOfMonth: _recurringFrequency.value == RecurringFrequency.monthly
                 ? _recurringDayOfMonth.value
@@ -133,26 +136,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             dayOfWeek: _recurringFrequency.value == RecurringFrequency.weekly
                 ? _recurringDayOfWeek.value
                 : null,
-            startDate: _selectedDateTime.value,
             endDate: _recurringEndDate.value,
-            isActive: true,
-            lastProcessedDate:
-                _selectedDateTime.value, // Mark as processed to avoid duplicate
-            expenseRemark: remarkText,
-            expenseAmount: amount,
-            expenseCategoryId: _selectedCategory.value.id,
-            expensePaymentMethod:
-                _selectedPaymentMethod.value.toLowerCase().replaceAll(' ', ''),
-            expenseCurrency: _currency.value,
-            expenseDescription: _recurringFrequency.value.displayName,
           );
-
-          final createdRecurringExpense = await _recurringExpensesRepository
-              .addRecurringExpense(recurringExpense);
-          recurringExpenseId = createdRecurringExpense.id;
         }
 
-        // Create the expense with the recurring expense ID if applicable
+        // Create the expense with the embedded recurring details
         final expense = Expense(
           id: '', // Use empty ID to let repository handle Firebase/offline ID assignment
           remark: remarkText,
@@ -160,11 +148,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           date: _selectedDateTime.value,
           category: _selectedCategory.value,
           method: _getPaymentMethodEnum(_selectedPaymentMethod.value),
-          description: _recurringFrequency.value == RecurringFrequency.oneTime
-              ? "One-time Payment"
-              : _recurringFrequency.value.displayName,
+          description: _isRecurring.value
+              ? _recurringFrequency.value.displayName
+              : "One-time Payment",
           currency: _currency.value,
-          recurringExpenseId: recurringExpenseId,
+          recurringDetails: recurringDetails,
         );
 
         await viewModel.addExpense(expense);
@@ -180,9 +168,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
             entryMethod: 'manual_form',
             additionalMetadata: {
               'paymentMethod': _selectedPaymentMethod.value,
-              'isRecurring':
-                  _recurringFrequency.value != RecurringFrequency.oneTime,
-              'recurringFrequency': _recurringFrequency.value.name,
+              'isRecurring': _isRecurring.value,
+              'recurringFrequency':
+                  _isRecurring.value ? _recurringFrequency.value.name : null,
               'entryTimestamp': DateTime.now().toIso8601String(),
               'hasDescription': _descriptionController.text.trim().isNotEmpty,
             },
@@ -203,7 +191,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
               duration: Duration(seconds: 2),
             ),
           );
-          Navigator.of(context).pop();
+          Navigator.of(context)
+              .pop(true); // Return true to indicate successful addition
         }
       } catch (e, stackTrace) {
         final error = AppError.from(e, stackTrace);
@@ -228,6 +217,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
   }
 
+  PaymentMethod _getPaymentMethodEnum(String paymentMethodString) {
+    return _paymentMethodMap[paymentMethodString] ?? PaymentMethod.cash;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -235,7 +228,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.pop(
+              context, false), // Return false when no action taken
         ),
         title: const Text(
           AppConstants.newExpenseTitle,
@@ -317,8 +311,8 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 CustomTextField(
                   controller: _remarkController,
                   labelText: 'Remark',
-                  prefixIcon: Icons.note,
                   isRequired: true,
+                  prefixIcon: Icons.note,
                 ),
                 SizedBox(height: 16.h),
 
@@ -327,11 +321,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   builder: (context, selectedDateTime, _) {
                     return DateTimePickerField(
                       dateTime: selectedDateTime,
-                      onDateChanged: (date) {
-                        _selectedDateTime.value = date;
+                      onDateChanged: (dateTime) {
+                        _selectedDateTime.value = dateTime;
                       },
-                      onTimeChanged: (time) {
-                        _selectedDateTime.value = time;
+                      onTimeChanged: (dateTime) {
+                        _selectedDateTime.value = dateTime;
                       },
                       onCurrentTimePressed: _setCurrentDateTime,
                     );
@@ -358,106 +352,65 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                 ),
                 SizedBox(height: 16.h),
 
-                // Recurring expense configuration
-                ValueListenableBuilder<RecurringFrequency>(
-                  valueListenable: _recurringFrequency,
-                  builder: (context, frequency, _) {
-                    return ValueListenableBuilder<int?>(
-                      valueListenable: _recurringDayOfMonth,
-                      builder: (context, dayOfMonth, _) {
-                        return ValueListenableBuilder<DayOfWeek?>(
-                          valueListenable: _recurringDayOfWeek,
-                          builder: (context, dayOfWeek, _) {
-                            return ValueListenableBuilder<DateTime?>(
-                              valueListenable: _recurringEndDate,
-                              builder: (context, endDate, _) {
-                                return RecurringExpenseConfig(
-                                  initialFrequency: frequency,
-                                  initialDayOfMonth: dayOfMonth,
-                                  initialDayOfWeek: dayOfWeek,
-                                  initialEndDate: endDate,
-                                  onFrequencyChanged: (newFrequency) {
-                                    _recurringFrequency.value = newFrequency;
-                                  },
-                                  onDayOfMonthChanged: (newDayOfMonth) {
-                                    _recurringDayOfMonth.value = newDayOfMonth;
-                                  },
-                                  onDayOfWeekChanged: (newDayOfWeek) {
-                                    _recurringDayOfWeek.value = newDayOfWeek;
-                                  },
-                                  onEndDateChanged: (newEndDate) {
-                                    _recurringEndDate.value = newEndDate;
-                                  },
-                                );
-                              },
-                            );
+                // Recurring expense toggle and configuration
+                ValueListenableBuilder<bool>(
+                  valueListenable: _isRecurring,
+                  builder: (context, isRecurring, _) {
+                    return Column(
+                      children: [
+                        SwitchListTile(
+                          title: Text(
+                            'Recurring Expense',
+                            style: TextStyle(
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Set up automatic recurring payments',
+                            style: TextStyle(
+                              fontSize: 11.sp,
+                              fontWeight: FontWeight.w300,
+                            ),
+                          ),
+                          value: isRecurring,
+                          onChanged: (value) {
+                            _isRecurring.value = value;
                           },
-                        );
-                      },
+                        ),
+                        if (isRecurring) ...[
+                          SizedBox(height: 16.h),
+                          RecurringExpenseConfig(
+                            initialFrequency: _recurringFrequency.value,
+                            initialDayOfMonth: _recurringDayOfMonth.value,
+                            initialDayOfWeek: _recurringDayOfWeek.value,
+                            initialEndDate: _recurringEndDate.value,
+                            onFrequencyChanged: (newFrequency) {
+                              _recurringFrequency.value = newFrequency;
+                            },
+                            onDayOfMonthChanged: (newDayOfMonth) {
+                              _recurringDayOfMonth.value = newDayOfMonth;
+                            },
+                            onDayOfWeekChanged: (newDayOfWeek) {
+                              _recurringDayOfWeek.value = newDayOfWeek;
+                            },
+                            onEndDateChanged: (newEndDate) {
+                              _recurringEndDate.value = newEndDate;
+                            },
+                          ),
+                        ],
+                      ],
                     );
                   },
                 ),
                 SizedBox(height: 24.h),
 
-                // Submit button - Square with corner radius
-                SizedBox(
-                  width: double.infinity,
-                  height: 56.h, // Square-ish height
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : _handleSubmit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryColor,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 24.w,
-                        vertical: 16.h,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(16.r), // Corner radius
-                      ),
-                      elevation: 2.r,
-                    ),
-                    child: _isSubmitting
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                width: 20.w,
-                                height: 20.h,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.w,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              SizedBox(width: 12.w),
-                              Text(
-                                AppConstants.addingText,
-                                style: TextStyle(
-                                  fontFamily: AppTheme.fontFamily,
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          )
-                        : Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.add_rounded, size: 22.sp),
-                              SizedBox(width: 8.w),
-                              Text(
-                                'Add New Expenses',
-                                style: TextStyle(
-                                  fontFamily: AppTheme.fontFamily,
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
+                // Submit button
+                SubmitButton(
+                  text: AppConstants.addButtonText,
+                  isLoading: _isSubmitting,
+                  onPressed: _handleSubmit,
+                  icon: Icons.add,
                 ),
               ],
             ),
@@ -465,9 +418,5 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         ),
       ),
     );
-  }
-
-  PaymentMethod _getPaymentMethodEnum(String methodString) {
-    return _paymentMethodMap[methodString] ?? PaymentMethod.cash;
   }
 }

@@ -11,7 +11,9 @@ import '../widgets/auth_button.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/animated_float_button.dart';
 import '../widgets/custom_text_field.dart';
+import '../widgets/submit_button.dart';
 import '../utils/auth_utils.dart';
+import '../viewmodels/expenses_viewmodel.dart';
 import 'add_expense_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -332,79 +334,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           if (!isGuest) ...[
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            SizedBox(height: 20.h),
+            Column(
               children: [
                 if (_isEditingProfile) ...[
-                  ElevatedButton.icon(
-                    onPressed: _isUpdatingProfile ? null : _saveProfileChanges,
-                    icon: _isUpdatingProfile
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : const Icon(Icons.save, size: 18),
-                    label: Text(_isUpdatingProfile ? 'Saving...' : 'Save'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  OutlinedButton.icon(
-                    onPressed: _isUpdatingProfile ? null : _cancelEdit,
-                    icon: const Icon(Icons.close, size: 18),
-                    label: const Text('Cancel'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor:
-                          Theme.of(context).textTheme.bodyLarge?.color,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      side: BorderSide(
-                        color: Theme.of(context).dividerColor,
-                      ),
-                    ),
+                  SubmitButton(
+                      text: 'Save',
+                      loadingText: 'Saving...',
+                      isLoading: _isUpdatingProfile,
+                      onPressed: _saveProfileChanges,
+                      icon: Icons.save,
+                      color: Colors.green),
+                  SizedBox(height: 16.h),
+                  SubmitButton(
+                    text: 'Cancel',
+                    isLoading: false,
+                    onPressed: _isUpdatingProfile ? () {} : _cancelEdit,
+                    icon: Icons.close,
+                    color: Colors.grey,
                   ),
                 ] else
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        _isEditingProfile = true;
-                        _displayNameController.text = user?.displayName ?? '';
-                        _selectedPhotoUrl = user?.photoUrl;
-                      });
-                    },
-                    icon: const Icon(Icons.edit, size: 18),
-                    label: const Text('Edit Profile'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SubmitButton(
+                          text: 'Edit Profile',
+                          isLoading: false,
+                          onPressed: () {
+                            setState(() {
+                              _isEditingProfile = true;
+                              _displayNameController.text =
+                                  user?.displayName ?? '';
+                              _selectedPhotoUrl = user?.photoUrl;
+                            });
+                          },
+                          icon: Icons.edit,
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
+                    ],
                   ),
               ],
             ),
@@ -909,7 +876,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
               type: TransitionType.fadeAndSlideUp,
               settings: const RouteSettings(name: Routes.expenses),
             ),
-          );
+          ).then((result) {
+            // Only refresh data if an expense was actually added (result == true)
+            if (!mounted || result != true) return;
+
+            // Refresh the expenses data
+            final expensesVM =
+                Provider.of<ExpensesViewModel>(context, listen: false);
+            expensesVM.refreshData();
+          });
         },
         backgroundColor: const Color(0xFFF57C00),
         shape: const CircleBorder(),

@@ -2,7 +2,6 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/foundation.dart';
 import '../../entities/user.dart';
 import '../../repositories/auth_repository.dart';
-import '../../../data/infrastructure/monitoring/performance_monitor.dart';
 import '../../../presentation/viewmodels/theme_viewmodel.dart';
 
 /// Use case for refreshing authentication state
@@ -19,7 +18,6 @@ class RefreshAuthStateUseCase {
   /// Execute the refresh auth state use case
   Future<User?> execute() async {
     debugPrint('🔥 Refreshing auth state');
-    PerformanceMonitor.startTimer('refresh_auth_state');
 
     try {
       // Get fresh user data
@@ -59,8 +57,6 @@ class RefreshAuthStateUseCase {
     } catch (e) {
       debugPrint('🔥 Error refreshing auth state: $e');
       throw Exception('Failed to refresh authentication state');
-    } finally {
-      PerformanceMonitor.stopTimer('refresh_auth_state');
     }
   }
 }

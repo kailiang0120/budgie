@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 
 import '../../entities/expense.dart';
 import '../../../data/infrastructure/services/settings_service.dart';
-import '../../../data/infrastructure/monitoring/performance_monitor.dart';
 
 /// Use case for calculating expense totals and category totals
 class CalculateExpenseTotalsUseCase {
@@ -14,12 +13,12 @@ class CalculateExpenseTotalsUseCase {
   }) : _settingsService = settingsService;
 
   /// Get total expenses for the selected month by category with currency conversion
-  Map<String, double> getCategoryTotals(List<Expense> expenses) {
+  Future<Map<String, double>> getCategoryTotals(List<Expense> expenses) async {
     if (expenses.isEmpty) {
       return {};
     }
 
-    return PerformanceMonitor.measure('calculate_category_totals', () {
+    return await Future.microtask(() async {
       final Map<String, double> result = {};
       final String targetCurrency =
           _settingsService.currency; // Use user's preferred currency
@@ -45,12 +44,12 @@ class CalculateExpenseTotalsUseCase {
   }
 
   /// Get total expenses for the selected month with currency conversion
-  double getTotalExpenses(List<Expense> expenses) {
+  Future<double> getTotalExpenses(List<Expense> expenses) async {
     if (expenses.isEmpty) {
       return 0.0;
     }
 
-    return PerformanceMonitor.measure('calculate_total_expenses', () {
+    return await Future.microtask(() async {
       final String targetCurrency = _settingsService.currency;
       double total = 0.0;
 

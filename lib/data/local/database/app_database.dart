@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
@@ -18,12 +19,27 @@ class Expenses extends Table {
   TextColumn get method => text()();
   TextColumn get description => text().nullable()();
   TextColumn get currency => text().withDefault(const Constant('MYR'))();
-  TextColumn get recurringExpenseId => text().nullable()();
+  TextColumn get recurringDetailsJson =>
+      text().nullable()(); // JSON field for embedded recurring details
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
   DateTimeColumn get lastModified => dateTime()();
 
   @override
   Set<Column> get primaryKey => {id};
+
+  // Add indexes for performance optimization
+  @override
+  List<Set<Column>> get uniqueKeys => [];
+
+  // Custom indexes for frequently queried columns
+  static const String indexUserId =
+      'CREATE INDEX IF NOT EXISTS expenses_user_id_idx ON expenses (user_id)';
+  static const String indexDate =
+      'CREATE INDEX IF NOT EXISTS expenses_date_idx ON expenses (date)';
+  static const String indexUserDate =
+      'CREATE INDEX IF NOT EXISTS expenses_user_date_idx ON expenses (user_id, date)';
+  static const String indexSyncStatus =
+      'CREATE INDEX IF NOT EXISTS expenses_sync_idx ON expenses (is_synced)';
 }
 
 /// Budgets table definition
@@ -39,6 +55,12 @@ class Budgets extends Table {
 
   @override
   Set<Column> get primaryKey => {monthId, userId};
+
+  // Custom indexes for performance optimization
+  static const String indexUserId =
+      'CREATE INDEX IF NOT EXISTS budgets_user_id_idx ON budgets (user_id)';
+  static const String indexSyncStatus =
+      'CREATE INDEX IF NOT EXISTS budgets_sync_idx ON budgets (is_synced)';
 }
 
 /// Sync queue table for tracking operations that need to be synchronized
@@ -62,30 +84,6 @@ class ExchangeRates extends Table {
 
   @override
   Set<Column> get primaryKey => {baseCurrency, userId};
-}
-
-/// Recurring expenses table definition
-class RecurringExpenses extends Table {
-  TextColumn get id => text()();
-  TextColumn get userId => text()();
-  TextColumn get frequency => text()(); // 'oneTime', 'weekly', 'monthly'
-  IntColumn get dayOfMonth => integer().nullable()(); // 1-31 for monthly
-  TextColumn get dayOfWeek => text().nullable()(); // 'monday', 'tuesday', etc.
-  DateTimeColumn get startDate => dateTime()();
-  DateTimeColumn get endDate => dateTime().nullable()();
-  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
-  DateTimeColumn get lastProcessedDate => dateTime().nullable()();
-  TextColumn get expenseRemark => text()();
-  RealColumn get expenseAmount => real()();
-  TextColumn get expenseCategoryId => text()();
-  TextColumn get expensePaymentMethod => text()();
-  TextColumn get expenseCurrency => text().withDefault(const Constant('MYR'))();
-  TextColumn get expenseDescription => text().nullable()();
-  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
-  DateTimeColumn get lastModified => dateTime()();
-
-  @override
-  Set<Column> get primaryKey => {id};
 }
 
 /// Users table for storing user information and settings
@@ -134,7 +132,6 @@ LazyDatabase _openConnection() {
   Expenses,
   Budgets,
   SyncQueue,
-  RecurringExpenses,
   Users,
   ExchangeRates,
   BudgetSuggestions,
@@ -143,13 +140,25 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 9;
+
+  /// Create performance indexes for better query performance
+  Future<void> _createPerformanceIndexes() async {
+    await customStatement(Expenses.indexUserId);
+    await customStatement(Expenses.indexDate);
+    await customStatement(Expenses.indexUserDate);
+    await customStatement(Expenses.indexSyncStatus);
+    await customStatement(Budgets.indexUserId);
+    await customStatement(Budgets.indexSyncStatus);
+  }
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
-      onCreate: (Migrator m) {
-        return m.createAll();
+      onCreate: (Migrator m) async {
+        await m.createAll();
+        // Create performance indexes
+        await _createPerformanceIndexes();
       },
       onUpgrade: (Migrator m, int from, int to) async {
         if (from == 1 && to >= 2) {
@@ -161,10 +170,8 @@ class AppDatabase extends _$AppDatabase {
               users, users.improveAccuracy as GeneratedColumn<Object>);
         }
         if (from <= 2 && to >= 3) {
-          // Add recurring expense support
-          await m.createTable(recurringExpenses);
-          await m.addColumn(
-              expenses, expenses.recurringExpenseId as GeneratedColumn<Object>);
+          // Skip old recurring expense structure - no longer used
+          // This migration step is kept for compatibility but does nothing
         }
         if (from <= 3 && to >= 4) {
           // Add exchange rates table for currency conversion
@@ -172,7 +179,6 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from <= 4 && to >= 5) {
           // Add saving field to budgets table with a safe default
-          // First, check if the column already exists
           final tableInfo =
               await m.database.customSelect('PRAGMA table_info(budgets)').get();
           final hasSavingColumn =
@@ -193,6 +199,63 @@ class AppDatabase extends _$AppDatabase {
           if (!hasColumn) {
             await m.addColumn(users,
                 users.automaticRebalanceSuggestions as GeneratedColumn<Object>);
+          }
+        }
+        if (from <= 6 && to >= 7) {
+          // Legacy migration - add isRecurring column (will be removed in v9)
+          await m.addColumn(expenses,
+              expenses.recurringDetailsJson as GeneratedColumn<Object>);
+        }
+        if (from <= 7 && to >= 8) {
+          // Legacy migration for endDate - no longer needed
+        }
+        if (from <= 8 && to >= 9) {
+          // Migrate from subcollection structure to embedded recurring details
+          try {
+            // Add recurringDetailsJson column if not exists
+            final tableInfo = await m.database
+                .customSelect('PRAGMA table_info(expenses)')
+                .get();
+            final hasRecurringDetailsJson = tableInfo
+                .any((row) => row.data['name'] == 'recurring_details_json');
+
+            if (!hasRecurringDetailsJson) {
+              await m.addColumn(expenses,
+                  expenses.recurringDetailsJson as GeneratedColumn<Object>);
+            }
+
+            // Migrate data from recurring_details table to embedded JSON field
+            final recurringDetailsData = await m.database
+                .customSelect('SELECT * FROM recurring_details')
+                .get();
+
+            for (final recurringDetail in recurringDetailsData) {
+              final expenseId = recurringDetail.data['expense_id'] as String;
+              final recurringDetailsJson = {
+                'frequency': recurringDetail.data['frequency'],
+                'dayOfMonth': recurringDetail.data['day_of_month'],
+                'dayOfWeek': recurringDetail.data['day_of_week'],
+                'endDate': recurringDetail.data['end_date']?.toString(),
+              };
+
+              await m.database.customUpdate(
+                'UPDATE expenses SET recurring_details_json = ? WHERE id = ?',
+                variables: [
+                  Variable.withString(jsonEncode(recurringDetailsJson)),
+                  Variable.withString(expenseId),
+                ],
+              );
+            }
+
+            // Drop the old recurring_details table
+            await m.database
+                .customStatement('DROP TABLE IF EXISTS recurring_details');
+
+            // Remove isRecurring column as it's now computed from recurringDetails
+            // Note: SQLite doesn't support dropping columns directly, so we leave it for backward compatibility
+          } catch (e) {
+            // If migration fails, continue - this is not critical
+            print('Recurring details migration warning: $e');
           }
         }
       },

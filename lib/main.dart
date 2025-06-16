@@ -337,8 +337,8 @@ class _BudgieAppBootstrapState extends State<BudgieAppBootstrap> {
     Future.delayed(const Duration(milliseconds: 100), () {
       try {
         // Test if critical services are ready
-        final themeViewModel = di.sl<ThemeViewModel>();
-        final authRepository = di.sl<AuthRepository>();
+        di.sl<ThemeViewModel>();
+        di.sl<AuthRepository>();
 
         debugPrint('✅ Critical providers ready');
         if (mounted) {

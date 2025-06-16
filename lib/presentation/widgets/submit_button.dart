@@ -28,7 +28,7 @@ class SubmitButton extends StatelessWidget {
     required this.isLoading,
     required this.onPressed,
     this.color,
-    this.borderRadius = 25, // Updated to match new design
+    this.borderRadius = 45, // Updated to match new design
     this.icon,
     this.width,
     this.height = 56.0, // Updated to match new square-ish design
@@ -88,7 +88,7 @@ class SubmitButton extends StatelessWidget {
   Widget _buildButtonContent() {
     if (icon != null) {
       return Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, size: 22.sp),
           SizedBox(width: 8.w),

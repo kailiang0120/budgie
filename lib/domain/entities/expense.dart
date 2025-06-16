@@ -1,5 +1,6 @@
 import 'category.dart';
 import 'constants.dart';
+import 'recurring_expense.dart';
 
 /// Available payment methods for expenses
 enum PaymentMethod {
@@ -36,8 +37,11 @@ class Expense {
   /// Currency code
   final String currency;
 
-  /// Reference to recurring expense if this expense was auto-generated
-  final String? recurringExpenseId;
+  /// Embedded recurring details - if present, this expense is recurring
+  final RecurringDetails? recurringDetails;
+
+  /// Whether this expense has recurring configuration
+  bool get isRecurring => recurringDetails != null;
 
   /// Creates a new Expense instance
   Expense({
@@ -49,7 +53,7 @@ class Expense {
     required this.method,
     this.description,
     String? currency,
-    this.recurringExpenseId,
+    this.recurringDetails,
   }) : currency = currency ?? DomainConstants.defaultCurrency;
 
   /// Creates a copy of this Expense with the given fields replaced with new values
@@ -62,7 +66,8 @@ class Expense {
     PaymentMethod? method,
     String? description,
     String? currency,
-    String? recurringExpenseId,
+    RecurringDetails? recurringDetails,
+    bool clearRecurringDetails = false,
   }) {
     return Expense(
       id: id ?? this.id,
@@ -73,7 +78,9 @@ class Expense {
       method: method ?? this.method,
       description: description ?? this.description,
       currency: currency ?? this.currency,
-      recurringExpenseId: recurringExpenseId ?? this.recurringExpenseId,
+      recurringDetails: clearRecurringDetails
+          ? null
+          : (recurringDetails ?? this.recurringDetails),
     );
   }
 }

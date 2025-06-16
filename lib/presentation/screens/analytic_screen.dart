@@ -5,6 +5,10 @@ import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 
+// Performance and responsive utilities
+// import '../utils/responsive_layout.dart';
+// import '../utils/performance_utils.dart';
+
 // Budget ViewModel no longer needed
 import '../viewmodels/expenses_viewmodel.dart';
 import '../viewmodels/budget_viewmodel.dart';
@@ -660,7 +664,15 @@ class _AnalyticScreenState extends State<AnalyticScreen>
               type: TransitionType.fadeAndSlideUp,
               settings: const RouteSettings(name: Routes.expenses),
             ),
-          );
+          ).then((result) {
+            // Only refresh data if an expense was actually added (result == true)
+            if (!mounted || result != true) return;
+
+            // Refresh the analytics data
+            final expensesVM =
+                Provider.of<ExpensesViewModel>(context, listen: false);
+            expensesVM.refreshData();
+          });
         },
         backgroundColor: Theme.of(context).colorScheme.primary,
         shape: const CircleBorder(),
@@ -1315,199 +1327,229 @@ class _AnalyticScreenState extends State<AnalyticScreen>
   Widget _buildCategoryDistributionCard(BuildContext context) {
     final expensesViewModel = Provider.of<ExpensesViewModel>(context);
 
-    // Ensure we're getting data for the selected month
-    // We no longer need to force filtering here as it's already done during initialization
-    final categoryTotals = expensesViewModel.getCategoryTotals();
+    return FutureBuilder<Map<String, double>>(
+      future: expensesViewModel.getCategoryTotals(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Card(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Container(
+              height: 400.h,
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+          );
+        }
 
-    // If there's no data, show a placeholder
-    if (categoryTotals.isEmpty) {
-      return Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+        if (snapshot.hasError) {
+          return Card(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Container(
+              height: 400.h,
+              child: Center(
+                child: Text('Error loading category data: ${snapshot.error}'),
+              ),
+            ),
+          );
+        }
+
+        final categoryTotals = snapshot.data ?? {};
+
+        // If there's no data, show a placeholder
+        if (categoryTotals.isEmpty) {
+          return Card(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.pie_chart,
-                    color: Theme.of(context).colorScheme.primary,
-                    size: 24.sp,
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.pie_chart,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 24.sp,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Category Distribution',
+                        style: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const Spacer(),
+                      // Show the filter date
+                      Text(
+                        '${_selectedDate.year}-${_selectedDate.month}',
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Category Distribution',
-                    style: TextStyle(
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
+                  const SizedBox(height: 40),
+                  Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.pie_chart_outline,
+                          size: 48.sp,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No expense data for this period',
+                          style: TextStyle(color: Colors.grey[600]),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Try selecting a different month or adding expenses',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 12.sp,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   ),
-                  const Spacer(),
-                  // Show the filter date
-                  Text(
-                    '${_selectedDate.year}-${_selectedDate.month}',
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      color: Colors.grey[600],
-                    ),
-                  ),
+                  const SizedBox(height: 40),
                 ],
               ),
-              const SizedBox(height: 40),
-              Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+            ),
+          );
+        }
+
+        // Calculate total amount with currency conversion already applied
+        // The getCategoryTotals() method now returns values in the user's preferred currency
+        final totalAmount =
+            categoryTotals.values.fold<double>(0, (sum, value) => sum + value);
+
+        debugPrint(
+            'Total amount for pie chart: $totalAmount in ${expensesViewModel.currentCurrency}');
+        debugPrint('Categories: ${categoryTotals.keys.join(", ")}');
+
+        return Card(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
                     Icon(
-                      Icons.pie_chart_outline,
-                      size: 48.sp,
-                      color: Colors.grey[400],
+                      Icons.pie_chart,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 24.sp,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(width: 8),
                     Text(
-                      'No expense data for this period',
-                      style: TextStyle(color: Colors.grey[600]),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Try selecting a different month or adding expenses',
+                      'Category Distribution',
                       style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 12.sp,
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
-                      textAlign: TextAlign.center,
+                    ),
+                    const Spacer(),
+                    // Show the filter date
+                    Text(
+                      '${_selectedDate.year}-${_selectedDate.month}',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: Colors.grey[600],
+                      ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
-      );
-    }
+                const SizedBox(height: 24),
 
-    // Calculate total amount with currency conversion already applied
-    // The getCategoryTotals() method now returns values in the user's preferred currency
-    final totalAmount =
-        categoryTotals.values.fold<double>(0, (sum, value) => sum + value);
-
-    debugPrint(
-        'Total amount for pie chart: $totalAmount in ${expensesViewModel.currentCurrency}');
-    debugPrint('Categories: ${categoryTotals.keys.join(", ")}');
-
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.pie_chart,
-                  color: Theme.of(context).colorScheme.primary,
-                  size: 24.sp,
+                // Pie chart with fixed height and proper container
+                Container(
+                  height: 280.h,
+                  alignment: Alignment.center,
+                  child: _buildCustomPieChart(categoryTotals),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  'Category Distribution',
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
+                SizedBox(height: 24.h),
+                // Total amount - now using currency-converted values
+                Center(
+                  child: RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'Total: ',
+                          style: TextStyle(
+                            color: Theme.of(context).textTheme.bodyLarge?.color,
+                            fontSize: 16.sp,
+                          ),
+                        ),
+                        TextSpan(
+                          text:
+                              '${expensesViewModel.currentCurrency} ${totalAmount.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18.sp,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const Spacer(),
-                // Show the filter date
-                Text(
-                  '${_selectedDate.year}-${_selectedDate.month}',
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    color: Colors.grey[600],
+
+                const SizedBox(height: 24),
+
+                // Category legend with better wrapping
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    spacing: 16,
+                    runSpacing: 12,
+                    alignment: WrapAlignment.center,
+                    children: categoryTotals.entries.map((entry) {
+                      final categoryId = entry.key;
+                      final percentage =
+                          (entry.value / totalAmount * 100).toStringAsFixed(1);
+                      return Container(
+                        margin: EdgeInsets.only(bottom: 4.h),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 12.w,
+                              height: 12.h,
+                              decoration: BoxDecoration(
+                                color:
+                                    CategoryManager.getColorFromId(categoryId),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            SizedBox(width: 4.w),
+                            Text(
+                              '${CategoryManager.getNameFromId(categoryId)} ($percentage%)',
+                              style: TextStyle(fontSize: 12.sp),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-
-            // Pie chart with fixed height and proper container
-            Container(
-              height: 280.h,
-              alignment: Alignment.center,
-              child: _buildCustomPieChart(categoryTotals),
-            ),
-            SizedBox(height: 24.h),
-            // Total amount - now using currency-converted values
-            Center(
-              child: RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'Total: ',
-                      style: TextStyle(
-                        color: Theme.of(context).textTheme.bodyLarge?.color,
-                        fontSize: 16.sp,
-                      ),
-                    ),
-                    TextSpan(
-                      text:
-                          '${expensesViewModel.currentCurrency} ${totalAmount.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18.sp,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Category legend with better wrapping
-            SizedBox(
-              width: double.infinity,
-              child: Wrap(
-                spacing: 16,
-                runSpacing: 12,
-                alignment: WrapAlignment.center,
-                children: categoryTotals.entries.map((entry) {
-                  final categoryId = entry.key;
-                  final percentage =
-                      (entry.value / totalAmount * 100).toStringAsFixed(1);
-                  return Container(
-                    margin: EdgeInsets.only(bottom: 4.h),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 12.w,
-                          height: 12.h,
-                          decoration: BoxDecoration(
-                            color: CategoryManager.getColorFromId(categoryId),
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        SizedBox(width: 4.w),
-                        Text(
-                          '${CategoryManager.getNameFromId(categoryId)} ($percentage%)',
-                          style: TextStyle(fontSize: 12.sp),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -1642,112 +1684,124 @@ class _AnalyticScreenState extends State<AnalyticScreen>
   // Build top categories chart
   Widget _buildTopCategoriesChart(ExpensesViewModel viewModel) {
     // We no longer need to force filtering here as it's already done during initialization
-    final categoryTotals = viewModel.getCategoryTotals();
+    return FutureBuilder<Map<String, double>>(
+      future: viewModel.getCategoryTotals(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return SizedBox(
+            height: 120.h,
+            child: const Center(child: CircularProgressIndicator()),
+          );
+        }
 
-    if (categoryTotals.isEmpty) {
-      return SizedBox(
-        height: 120.h,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.category_outlined,
-                  size: 28.sp, color: Colors.grey[400]),
-              SizedBox(height: 8.h),
-              Text(
-                'No category data for this period',
-                style: TextStyle(color: Colors.grey[600]),
-                textAlign: TextAlign.center,
+        final categoryTotals = snapshot.data ?? {};
+
+        if (categoryTotals.isEmpty) {
+          return SizedBox(
+            height: 120.h,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.category_outlined,
+                      size: 28.sp, color: Colors.grey[400]),
+                  SizedBox(height: 8.h),
+                  Text(
+                    'No category data for this period',
+                    style: TextStyle(color: Colors.grey[600]),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // Sort categories by amount
-    final sortedCategories = categoryTotals.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    // Take top 5 categories
-    final topCategories = sortedCategories.take(5).toList();
-
-    // Get the highest amount for scaling
-    final highestAmount = topCategories.first.value;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Top Categories',
-          style: TextStyle(
-            fontSize: 16.sp,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        SizedBox(height: 12.h),
-        ...topCategories.map((entry) {
-          final percentage = entry.value / highestAmount;
-          final category = entry.key;
-
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      CategoryManager.getIcon(category),
-                      size: 16.sp,
-                      color: CategoryManager.getColor(category),
-                    ),
-                    SizedBox(width: 8.w),
-                    Text(
-                      CategoryManager.getName(category),
-                      style: TextStyle(fontSize: 14.sp),
-                    ),
-                    Spacer(),
-                    Text(
-                      '${viewModel.currentCurrency} ${entry.value.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14.sp,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 6.h),
-                // Bar chart
-                Stack(
-                  children: [
-                    // Background bar
-                    Container(
-                      height: 8.h,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(4.r),
-                      ),
-                    ),
-                    // Filled bar
-                    FractionallySizedBox(
-                      widthFactor: percentage,
-                      child: Container(
-                        height: 8.h,
-                        decoration: BoxDecoration(
-                          color: CategoryManager.getColor(category),
-                          borderRadius: BorderRadius.circular(4.r),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ),
           );
-        }).toList(),
-      ],
+        }
+
+        // Sort categories by amount
+        final sortedCategories = categoryTotals.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+
+        // Take top 5 categories
+        final topCategories = sortedCategories.take(5).toList();
+
+        // Get the highest amount for scaling
+        final highestAmount = topCategories.first.value;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Top Categories',
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: 12.h),
+            ...topCategories.map((entry) {
+              final percentage = entry.value / highestAmount;
+              final category = entry.key;
+
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          CategoryManager.getIcon(category),
+                          size: 16.sp,
+                          color: CategoryManager.getColor(category),
+                        ),
+                        SizedBox(width: 8.w),
+                        Text(
+                          CategoryManager.getName(category),
+                          style: TextStyle(fontSize: 14.sp),
+                        ),
+                        Spacer(),
+                        Text(
+                          '${viewModel.currentCurrency} ${entry.value.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14.sp,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 6.h),
+                    // Bar chart
+                    Stack(
+                      children: [
+                        // Background bar
+                        Container(
+                          height: 8.h,
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade200,
+                            borderRadius: BorderRadius.circular(4.r),
+                          ),
+                        ),
+                        // Filled bar
+                        FractionallySizedBox(
+                          widthFactor: percentage,
+                          child: Container(
+                            height: 8.h,
+                            decoration: BoxDecoration(
+                              color: CategoryManager.getColor(category),
+                              borderRadius: BorderRadius.circular(4.r),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ],
+        );
+      },
     );
   }
 

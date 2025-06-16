@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../../entities/budget.dart';
 import '../../repositories/budget_repository.dart';
 import '../../../data/infrastructure/errors/app_error.dart';
-import '../../../data/infrastructure/monitoring/performance_monitor.dart';
+
 import '../../../data/infrastructure/services/settings_service.dart';
 import '../../../data/infrastructure/services/sync_service.dart';
 import '../../../data/infrastructure/network/connectivity_service.dart';
@@ -29,9 +29,7 @@ class LoadBudgetUseCase {
   /// Execute the load budget use case
   Future<Budget?> execute(String monthId, {bool checkCurrency = false}) async {
     try {
-      PerformanceMonitor.startTimer('load_budget');
       final loadedBudget = await _budgetRepository.getBudget(monthId);
-      PerformanceMonitor.stopTimer('load_budget');
 
       if (loadedBudget != null) {
         // Log the currency for debugging

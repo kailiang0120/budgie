@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 
 import '../../entities/expense.dart';
-import '../../../data/infrastructure/monitoring/performance_monitor.dart';
 
 /// Use case for filtering expenses by various criteria
 class FilterExpensesUseCase {
@@ -11,8 +10,6 @@ class FilterExpensesUseCase {
   /// Filter expenses by month
   List<Expense> filterByMonth(List<Expense> expenses, DateTime selectedMonth,
       {bool isDayFiltering = false}) {
-    PerformanceMonitor.startTimer('filter_expenses');
-
     final cacheKey = isDayFiltering
         ? '${selectedMonth.year}-${selectedMonth.month}-${selectedMonth.day}'
         : '${selectedMonth.year}-${selectedMonth.month}';
@@ -21,7 +18,6 @@ class FilterExpensesUseCase {
     if (_cache.containsKey(cacheKey)) {
       debugPrint(
           'Using cached data for $cacheKey: ${_cache[cacheKey]!.length} expenses');
-      PerformanceMonitor.stopTimer('filter_expenses', logResult: true);
       return _cache[cacheKey]!;
     }
 
@@ -62,11 +58,9 @@ class FilterExpensesUseCase {
       // Update cache
       _cache[cacheKey] = filteredExpenses;
 
-      PerformanceMonitor.stopTimer('filter_expenses');
       return filteredExpenses;
     } catch (e) {
       debugPrint('Error during expense filtering: $e');
-      PerformanceMonitor.stopTimer('filter_expenses');
       // Ensure valid list even if filtering fails
       return [];
     }
@@ -75,11 +69,9 @@ class FilterExpensesUseCase {
   /// Get expenses for a specific month
   List<Expense> getExpensesForMonth(
       List<Expense> expenses, int year, int month) {
-    return PerformanceMonitor.measure('get_expenses_for_month', () {
-      return expenses.where((expense) {
-        return expense.date.year == year && expense.date.month == month;
-      }).toList();
-    });
+    return expenses.where((expense) {
+      return expense.date.year == year && expense.date.month == month;
+    }).toList();
   }
 
   /// Clear cache

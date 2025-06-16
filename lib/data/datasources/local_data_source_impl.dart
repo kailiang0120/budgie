@@ -152,6 +152,19 @@ class LocalDataSourceImpl implements LocalDataSource {
         orElse: () => domain.PaymentMethod.cash,
       );
 
+      // Parse embedded recurring details from JSON
+      domain.RecurringDetails? recurringDetails;
+      if (row.recurringDetailsJson != null &&
+          row.recurringDetailsJson!.isNotEmpty) {
+        try {
+          final jsonData =
+              jsonDecode(row.recurringDetailsJson!) as Map<String, dynamic>;
+          recurringDetails = domain.RecurringDetails.fromJson(jsonData);
+        } catch (e) {
+          debugPrint('Error parsing recurring details JSON: $e');
+        }
+      }
+
       return domain.Expense(
         id: row.id,
         remark: row.remark,
@@ -161,7 +174,7 @@ class LocalDataSourceImpl implements LocalDataSource {
         method: paymentMethod,
         description: row.description,
         currency: row.currency,
-        recurringExpenseId: row.recurringExpenseId,
+        recurringDetails: recurringDetails,
       );
     }).toList();
   }
@@ -174,6 +187,12 @@ class LocalDataSourceImpl implements LocalDataSource {
     // Check if this is an offline expense (needs syncing)
     final needsSync = expense.id.isEmpty || expense.id.startsWith('offline_');
 
+    // Serialize recurring details to JSON
+    String? recurringDetailsJson;
+    if (expense.recurringDetails != null) {
+      recurringDetailsJson = jsonEncode(expense.recurringDetails!.toJson());
+    }
+
     await _database.into(_database.expenses).insertOnConflictUpdate(
           ExpensesCompanion.insert(
             id: newId,
@@ -185,7 +204,7 @@ class LocalDataSourceImpl implements LocalDataSource {
             method: expense.method.toString().split('.').last,
             description: Value(expense.description),
             currency: Value(expense.currency),
-            recurringExpenseId: Value(expense.recurringExpenseId),
+            recurringDetailsJson: Value(recurringDetailsJson),
             isSynced: Value(
                 !needsSync), // Mark as synced if it has a proper Firebase ID
             lastModified: DateTime.now(),
@@ -203,6 +222,12 @@ class LocalDataSourceImpl implements LocalDataSource {
   Future<void> saveSyncedExpense(domain.Expense expense) async {
     final userId = await _getCurrentUserId();
 
+    // Serialize recurring details to JSON
+    String? recurringDetailsJson;
+    if (expense.recurringDetails != null) {
+      recurringDetailsJson = jsonEncode(expense.recurringDetails!.toJson());
+    }
+
     await _database.into(_database.expenses).insertOnConflictUpdate(
           ExpensesCompanion.insert(
             id: expense.id,
@@ -214,7 +239,7 @@ class LocalDataSourceImpl implements LocalDataSource {
             method: expense.method.toString().split('.').last,
             description: Value(expense.description),
             currency: Value(expense.currency),
-            recurringExpenseId: Value(expense.recurringExpenseId),
+            recurringDetailsJson: Value(recurringDetailsJson),
             isSynced: const Value(true), // Already synced from Firebase
             lastModified: DateTime.now(),
           ),
@@ -224,6 +249,12 @@ class LocalDataSourceImpl implements LocalDataSource {
   @override
   Future<void> updateExpense(domain.Expense expense) async {
     final userId = await _getCurrentUserId();
+
+    // Serialize recurring details to JSON
+    String? recurringDetailsJson;
+    if (expense.recurringDetails != null) {
+      recurringDetailsJson = jsonEncode(expense.recurringDetails!.toJson());
+    }
 
     await _database.update(_database.expenses).replace(
           ExpensesCompanion(
@@ -236,7 +267,7 @@ class LocalDataSourceImpl implements LocalDataSource {
             method: Value(expense.method.toString().split('.').last),
             description: Value(expense.description),
             currency: Value(expense.currency),
-            recurringExpenseId: Value(expense.recurringExpenseId),
+            recurringDetailsJson: Value(recurringDetailsJson),
             isSynced: const Value(false),
             lastModified: Value(DateTime.now()),
           ),
@@ -271,6 +302,19 @@ class LocalDataSourceImpl implements LocalDataSource {
         orElse: () => domain.PaymentMethod.cash,
       );
 
+      // Parse embedded recurring details from JSON
+      domain.RecurringDetails? recurringDetails;
+      if (row.recurringDetailsJson != null &&
+          row.recurringDetailsJson!.isNotEmpty) {
+        try {
+          final jsonData =
+              jsonDecode(row.recurringDetailsJson!) as Map<String, dynamic>;
+          recurringDetails = domain.RecurringDetails.fromJson(jsonData);
+        } catch (e) {
+          debugPrint('Error parsing recurring details JSON: $e');
+        }
+      }
+
       return domain.Expense(
         id: row.id,
         remark: row.remark,
@@ -280,7 +324,7 @@ class LocalDataSourceImpl implements LocalDataSource {
         method: paymentMethod,
         description: row.description,
         currency: row.currency,
-        recurringExpenseId: row.recurringExpenseId,
+        recurringDetails: recurringDetails,
       );
     }).toList();
   }
@@ -290,186 +334,6 @@ class LocalDataSourceImpl implements LocalDataSource {
     await (_database.update(_database.expenses)
           ..where((tbl) => tbl.id.equals(id)))
         .write(const ExpensesCompanion(isSynced: Value(true)));
-  }
-
-  // Recurring expenses operations
-  @override
-  Future<List<domain.RecurringExpense>> getRecurringExpenses() async {
-    final recurringExpenses =
-        await (_database.select(_database.recurringExpenses)
-              ..orderBy([(t) => OrderingTerm.desc(t.startDate)]))
-            .get();
-
-    return recurringExpenses.map((row) {
-      return _mapRowToRecurringExpense(row);
-    }).toList();
-  }
-
-  @override
-  Future<void> saveRecurringExpense(
-      domain.RecurringExpense recurringExpense) async {
-    final newId =
-        recurringExpense.id.isEmpty ? _uuid.v4() : recurringExpense.id;
-    final userId = await _getCurrentUserId();
-
-    // Check if this is an offline recurring expense (needs syncing)
-    final needsSync = recurringExpense.id.isEmpty ||
-        recurringExpense.id.startsWith('offline_');
-
-    await _database.into(_database.recurringExpenses).insertOnConflictUpdate(
-          RecurringExpensesCompanion.insert(
-            id: newId,
-            userId: userId,
-            frequency: recurringExpense.frequency.id,
-            dayOfMonth: Value(recurringExpense.dayOfMonth),
-            dayOfWeek: Value(recurringExpense.dayOfWeek?.id),
-            startDate: recurringExpense.startDate,
-            endDate: Value(recurringExpense.endDate),
-            isActive: Value(recurringExpense.isActive),
-            lastProcessedDate: Value(recurringExpense.lastProcessedDate),
-            expenseRemark: recurringExpense.expenseRemark,
-            expenseAmount: recurringExpense.expenseAmount,
-            expenseCategoryId: recurringExpense.expenseCategoryId,
-            expensePaymentMethod: recurringExpense.expensePaymentMethod,
-            expenseCurrency: Value(recurringExpense.expenseCurrency),
-            expenseDescription: Value(recurringExpense.expenseDescription),
-            isSynced: Value(!needsSync),
-            lastModified: DateTime.now(),
-          ),
-        );
-
-    // Only add to sync queue if it needs syncing
-    if (needsSync) {
-      await addToSyncQueue('recurring_expense', newId, userId, 'add');
-    }
-  }
-
-  @override
-  Future<void> saveSyncedRecurringExpense(
-      domain.RecurringExpense recurringExpense) async {
-    final userId = await _getCurrentUserId();
-
-    await _database.into(_database.recurringExpenses).insertOnConflictUpdate(
-          RecurringExpensesCompanion.insert(
-            id: recurringExpense.id,
-            userId: userId,
-            frequency: recurringExpense.frequency.id,
-            dayOfMonth: Value(recurringExpense.dayOfMonth),
-            dayOfWeek: Value(recurringExpense.dayOfWeek?.id),
-            startDate: recurringExpense.startDate,
-            endDate: Value(recurringExpense.endDate),
-            isActive: Value(recurringExpense.isActive),
-            lastProcessedDate: Value(recurringExpense.lastProcessedDate),
-            expenseRemark: recurringExpense.expenseRemark,
-            expenseAmount: recurringExpense.expenseAmount,
-            expenseCategoryId: recurringExpense.expenseCategoryId,
-            expensePaymentMethod: recurringExpense.expensePaymentMethod,
-            expenseCurrency: Value(recurringExpense.expenseCurrency),
-            expenseDescription: Value(recurringExpense.expenseDescription),
-            isSynced: const Value(true), // Already synced from Firebase
-            lastModified: DateTime.now(),
-          ),
-        );
-  }
-
-  @override
-  Future<void> updateRecurringExpense(
-      domain.RecurringExpense recurringExpense) async {
-    final userId = await _getCurrentUserId();
-
-    await _database.update(_database.recurringExpenses).replace(
-          RecurringExpensesCompanion(
-            id: Value(recurringExpense.id),
-            userId: Value(userId),
-            frequency: Value(recurringExpense.frequency.id),
-            dayOfMonth: Value(recurringExpense.dayOfMonth),
-            dayOfWeek: Value(recurringExpense.dayOfWeek?.id),
-            startDate: Value(recurringExpense.startDate),
-            endDate: Value(recurringExpense.endDate),
-            isActive: Value(recurringExpense.isActive),
-            lastProcessedDate: Value(recurringExpense.lastProcessedDate),
-            expenseRemark: Value(recurringExpense.expenseRemark),
-            expenseAmount: Value(recurringExpense.expenseAmount),
-            expenseCategoryId: Value(recurringExpense.expenseCategoryId),
-            expensePaymentMethod: Value(recurringExpense.expensePaymentMethod),
-            expenseCurrency: Value(recurringExpense.expenseCurrency),
-            expenseDescription: Value(recurringExpense.expenseDescription),
-            isSynced: const Value(false),
-            lastModified: Value(DateTime.now()),
-          ),
-        );
-
-    await addToSyncQueue(
-        'recurring_expense', recurringExpense.id, userId, 'update');
-  }
-
-  @override
-  Future<void> deleteRecurringExpense(String id) async {
-    final userId = await _getCurrentUserId();
-
-    await (_database.delete(_database.recurringExpenses)
-          ..where((tbl) => tbl.id.equals(id)))
-        .go();
-
-    await addToSyncQueue('recurring_expense', id, userId, 'delete');
-  }
-
-  @override
-  Future<List<domain.RecurringExpense>> getActiveRecurringExpenses() async {
-    final activeRecurringExpenses =
-        await (_database.select(_database.recurringExpenses)
-              ..where((tbl) => tbl.isActive.equals(true))
-              ..orderBy([(t) => OrderingTerm.asc(t.startDate)]))
-            .get();
-
-    return activeRecurringExpenses.map((row) {
-      return _mapRowToRecurringExpense(row);
-    }).toList();
-  }
-
-  @override
-  Future<void> markRecurringExpenseAsSynced(String id) async {
-    await (_database.update(_database.recurringExpenses)
-          ..where((tbl) => tbl.id.equals(id)))
-        .write(const RecurringExpensesCompanion(isSynced: Value(true)));
-  }
-
-  @override
-  Future<void> updateRecurringExpenseLastProcessed(
-      String id, DateTime lastProcessedDate) async {
-    await (_database.update(_database.recurringExpenses)
-          ..where((tbl) => tbl.id.equals(id)))
-        .write(RecurringExpensesCompanion(
-      lastProcessedDate: Value(lastProcessedDate),
-      lastModified: Value(DateTime.now()),
-      isSynced: const Value(false), // Mark as needing sync
-    ));
-
-    final userId = await _getCurrentUserId();
-    await addToSyncQueue('recurring_expense', id, userId, 'update');
-  }
-
-  /// Helper method to map database row to RecurringExpense entity
-  domain.RecurringExpense _mapRowToRecurringExpense(RecurringExpense row) {
-    return domain.RecurringExpense(
-      id: row.id,
-      frequency: domain.RecurringFrequencyExtension.fromId(row.frequency) ??
-          domain.RecurringFrequency.oneTime,
-      dayOfMonth: row.dayOfMonth,
-      dayOfWeek: row.dayOfWeek != null
-          ? domain.DayOfWeekExtension.fromId(row.dayOfWeek!)
-          : null,
-      startDate: row.startDate,
-      endDate: row.endDate,
-      isActive: row.isActive,
-      lastProcessedDate: row.lastProcessedDate,
-      expenseRemark: row.expenseRemark,
-      expenseAmount: row.expenseAmount,
-      expenseCategoryId: row.expenseCategoryId,
-      expensePaymentMethod: row.expensePaymentMethod,
-      expenseCurrency: row.expenseCurrency,
-      expenseDescription: row.expenseDescription,
-    );
   }
 
   // Budget operations
@@ -589,19 +453,17 @@ class LocalDataSourceImpl implements LocalDataSource {
   // Budget suggestions operations
   @override
   Future<void> saveBudgetSuggestion(domain.BudgetSuggestion suggestion) async {
-    final companion = BudgetSuggestionsCompanion.insert(
-      monthId: suggestion.monthId,
-      userId: suggestion.userId,
-      suggestions: suggestion.suggestions,
-      timestamp: suggestion.timestamp,
-      isRead: Value(suggestion.isRead),
-    );
-    await _database
-        .into(_database.budgetSuggestions)
-        .insertOnConflictUpdate(companion);
+    await _database.into(_database.budgetSuggestions).insert(
+          BudgetSuggestionsCompanion.insert(
+            monthId: suggestion.monthId,
+            userId: suggestion.userId,
+            suggestions: suggestion.suggestions,
+            timestamp: suggestion.timestamp,
+            isRead: Value(suggestion.isRead),
+          ),
+        );
   }
 
-  @override
   Future<domain.BudgetSuggestion?> getLatestBudgetSuggestion(
       String monthId, String userId) async {
     final query = _database.select(_database.budgetSuggestions)
@@ -648,28 +510,15 @@ class LocalDataSourceImpl implements LocalDataSource {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getPendingSyncOperations() async {
-    final operations = await (_database.select(_database.syncQueue)
-          ..orderBy([(t) => OrderingTerm.asc(t.timestamp)]))
-        .get();
-
-    return operations
-        .map((op) => {
-              'id': op.id,
-              'entityType': op.entityType,
-              'entityId': op.entityId,
-              'userId': op.userId,
-              'operation': op.operation,
-              'timestamp': op.timestamp,
-            })
-        .toList();
+  Future<void> removeSyncOperation(int id) async {
+    await (_database.delete(_database.syncQueue)
+          ..where((tbl) => tbl.id.equals(id)))
+        .go();
   }
 
   @override
-  Future<void> clearSyncOperation(int syncId) async {
-    await (_database.delete(_database.syncQueue)
-          ..where((tbl) => tbl.id.equals(syncId)))
-        .go();
+  Future<void> clearAllSyncOperations() async {
+    await _database.delete(_database.syncQueue).go();
   }
 
   /// Helper method to get current user ID
@@ -739,9 +588,38 @@ class LocalDataSourceImpl implements LocalDataSource {
     _database.close();
   }
 
+  // Budget suggestions operations
+  @override
+  Future<List<domain.BudgetSuggestion>> getBudgetSuggestions(
+      String monthId, String userId) async {
+    final suggestions = await (_database.select(_database.budgetSuggestions)
+          ..where(
+              (tbl) => tbl.monthId.equals(monthId) & tbl.userId.equals(userId))
+          ..orderBy([(tbl) => OrderingTerm.desc(tbl.timestamp)]))
+        .get();
+
+    return suggestions
+        .map((s) => domain.BudgetSuggestion(
+              id: s.id,
+              monthId: s.monthId,
+              userId: s.userId,
+              suggestions: s.suggestions,
+              timestamp: s.timestamp,
+              isRead: s.isRead,
+            ))
+        .toList();
+  }
+
+  @override
+  Future<void> deleteBudgetSuggestion(int id) async {
+    await (_database.delete(_database.budgetSuggestions)
+          ..where((tbl) => tbl.id.equals(id)))
+        .go();
+  }
+
   // Exchange rates operations
   @override
-  Future<Map<String, dynamic>?> getExchangeRates(
+  Future<Map<String, double>?> getExchangeRates(
       String baseCurrency, String userId) async {
     try {
       // Get the exchange rates from the database
@@ -758,11 +636,13 @@ class LocalDataSourceImpl implements LocalDataSource {
       // Parse rates JSON into a Map
       final ratesMap = jsonDecode(ratesRow.ratesJson) as Map<String, dynamic>;
 
-      return {
-        'baseCurrency': ratesRow.baseCurrency,
-        'timestamp': ratesRow.timestamp.millisecondsSinceEpoch,
-        'rates': ratesMap,
-      };
+      // Convert dynamic values to double
+      final doubleRatesMap = <String, double>{};
+      ratesMap.forEach((key, value) {
+        doubleRatesMap[key] = (value as num).toDouble();
+      });
+
+      return doubleRatesMap;
     } catch (e) {
       debugPrint('Error getting exchange rates from local database: $e');
       return null;
@@ -770,8 +650,8 @@ class LocalDataSourceImpl implements LocalDataSource {
   }
 
   @override
-  Future<void> saveExchangeRates(String baseCurrency, Map<String, double> rates,
-      String userId, DateTime timestamp) async {
+  Future<void> saveExchangeRates(String baseCurrency, String userId,
+      Map<String, double> rates, DateTime timestamp) async {
     try {
       // Convert rates map to JSON string
       final ratesJson = jsonEncode(rates);
@@ -791,5 +671,48 @@ class LocalDataSourceImpl implements LocalDataSource {
     } catch (e) {
       debugPrint('Error saving exchange rates to local database: $e');
     }
+  }
+
+  @override
+  Future<DateTime?> getExchangeRatesTimestamp(
+      String baseCurrency, String userId) async {
+    final ratesRow = await (_database.select(_database.exchangeRates)
+          ..where((tbl) =>
+              tbl.baseCurrency.equals(baseCurrency) &
+              tbl.userId.equals(userId)))
+        .getSingleOrNull();
+
+    return ratesRow?.timestamp;
+  }
+
+  // Sync queue operations
+  @override
+  Future<List<Map<String, dynamic>>> getSyncQueue() async {
+    final operations = await (_database.select(_database.syncQueue)
+          ..orderBy([(t) => OrderingTerm.asc(t.timestamp)]))
+        .get();
+
+    return operations
+        .map((op) => {
+              'id': op.id,
+              'entityType': op.entityType,
+              'entityId': op.entityId,
+              'userId': op.userId,
+              'operation': op.operation,
+              'timestamp': op.timestamp,
+            })
+        .toList();
+  }
+
+  @override
+  Future<void> removeSyncQueueItem(int id) async {
+    await (_database.delete(_database.syncQueue)
+          ..where((tbl) => tbl.id.equals(id)))
+        .go();
+  }
+
+  @override
+  Future<void> clearSyncQueue() async {
+    await _database.delete(_database.syncQueue).go();
   }
 }

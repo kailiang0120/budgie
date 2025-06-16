@@ -3,11 +3,14 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../domain/entities/expense.dart';
+import '../../domain/entities/recurring_expense.dart';
+
 import '../utils/category_manager.dart';
 import '../viewmodels/expenses_viewmodel.dart';
 import '../../core/constants/routes.dart';
 import '../utils/app_theme.dart';
 import '../viewmodels/budget_viewmodel.dart';
+import '../../di/injection_container.dart' as di;
 
 class ExpenseCard extends StatefulWidget {
   final Expense expense;
@@ -218,15 +221,46 @@ class _ExpenseCardState extends State<ExpenseCard>
     }
   }
 
+  String _getRecurringDetailsString() {
+    if (!widget.expense.isRecurring) {
+      return '';
+    }
+
+    final recurringDetails = widget.expense.recurringDetails;
+    if (recurringDetails == null) {
+      debugPrint(
+          'Warning: Expense ${widget.expense.id} marked as recurring but has no recurringDetails');
+      return 'Recurring (details not available)';
+    }
+
+    final frequency = recurringDetails.frequency;
+    if (frequency == RecurringFrequency.weekly &&
+        recurringDetails.dayOfWeek != null) {
+      return 'Recurring weekly on ${recurringDetails.dayOfWeek!.displayName}';
+    } else if (frequency == RecurringFrequency.monthly &&
+        recurringDetails.dayOfMonth != null) {
+      return 'Recurring monthly on day ${recurringDetails.dayOfMonth}';
+    }
+
+    return 'Recurring ${frequency.displayName.toLowerCase()}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('MMM dd, yyyy');
     final timeFormat = DateFormat('HH:mm');
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
+    // Calculate dynamic height based on content
+    final baseHeight = 85.h;
+    final additionalHeight = widget.expense.isRecurring
+        ? 16.h
+        : 0.h; // Extra space for recurring details
+    final cardHeight = baseHeight + additionalHeight;
+
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
-      height: 80.h,
+      height: cardHeight,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
@@ -323,7 +357,7 @@ class _ExpenseCardState extends State<ExpenseCard>
               onHorizontalDragUpdate: _onHorizontalDragUpdate,
               onHorizontalDragEnd: _onHorizontalDragEnd,
               child: Container(
-                height: 80.h,
+                height: cardHeight,
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
                   borderRadius: BorderRadius.circular(16.r),
@@ -370,26 +404,42 @@ class _ExpenseCardState extends State<ExpenseCard>
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              widget.expense.remark,
-                              style: TextStyle(
-                                fontFamily: AppTheme.fontFamily,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16.sp,
-                                color: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge
-                                    ?.color,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    widget.expense.remark,
+                                    style: TextStyle(
+                                      fontFamily: AppTheme.fontFamily,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14.sp,
+                                      color: Theme.of(context)
+                                          .textTheme
+                                          .bodyLarge
+                                          ?.color,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (widget.expense.isRecurring) ...[
+                                  SizedBox(width: 4.w),
+                                  Icon(
+                                    Icons.repeat,
+                                    size: 16.sp,
+                                    color: AppTheme.primaryColor,
+                                  ),
+                                  SizedBox(width: 10.w),
+                                ],
+                              ],
                             ),
                             SizedBox(height: 4.h),
                             Text(
                               '${dateFormat.format(widget.expense.date)} at ${timeFormat.format(widget.expense.date)}',
                               style: TextStyle(
                                 fontFamily: AppTheme.fontFamily,
-                                fontSize: 9.sp,
+                                fontSize: 10.sp,
                                 color: Theme.of(context)
                                     .textTheme
                                     .bodyMedium
@@ -397,6 +447,20 @@ class _ExpenseCardState extends State<ExpenseCard>
                                     ?.withValues(alpha: 0.7),
                               ),
                             ),
+                            if (widget.expense.isRecurring) ...[
+                              SizedBox(height: 2.h),
+                              Text(
+                                _getRecurringDetailsString(),
+                                style: TextStyle(
+                                  fontFamily: AppTheme.fontFamily,
+                                  fontSize: 8.5.sp,
+                                  color: AppTheme.primaryColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -411,7 +475,7 @@ class _ExpenseCardState extends State<ExpenseCard>
                             style: TextStyle(
                               fontFamily: AppTheme.fontFamily,
                               fontWeight: FontWeight.w500,
-                              fontSize: 14.sp,
+                              fontSize: 16.sp,
                               color:
                                   Theme.of(context).textTheme.bodyLarge?.color,
                             ),
@@ -421,7 +485,7 @@ class _ExpenseCardState extends State<ExpenseCard>
                             _getPaymentMethodString(widget.expense.method),
                             style: TextStyle(
                               fontFamily: AppTheme.fontFamily,
-                              fontSize: 9.sp,
+                              fontSize: 10.sp,
                               color: Theme.of(context)
                                   .textTheme
                                   .bodyMedium
@@ -429,6 +493,9 @@ class _ExpenseCardState extends State<ExpenseCard>
                                   ?.withValues(alpha: 0.6),
                             ),
                           ),
+                          if (widget.expense.isRecurring) ...[
+                            SizedBox(height: 16.h),
+                          ],
                         ],
                       ),
                     ],

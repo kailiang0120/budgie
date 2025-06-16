@@ -2,7 +2,6 @@ import 'dart:async';
 import '../../entities/budget.dart';
 import '../../repositories/budget_repository.dart';
 import '../../../data/infrastructure/errors/app_error.dart';
-import '../../../data/infrastructure/monitoring/performance_monitor.dart';
 
 /// Use case for saving budget with debouncing
 class SaveBudgetUseCase {
@@ -69,7 +68,7 @@ class SaveBudgetUseCase {
       print('Executing budget save for month: $monthId');
       _lastSaveTime = DateTime.now();
 
-      await PerformanceMonitor.measureAsync('save_budget', () async {
+      await Future.microtask(() async {
         return await _budgetRepository.setBudget(monthId, budget);
       });
     } catch (e, stackTrace) {

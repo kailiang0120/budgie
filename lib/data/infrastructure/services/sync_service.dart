@@ -180,7 +180,7 @@ class SyncService {
             'method': expense.method.toString().split('.').last,
             'description': expense.description,
             'currency': expense.currency,
-            'recurringExpenseId': expense.recurringExpenseId,
+            'recurringDetails': expense.recurringDetails?.toJson(),
           });
 
           debugPrint('Firebase save successful with ID: ${docRef.id}');
@@ -214,7 +214,7 @@ class SyncService {
             'method': expense.method.toString().split('.').last,
             'description': expense.description,
             'currency': expense.currency,
-            'recurringExpenseId': expense.recurringExpenseId,
+            'recurringDetails': expense.recurringDetails?.toJson(),
           });
 
           // Mark as synced
@@ -330,8 +330,7 @@ class SyncService {
       debugPrint('Processing pending operations from queue...');
 
       // Get all pending operations from queue
-      final pendingOperations =
-          await _localDataSource.getPendingSyncOperations();
+      final pendingOperations = await _localDataSource.getSyncQueue();
       debugPrint('Found ${pendingOperations.length} pending operations');
 
       // Process operations in chronological order
@@ -344,7 +343,7 @@ class SyncService {
 
         // Verify operation belongs to current user
         if (opUserId != userId) {
-          await _localDataSource.clearSyncOperation(syncId);
+          await _localDataSource.removeSyncOperation(syncId);
           continue;
         }
 
@@ -369,13 +368,16 @@ class SyncService {
             case 'user_settings':
               await _syncUserSettings(userId);
               break;
+            case 'recurring_details':
+              // Recurring details are now embedded in expenses, no separate sync needed
+              break;
             case 'recurring_expense':
-              // TODO: Implement recurring expense sync
+              // TODO: Implement recurring expense sync (legacy)
               break;
           }
 
           // Mark operation as completed
-          await _localDataSource.clearSyncOperation(syncId);
+          await _localDataSource.removeSyncOperation(syncId);
         } catch (e) {
           debugPrint('Error processing operation $syncId: $e');
           // If network error, stop sync process
@@ -425,7 +427,7 @@ class SyncService {
                 'method': expense.method.toString().split('.').last,
                 'description': expense.description,
                 'currency': expense.currency,
-                'recurringExpenseId': expense.recurringExpenseId,
+                'recurringDetails': expense.recurringDetails?.toJson(),
               });
 
               debugPrint('Firebase save successful with ID: ${docRef.id}');
@@ -502,6 +504,14 @@ class SyncService {
     }
   }
 
+  /// Sync individual recurring detail record (DEPRECATED - now using embedded structure)
+  @deprecated
+  Future<void> _syncRecurringDetail(
+      String detailsId, String operation, String userId) async {
+    // Recurring details are now embedded in expenses, no separate sync needed
+    debugPrint('Skipping recurring detail sync (now embedded): $detailsId');
+  }
+
   /// Initialize local data when user logs in
   Future<void> initializeLocalDataOnLogin(String userId) async {
     try {
@@ -573,8 +583,7 @@ class SyncService {
       debugPrint('Clearing sync operations for budget month: $monthId');
 
       // Get all pending operations from queue
-      final pendingOperations =
-          await _localDataSource.getPendingSyncOperations();
+      final pendingOperations = await _localDataSource.getSyncQueue();
 
       // Find and clear budget operations for this specific month
       for (final operation in pendingOperations) {
@@ -587,7 +596,7 @@ class SyncService {
         if (entityType == 'budget' &&
             entityId == monthId &&
             opUserId == userId) {
-          await _localDataSource.clearSyncOperation(syncId);
+          await _localDataSource.removeSyncOperation(syncId);
           debugPrint(
               'Cleared budget sync operation for month $monthId: $syncId');
         }
@@ -613,7 +622,7 @@ class SyncService {
 
     try {
       // Get pending operations
-      final operations = await _localDataSource.getPendingSyncOperations();
+      final operations = await _localDataSource.getSyncQueue();
 
       // Find and clear budget operations for this month
       for (final operation in operations) {
@@ -621,7 +630,7 @@ class SyncService {
             operation['entityId'] == monthId &&
             operation['userId'] == userId) {
           final syncId = operation['id'] as int;
-          await _localDataSource.clearSyncOperation(syncId);
+          await _localDataSource.removeSyncOperation(syncId);
           debugPrint(
               'Cleared budget sync operation for month $monthId: $syncId');
         }

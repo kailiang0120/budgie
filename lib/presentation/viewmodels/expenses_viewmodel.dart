@@ -14,9 +14,11 @@ import '../../domain/usecase/expense/delete_expense_usecase.dart';
 import '../../domain/usecase/expense/load_expenses_usecase.dart';
 import '../../domain/usecase/expense/filter_expenses_usecase.dart';
 import '../../domain/usecase/expense/calculate_expense_totals_usecase.dart';
+import '../utils/performance_utils.dart';
 import 'dart:async';
 
-class ExpensesViewModel extends ChangeNotifier {
+class ExpensesViewModel extends ChangeNotifier
+    with PerformanceOptimizedViewModel {
   final ExpensesRepository _expensesRepository;
   final ConnectivityService _connectivityService;
   final SettingsService _settingsService;
@@ -78,8 +80,9 @@ class ExpensesViewModel extends ChangeNotifier {
     // Check network connection status
     _isOffline = await _loadExpensesUseCase.isOffline;
 
-    // Listen for network status changes
-    _connectivityService.connectionStatusStream.listen((isConnected) {
+    // Listen for network status changes with performance optimization
+    final subscription =
+        _connectivityService.connectionStatusStream.listen((isConnected) {
       final wasOffline = _isOffline;
       _isOffline = !isConnected;
 
@@ -98,6 +101,7 @@ class ExpensesViewModel extends ChangeNotifier {
         _loadExpensesFromLocalDatabase();
       }
     });
+    trackSubscription(subscription);
 
     // Initial data load
     if (_isOffline) {
@@ -131,7 +135,7 @@ class ExpensesViewModel extends ChangeNotifier {
       _filterExpensesByMonth();
 
       _isLoading = false;
-      notifyListeners();
+      notifyListenersThrottled('expenses_loaded');
     } catch (e, stackTrace) {
       _handleError(e, stackTrace);
     }
@@ -330,15 +334,16 @@ class ExpensesViewModel extends ChangeNotifier {
   }
 
   // Get total expenses for the selected month by category with currency conversion
-  Map<String, double> getCategoryTotals() {
+  Future<Map<String, double>> getCategoryTotals() async {
     final expensesToUse = _isFiltering ? _filteredExpenses : _expenses;
-    return _calculateExpenseTotalsUseCase.getCategoryTotals(expensesToUse);
+    return await _calculateExpenseTotalsUseCase
+        .getCategoryTotals(expensesToUse);
   }
 
   // Get total expenses for the selected month with currency conversion
-  double getTotalExpenses() {
+  Future<double> getTotalExpenses() async {
     final expensesToUse = _isFiltering ? _filteredExpenses : _expenses;
-    return _calculateExpenseTotalsUseCase.getTotalExpenses(expensesToUse);
+    return await _calculateExpenseTotalsUseCase.getTotalExpenses(expensesToUse);
   }
 
   Future<void> addExpense(Expense expense) async {
@@ -367,10 +372,8 @@ class ExpensesViewModel extends ChangeNotifier {
       // Clear cache to ensure data consistency
       _filterExpensesUseCase.clearCache();
 
-      // Offline mode support
-      if (_isOffline) {
-        await _loadExpensesFromLocalDatabase();
-      }
+      // Force refresh data to ensure UI consistency
+      await refreshData();
     } catch (e, stackTrace) {
       _handleError(e, stackTrace);
       rethrow;
