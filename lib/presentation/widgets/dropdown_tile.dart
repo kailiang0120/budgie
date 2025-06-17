@@ -61,7 +61,7 @@ class DropdownTile<T> extends StatelessWidget {
           height: 1.h,
           thickness: 1.h,
           indent: 18.w,
-          endIndent: 25.w,
+          endIndent: 18.w,
           color: Theme.of(context).dividerColor,
         ),
       ],

@@ -10,6 +10,7 @@ import '../widgets/bottom_nav_bar.dart';
 import '../widgets/date_picker_button.dart';
 import '../widgets/animated_float_button.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/app_constants.dart';
 // Using theme from MaterialApp
 import '../utils/category_manager.dart';
 import 'add_expense_screen.dart';
@@ -536,26 +537,42 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   // Method to refresh both expenses and budget data
   Future<void> _refreshData() async {
-    if (mounted) {
+    if (!mounted) return;
+
+    debugPrint('Home: Manual refresh triggered');
+
+    try {
       final expensesVM = Provider.of<ExpensesViewModel>(context, listen: false);
       final budgetVM = Provider.of<BudgetViewModel>(context, listen: false);
 
-      // Refresh expenses data first
+      // Clear any cached data and refresh from source
+      debugPrint('Home: Refreshing expenses data...');
       await expensesVM.refreshData();
+
+      // Reapply current filter settings for home screen
+      debugPrint('Home: Reapplying filter for home screen...');
+      expensesVM.setSelectedMonth(_selectedDate,
+          filterByDay: _filterByDay, persist: true, screenKey: 'home');
 
       // Add a small delay before refreshing budget to ensure expenses are updated
       await Future.delayed(const Duration(milliseconds: 300));
 
       // Refresh budget data for the selected month
       if (mounted) {
-        await budgetVM.refreshBudget(_getMonthIdFromDate(_selectedDate));
+        final monthId = _getMonthIdFromDate(_selectedDate);
+        debugPrint('Home: Refreshing budget for month: $monthId');
+
+        await budgetVM.refreshBudget(monthId);
 
         // Also recalculate budget with current expenses to ensure real-time updates
         final currentExpenses = expensesVM.getExpensesForMonth(
             _selectedDate.year, _selectedDate.month);
-        await budgetVM.calculateBudgetRemaining(
-            currentExpenses, _getMonthIdFromDate(_selectedDate));
+        await budgetVM.calculateBudgetRemaining(currentExpenses, monthId);
+
+        debugPrint('Home: Refresh completed successfully');
       }
+    } catch (e) {
+      debugPrint('Home: Error during refresh: $e');
     }
   }
 
@@ -578,7 +595,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         elevation: 0,
         automaticallyImplyLeading: false,
         title: Text(
-          'Home',
+          AppConstants.homeTitle,
           style:
               TextStyle(color: Theme.of(context).textTheme.titleLarge?.color),
         ),
@@ -659,7 +676,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         : Icons.calendar_month,
                                     color:
                                         Theme.of(context).colorScheme.primary,
-                                    size: 20.sp,
+                                    size: 24.sp,
                                   ),
                                 ),
                               ),
@@ -696,40 +713,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       : SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
-                              // Store an instance of the view model before any async operation
-                              final expensesVM = Provider.of<ExpensesViewModel>(
-                                  context,
-                                  listen: false);
                               return ExpenseCard(
                                 key: ValueKey(
                                     expenses[index].id), // Add unique key
                                 expense: expenses[index],
                                 onExpenseUpdated: () {
-                                  // Refresh both expenses and budget data
-                                  expensesVM.refreshData();
-
-                                  // Also refresh budget to reflect expense changes
-                                  final budgetVM = Provider.of<BudgetViewModel>(
-                                      context,
-                                      listen: false);
-                                  final monthId =
-                                      _getMonthIdFromDate(_selectedDate);
-
-                                  // Add a small delay to ensure the expense operation completed
-                                  Future.delayed(
-                                      const Duration(milliseconds: 500), () {
-                                    if (mounted) {
-                                      budgetVM.refreshBudget(monthId);
-
-                                      // Also recalculate with latest expenses
-                                      final currentExpenses =
-                                          expensesVM.getExpensesForMonth(
-                                              _selectedDate.year,
-                                              _selectedDate.month);
-                                      budgetVM.calculateBudgetRemaining(
-                                          currentExpenses, monthId);
-                                    }
-                                  });
+                                  // Use unified refresh method for complete data reload
+                                  _refreshData();
                                 },
                               );
                             },
@@ -760,25 +750,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             // Only refresh data if an expense was actually added (result == true)
             if (!mounted || result != true) return;
 
-            // Refresh expenses first
-            final expensesVM =
-                Provider.of<ExpensesViewModel>(context, listen: false);
-            expensesVM.refreshData();
-
-            // Then refresh budget with a small delay to ensure expense data is updated
-            final budgetVM =
-                Provider.of<BudgetViewModel>(context, listen: false);
-            Future.delayed(const Duration(milliseconds: 500), () {
-              if (mounted) {
-                budgetVM.refreshBudget(_getMonthIdFromDate(_selectedDate));
-
-                // Also recalculate with latest expenses
-                final currentExpenses = expensesVM.getExpensesForMonth(
-                    _selectedDate.year, _selectedDate.month);
-                budgetVM.calculateBudgetRemaining(
-                    currentExpenses, _getMonthIdFromDate(_selectedDate));
-              }
-            });
+            // Use unified refresh method for complete data reload
+            _refreshData();
           });
         },
         backgroundColor: Theme.of(context).colorScheme.primary,

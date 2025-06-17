@@ -2,17 +2,19 @@ import 'currency_formatter.dart';
 
 /// Application constants management class
 class AppConstants {
-  /// Currency list - use popular currencies for better UX
+  /// Currency list - BNM supported currencies for better exchange rate accuracy
+  /// Ordered by popularity for Malaysian users
   static final List<String> currencies = [
-    'MYR',
-    'USD',
-    'EUR',
-    'SGD',
-    'JPY',
-    'CNY',
+    'MYR', // Malaysian Ringgit (base currency)
+    'USD', // US Dollar
+    'SGD', // Singapore Dollar
+    'EUR', // Euro
+    'CNY', // Chinese Yuan
+    'AUD', // Australian Dollar
+    'IDR', // Indonesian Rupiah
   ];
 
-  /// Get all supported currencies from formatter
+  /// Get all supported currencies from formatter (includes BNM supported currencies)
   static List<String> getAllSupportedCurrencies() {
     return CurrencyFormatter.getSupportedCurrencies();
   }
@@ -69,10 +71,13 @@ class AppConstants {
       'An error occurred. Please try again.';
 
   /// Screen titles
-  static const String newExpenseTitle = 'New Expenses';
+  static const String newExpenseTitle = 'New Expense';
   static const String setBudgetTitle = 'Set Budget';
   static const String analyticsTitle = 'Analytics';
   static const String settingsTitle = 'Settings';
+  static const String homeTitle = 'Home';
+  static const String profileTitle = 'Profile';
+  static const String editExpenseTitle = 'Edit Expense';
 
   /// Button texts
   static const String saveButtonText = 'Save';

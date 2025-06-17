@@ -225,7 +225,7 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
                   ),
                   backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
                   foregroundColor: AppTheme.primaryColor,
-                  elevation: 0,
+                  elevation: 1,
                 ),
               ),
             if (_selectedEndDate != null) ...[

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:async';
 
 import 'permission_handler_service.dart';
 import 'notification_manager_service.dart';
@@ -8,10 +9,15 @@ import 'settings_service.dart';
 /// Comprehensive service for managing notification permissions with user-friendly workflows.
 /// Provides high-level methods that handle the complete permission flow, including user guidance.
 /// This class is the single source of truth for enabling and disabling notification services.
-class NotificationPermissionService {
+class NotificationPermissionService with WidgetsBindingObserver {
   final PermissionHandlerService _permissionHandler;
   final NotificationManagerService _notificationManager;
   final SettingsService _settingsService;
+
+  // Add completer for async permission waiting
+  Completer<bool>? _permissionCompleter;
+  bool _isWaitingForPermission = false;
+  BuildContext? _currentContext;
 
   /// Constructs a NotificationPermissionService with required dependencies.
   NotificationPermissionService({
@@ -20,13 +26,92 @@ class NotificationPermissionService {
     required SettingsService settingsService,
   })  : _permissionHandler = permissionHandler,
         _notificationManager = notificationManager,
-        _settingsService = settingsService;
+        _settingsService = settingsService {
+    // Add app lifecycle observer
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// Clean up resources when service is no longer needed
+  void cleanup() {
+    WidgetsBinding.instance.removeObserver(this);
+    _isWaitingForPermission = false;
+    _currentContext = null;
+    if (_permissionCompleter != null && !_permissionCompleter!.isCompleted) {
+      _permissionCompleter!.complete(false);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _isWaitingForPermission) {
+      // User returned from settings, check permissions
+      _checkPermissionsAfterSettings();
+    }
+  }
+
+  /// Check permissions after user returns from settings
+  Future<void> _checkPermissionsAfterSettings() async {
+    if (_permissionCompleter == null || _permissionCompleter!.isCompleted) {
+      return;
+    }
+
+    try {
+      debugPrint('🔄 Checking permissions after returning from settings...');
+
+      // Small delay to ensure system has updated permissions
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      final hasAllPermissions = await _permissionHandler.hasAllPermissions();
+
+      if (hasAllPermissions) {
+        debugPrint('✅ All permissions granted after returning from settings!');
+        _permissionCompleter!.complete(true);
+      } else {
+        // Check again after a longer delay
+        await Future.delayed(const Duration(seconds: 2));
+        final hasAllPermissionsDelayed =
+            await _permissionHandler.hasAllPermissions();
+
+        if (hasAllPermissionsDelayed) {
+          debugPrint('✅ All permissions granted after delayed check!');
+          _permissionCompleter!.complete(true);
+        } else {
+          debugPrint(
+              '❌ Permissions still not granted after returning from settings');
+          _showPermissionNotGrantedMessage();
+          _permissionCompleter!.complete(false);
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error checking permissions after settings: $e');
+      _permissionCompleter!.complete(false);
+    } finally {
+      _isWaitingForPermission = false;
+      _currentContext = null;
+    }
+  }
+
+  /// Show message when permissions are not granted
+  void _showPermissionNotGrantedMessage() {
+    if (_currentContext != null && _currentContext!.mounted) {
+      ScaffoldMessenger.of(_currentContext!).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Notification permissions were not granted. Please try again and enable the notification listener.'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 1),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   /// Enables notifications with a complete, robust workflow and user guidance.
   /// This is the primary entry point for turning on notification features.
   Future<NotificationPermissionResult> enableNotifications(
       BuildContext context) async {
     try {
+      _currentContext = context;
       debugPrint(
           '🔔 NotificationPermissionService: Starting robust enable workflow...');
 
@@ -45,7 +130,7 @@ class NotificationPermissionService {
             'Notifications already enabled and running.');
       }
 
-      // Step 3: Request necessary OS-level permissions.
+      // Step 3: Request necessary OS-level permissions with proper await.
       final permissionsGranted =
           await _requestAllPermissionsWithGuidance(context);
       if (!permissionsGranted) {
@@ -114,6 +199,7 @@ class NotificationPermissionService {
   }
 
   /// Requests all necessary permissions with user-friendly dialogs for guidance.
+  /// Now properly awaits permission changes when user goes to settings.
   Future<bool> _requestAllPermissionsWithGuidance(BuildContext context) async {
     // Request basic notification permission first.
     final basicGranted =
@@ -135,18 +221,40 @@ class NotificationPermissionService {
           return false;
         }
 
-        // Open settings and provide guidance. We cannot await the result here.
-        await _permissionHandler.requestNotificationListenerPermission();
+        // Show loading and guidance while waiting for permission
         if (context.mounted) {
           _showPermissionGuidance(context, isEnabling: true);
         }
-        // The app must re-check permission status upon resuming.
-        // For this flow, we assume the user will grant it and proceed.
+
+        // Set up completer for async waiting
+        _permissionCompleter = Completer<bool>();
+        _isWaitingForPermission = true;
+
+        // Open settings
+        await _permissionHandler.requestNotificationListenerPermission();
+
+        debugPrint(
+            '⏳ Waiting for user to grant notification listener permission...');
+
+        // Wait for user to return and grant permission (with timeout)
+        final permissionGranted = await _permissionCompleter!.future.timeout(
+          const Duration(minutes: 5), // Timeout after 5 minutes
+          onTimeout: () {
+            debugPrint('⏱️ Permission request timed out');
+            _isWaitingForPermission = false;
+            return false;
+          },
+        );
+
+        if (!permissionGranted) {
+          debugPrint('❌ Notification listener permission was not granted.');
+          return false;
+        }
       }
     }
 
-    // Final check. In a real-world scenario, you might want to await user returning from settings.
-    return _permissionHandler.hasAllPermissions();
+    // Final check to ensure all permissions are granted
+    return await _permissionHandler.hasAllPermissions();
   }
 
   /// Check current permission status.
@@ -236,7 +344,7 @@ class NotificationPermissionService {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        duration: const Duration(seconds: 8),
+        duration: const Duration(seconds: 1),
         behavior: SnackBarBehavior.floating,
         backgroundColor: isEnabling ? Colors.green : Colors.orange,
       ),

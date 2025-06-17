@@ -245,13 +245,13 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Padding(
-                padding: EdgeInsets.all(16.w),
+                padding: const EdgeInsets.all(16.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Card(
                       child: Padding(
-                        padding: EdgeInsets.all(16.w),
+                        padding: const EdgeInsets.all(16.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -259,16 +259,16 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                               'Status',
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            SizedBox(height: 8.h),
+                            const SizedBox(height: 8),
                             Text(_status),
                           ],
                         ),
                       ),
                     ),
-                    SizedBox(height: 16.h),
+                    const SizedBox(height: 16),
                     Card(
                       child: Padding(
-                        padding: EdgeInsets.all(16.w),
+                        padding: const EdgeInsets.all(16.0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -276,30 +276,30 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                               'Permissions',
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            SizedBox(height: 16.h),
+                            const SizedBox(height: 16),
                             ElevatedButton.icon(
                               onPressed: _requestPermission,
                               icon: const Icon(Icons.security),
                               label: const Text(
                                   'Request Notification Permissions'),
                               style: ElevatedButton.styleFrom(
-                                minimumSize: Size(double.infinity, 48.h),
+                                minimumSize: const Size(double.infinity, 48),
                               ),
                             ),
-                            SizedBox(height: 8.h),
+                            const SizedBox(height: 8),
                             ElevatedButton.icon(
                               onPressed: _checkPermission,
                               icon: const Icon(Icons.check_circle),
                               label: const Text('Check Permissions'),
                               style: ElevatedButton.styleFrom(
-                                minimumSize: Size(double.infinity, 48.h),
+                                minimumSize: const Size(double.infinity, 48),
                               ),
                             ),
                           ],
                         ),
                       ),
                     ),
-                    SizedBox(height: 16.h),
+                    const SizedBox(height: 16),
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),

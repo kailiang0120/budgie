@@ -15,6 +15,7 @@ import '../widgets/switch_tile.dart';
 import '../widgets/dropdown_tile.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/animated_float_button.dart';
+import '../widgets/exchange_rate_status_widget.dart';
 import '../utils/app_constants.dart';
 import '../utils/currency_formatter.dart';
 import 'add_expense_screen.dart';
@@ -129,7 +130,7 @@ class _SettingScreenState extends State<SettingScreen> {
             content: Text(
                 'Currency updated to $value. All budgets have been converted.'),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -140,6 +141,7 @@ class _SettingScreenState extends State<SettingScreen> {
           SnackBar(
             content: Text('Failed to update currency: $e'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -172,6 +174,7 @@ class _SettingScreenState extends State<SettingScreen> {
                       : Colors.green)
                   : Colors.red,
               behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 1),
             ),
           );
         }
@@ -186,6 +189,7 @@ class _SettingScreenState extends State<SettingScreen> {
               content: Text(result.message),
               backgroundColor: result.isSuccess ? Colors.green : Colors.orange,
               behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 1),
             ),
           );
         }
@@ -198,6 +202,7 @@ class _SettingScreenState extends State<SettingScreen> {
             content: Text('An unexpected error occurred: $e'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -222,6 +227,7 @@ class _SettingScreenState extends State<SettingScreen> {
             content: Text(
                 'Auto budget reallocation enabled. AI will automatically optimize your budget daily.'),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 1),
           ),
         );
       } else {
@@ -230,6 +236,7 @@ class _SettingScreenState extends State<SettingScreen> {
           const SnackBar(
             content: Text('Auto budget reallocation disabled.'),
             backgroundColor: Colors.grey,
+            duration: Duration(seconds: 1),
           ),
         );
       }
@@ -238,7 +245,9 @@ class _SettingScreenState extends State<SettingScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Failed to update auto budget reallocation: $e')),
+            content: Text('Failed to update auto budget reallocation: $e'),
+            duration: const Duration(seconds: 1),
+          ),
         );
       }
     }
@@ -267,7 +276,7 @@ class _SettingScreenState extends State<SettingScreen> {
                   : 'Model improvement has been disabled.',
             ),
             backgroundColor: value ? Colors.green : Colors.grey,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 1),
           ),
         );
       }
@@ -275,7 +284,10 @@ class _SettingScreenState extends State<SettingScreen> {
       debugPrint('Error updating improve accuracy: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update improve accuracy: $e')),
+          SnackBar(
+            content: Text('Failed to update improve accuracy: $e'),
+            duration: const Duration(seconds: 1),
+          ),
         );
       }
     }
@@ -292,12 +304,12 @@ class _SettingScreenState extends State<SettingScreen> {
                   Icon(
                     Icons.psychology,
                     color: Theme.of(context).colorScheme.primary,
-                    size: 24,
+                    size: 24.sp,
                   ),
                   SizedBox(width: 8.w),
                   Expanded(
                     child: Text(
-                      'Help Improve Our AI Model',
+                      'Improve our model',
                       style: TextStyle(fontSize: 18.sp),
                     ),
                   ),
@@ -305,7 +317,7 @@ class _SettingScreenState extends State<SettingScreen> {
               ),
               content: ConstrainedBox(
                 constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.6.h,
+                  maxHeight: MediaQuery.of(context).size.height * 0.7.h,
                   maxWidth: MediaQuery.of(context).size.width * 0.9.w,
                 ),
                 child: SingleChildScrollView(
@@ -315,7 +327,8 @@ class _SettingScreenState extends State<SettingScreen> {
                     children: [
                       Text(
                         'We would like to use your anonymized user data to improve our AI model for better performance.',
-                        style: TextStyle(fontSize: 15.sp),
+                        textAlign: TextAlign.start,
+                        style: TextStyle(fontSize: 14.sp),
                       ),
                       SizedBox(height: 16.h),
                       Container(
@@ -345,7 +358,7 @@ class _SettingScreenState extends State<SettingScreen> {
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       color: Colors.blue.shade700,
-                                      fontSize: 14.sp,
+                                      fontSize: 12.sp,
                                     ),
                                   ),
                                 ),
@@ -358,7 +371,7 @@ class _SettingScreenState extends State<SettingScreen> {
                               '• Data is used solely for AI model training\n'
                               '• You can disable this anytime in settings\n'
                               '• Data helps improve model output accuracy',
-                              style: TextStyle(fontSize: 13.sp),
+                              style: TextStyle(fontSize: 12.sp),
                             ),
                           ],
                         ),
@@ -382,13 +395,13 @@ class _SettingScreenState extends State<SettingScreen> {
                           foregroundColor: Colors.grey[600],
                           padding: EdgeInsets.symmetric(vertical: 12.h),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.r),
+                            borderRadius: BorderRadius.circular(12.r),
                             side: BorderSide(color: Colors.grey.shade300),
                           ),
                         ),
                         child: Text(
                           'No, Keep Disabled',
-                          style: TextStyle(fontSize: 14.sp),
+                          style: TextStyle(fontSize: 10.sp),
                         ),
                       ),
                     ),
@@ -402,14 +415,14 @@ class _SettingScreenState extends State<SettingScreen> {
                           foregroundColor: Colors.white,
                           padding: EdgeInsets.symmetric(vertical: 12.h),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8.r),
+                            borderRadius: BorderRadius.circular(12.r),
                           ),
                           elevation: 0,
                         ),
                         child: Text(
                           'Agree & Enable',
                           style: TextStyle(
-                            fontSize: 14.sp,
+                            fontSize: 12.sp,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -447,7 +460,7 @@ class _SettingScreenState extends State<SettingScreen> {
           elevation: 0,
           automaticallyImplyLeading: false,
           title: Text(
-            'Setting',
+            AppConstants.settingsTitle,
             style:
                 TextStyle(color: Theme.of(context).textTheme.titleLarge?.color),
           ),
@@ -570,6 +583,30 @@ class _SettingScreenState extends State<SettingScreen> {
                 '$item - ${CurrencyFormatter.getCurrencyName(item)}',
           ),
 
+          // Exchange rate status
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 18.w, vertical: 10.h),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(height: 6.h),
+                const Row(
+                  children: [
+                    Expanded(child: ExchangeRateStatusWidget()),
+                  ],
+                ),
+                SizedBox(height: 6.h),
+                Text(
+                  'Exchange rates are automatically updated from Bank Negara Malaysia\'s official API',
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
           // Dark theme toggle
           SwitchTile(
             title: 'Dark Theme',
@@ -639,15 +676,6 @@ class _SettingScreenState extends State<SettingScreen> {
                 ),
               );
             },
-          ),
-
-          // Sign Out Button
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-            child: Divider(
-              color: Theme.of(context).dividerColor,
-              thickness: 0.5.h,
-            ),
           ),
 
           // Add some space at the bottom for better UI

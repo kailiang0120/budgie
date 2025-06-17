@@ -11,7 +11,7 @@ import '../../../data/datasources/local_data_source.dart';
 import '../../../domain/entities/budget_suggestion.dart';
 import 'settings_service.dart';
 
-const fetchBudgetSuggestionTask = "fetchBudgetSuggestionTask";
+const fetchBudgetSuggestionTask = 'fetchBudgetSuggestionTask';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -30,15 +30,15 @@ void callbackDispatcher() {
         if (!settingsService.automaticRebalanceSuggestions &&
             !settingsService.autoBudget) {
           debugPrint(
-              "Background task skipped: User has disabled automatic budget reallocation.");
+              'Background task skipped: User has disabled automatic budget reallocation.');
           return Future.value(true);
         }
       } else {
-        debugPrint("Background task skipped: No user is logged in.");
+        debugPrint('Background task skipped: No user is logged in.');
         return Future.value(true);
       }
 
-      debugPrint("Background task started: $task");
+      debugPrint('Background task started: $task');
 
       switch (task) {
         case fetchBudgetSuggestionTask:
@@ -59,15 +59,15 @@ void callbackDispatcher() {
               timestamp: DateTime.now(),
             );
             await localDataSource.saveBudgetSuggestion(suggestionEntity);
-            debugPrint("Successfully fetched and saved budget suggestion.");
+            debugPrint('Successfully fetched and saved budget suggestion.');
           } else {
-            debugPrint("No budget found for the current month.");
+            debugPrint('No budget found for the current month.');
           }
           break;
       }
       return Future.value(true);
     } catch (err) {
-      debugPrint("Error in background task: $err");
+      debugPrint('Error in background task: $err');
       return Future.value(false);
     }
   });
@@ -83,18 +83,18 @@ class BackgroundTaskService {
 
   Future<void> scheduleBudgetSuggestionTask() async {
     await Workmanager().registerPeriodicTask(
-      "1",
+      '1',
       fetchBudgetSuggestionTask,
       frequency: const Duration(hours: 24),
       constraints: Constraints(
         networkType: NetworkType.connected,
       ),
     );
-    debugPrint("Budget suggestion task scheduled.");
+    debugPrint('Budget suggestion task scheduled.');
   }
 
   Future<void> cancelBudgetSuggestionTask() async {
-    await Workmanager().cancelByUniqueName("1");
-    debugPrint("Budget suggestion task canceled.");
+    await Workmanager().cancelByUniqueName('1');
+    debugPrint('Budget suggestion task canceled.');
   }
 }

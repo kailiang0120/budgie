@@ -14,7 +14,6 @@ import '../widgets/custom_dropdown_field.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/date_time_picker_field.dart';
 import '../widgets/recurring_expense_config.dart';
-import '../widgets/switch_tile.dart';
 import '../widgets/submit_button.dart';
 import '../../data/infrastructure/errors/app_error.dart';
 import '../../data/infrastructure/services/settings_service.dart';

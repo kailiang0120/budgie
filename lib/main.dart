@@ -27,6 +27,7 @@ import 'presentation/screens/setting_screen.dart';
 import 'presentation/screens/profile_screen.dart';
 import 'presentation/widgets/animated_float_button.dart';
 import 'data/infrastructure/services/background_task_service.dart';
+import 'data/infrastructure/services/offline_notification_service.dart';
 
 Future<void> main() async {
   // Ensure we can call async code before runApp()
@@ -257,8 +258,8 @@ void _initializeBackgroundServicePermissions() {
 Future<void> _setupFlutterBackground() async {
   try {
     const androidConfig = FlutterBackgroundAndroidConfig(
-      notificationTitle: "Budgie",
-      notificationText: "Tracking expenses in background",
+      notificationTitle: 'Budgie',
+      notificationText: 'Tracking expenses in background',
       notificationImportance: AndroidNotificationImportance.normal,
       notificationIcon: AndroidResource(
         name: 'ic_launcher',
@@ -414,11 +415,18 @@ class BudgieApp extends StatefulWidget {
   State<BudgieApp> createState() => _BudgieAppState();
 }
 
+// Global scaffold messenger key for offline notifications
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+
 class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // Set up the scaffold messenger key for offline notifications
+    OfflineNotificationService.setScaffoldMessengerKey(scaffoldMessengerKey);
   }
 
   @override
@@ -485,6 +493,7 @@ class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
                 title: 'Budgie',
                 theme: responsiveTheme,
                 debugShowCheckedModeBanner: false,
+                scaffoldMessengerKey: scaffoldMessengerKey,
                 navigatorKey: navigatorKey,
                 navigatorObservers: [fabRouteObserver],
                 routes: {

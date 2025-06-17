@@ -487,7 +487,6 @@ class LocalDataSourceImpl implements LocalDataSource {
     );
   }
 
-  @override
   Future<void> markBudgetSuggestionAsRead(int id) async {
     await (_database.update(_database.budgetSuggestions)
           ..where((tbl) => tbl.id.equals(id)))
@@ -704,14 +703,12 @@ class LocalDataSourceImpl implements LocalDataSource {
         .toList();
   }
 
-  @override
   Future<void> removeSyncQueueItem(int id) async {
     await (_database.delete(_database.syncQueue)
           ..where((tbl) => tbl.id.equals(id)))
         .go();
   }
 
-  @override
   Future<void> clearSyncQueue() async {
     await _database.delete(_database.syncQueue).go();
   }

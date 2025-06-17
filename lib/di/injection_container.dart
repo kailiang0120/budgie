@@ -34,6 +34,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../data/infrastructure/services/secure_storage_service.dart';
 import '../domain/services/ai_budget_suggestion_service.dart';
 import '../data/infrastructure/services/background_task_service.dart';
+import '../data/infrastructure/services/offline_notification_service.dart';
+import '../data/infrastructure/services/firebase_data_fetcher_service.dart';
 
 // Auth use cases
 import '../domain/usecase/auth/sign_in_with_email_usecase.dart';
@@ -187,6 +189,15 @@ class DependencyContainer {
       // Secure storage - no dependencies
       sl.registerLazySingleton(() => const FlutterSecureStorage());
       sl.registerLazySingleton(() => SecureStorageService(secureStorage: sl()));
+
+      // Offline notification service - no dependencies
+      sl.registerLazySingleton(() => OfflineNotificationService());
+
+      // Firebase data fetcher service - depends on local data source and connectivity
+      sl.registerLazySingleton(() => FirebaseDataFetcherService(
+            localDataSource: sl(),
+            connectivityService: sl(),
+          ));
 
       _criticalInitialized = true;
       debugPrint(

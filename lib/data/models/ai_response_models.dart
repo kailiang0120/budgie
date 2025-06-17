@@ -184,6 +184,23 @@ class ExpensePredictionResponse {
       'metadata': metadata,
     };
   }
+
+  /// Convert to a format suitable for Firebase storage
+  Map<String, dynamic> toFirebaseDocument() {
+    return {
+      'predictedExpenses': predictedExpenses.map((e) => e.toJson()).toList(),
+      'summary': summary.toJson(),
+      'confidenceScore': confidenceScore,
+      'insights': insights.map((e) => e.toJson()).toList(),
+      'budgetReallocationSuggestions':
+          budgetReallocationSuggestions.map((e) => e.toJson()).toList(),
+      'metadata': {
+        ...metadata,
+        'createdAt': DateTime.now().toIso8601String(),
+        'version': '1.0',
+      },
+    };
+  }
 }
 
 /// Individual predicted expense

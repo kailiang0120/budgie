@@ -133,66 +133,16 @@ class CurrencyFormatter {
     return '$symbol${amount.toStringAsFixed(2)}';
   }
 
-  /// Get supported currencies list
+  /// Get supported currencies list (BNM supported currencies)
   static List<String> getSupportedCurrencies() {
     return [
-      'MYR',
-      'USD',
-      'EUR',
-      'GBP',
-      'JPY',
-      'CNY',
-      'SGD',
-      'THB',
-      'INR',
-      'KRW',
-      'AUD',
-      'CAD',
-      'HKD',
-      'TWD',
-      'NZD',
-      'CHF',
-      'SEK',
-      'NOK',
-      'DKK',
-      'PLN',
-      'CZK',
-      'HUF',
-      'RUB',
-      'BRL',
-      'MXN',
-      'ARS',
-      'CLP',
-      'COP',
-      'PEN',
-      'VND',
-      'IDR',
-      'PHP',
-      'ZAR',
-      'EGP',
-      'NGN',
-      'KES',
-      'GHS',
-      'MAD',
-      'TND',
-      'AED',
-      'SAR',
-      'QAR',
-      'KWD',
-      'BHD',
-      'OMR',
-      'JOD',
-      'LBP',
-      'ILS',
-      'TRY',
-      'UAH',
-      'RON',
-      'BGN',
-      'HRK',
-      'RSD',
-      'MKD',
-      'ALL',
-      'BAM'
+      'MYR', // Malaysian Ringgit (base currency)
+      'USD', // US Dollar
+      'EUR', // Euro
+      'SGD', // Singapore Dollar
+      'CNY', // Chinese Yuan
+      'AUD', // Australian Dollar
+      'IDR', // Indonesian Rupiah
     ];
   }
 

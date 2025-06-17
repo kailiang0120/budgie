@@ -1,12 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../network/connectivity_service.dart';
+import 'offline_notification_service.dart';
 
-/// Service for handling currency conversion with exchange rates
+/// Service for handling currency conversion with exchange rates from Bank Negara Malaysia (BNM)
 class CurrencyConversionService {
   // Singleton instance
   static final CurrencyConversionService _instance =
@@ -16,136 +15,194 @@ class CurrencyConversionService {
 
   // Dependencies
   ConnectivityService? _connectivityService;
+  final OfflineNotificationService _notificationService =
+      OfflineNotificationService();
 
   // Set dependencies (called from injection container)
   void setConnectivityService(ConnectivityService connectivityService) {
     _connectivityService = connectivityService;
   }
 
-  // Default exchange rates (fallback if API fails)
-  final Map<String, Map<String, double>> _defaultRates = {
-    'MYR': {
-      'USD': 0.21,
-      'EUR': 0.20,
-      'GBP': 0.17,
-      'SGD': 0.29,
-      'JPY': 32.58,
-      'CNY': 1.52,
-      'THB': 7.57,
-      'INR': 17.64,
-      'AUD': 0.32,
-      'CAD': 0.29,
-      'HKD': 1.65,
-      'KRW': 288.72,
-      'CHF': 0.19,
-      'NZD': 0.35,
-      'PHP': 12.18,
-      'VND': 5347.50,
-      'IDR': 3372.66
-    },
-    'USD': {
-      'MYR': 4.73,
-      'EUR': 0.93,
-      'GBP': 0.79,
-      'SGD': 1.36,
-      'JPY': 154.19,
-      'CNY': 7.20,
-      'THB': 35.81,
-      'INR': 83.42,
-      'AUD': 1.53,
-      'CAD': 1.37,
-      'HKD': 7.82,
-      'KRW': 1365.73,
-      'CHF': 0.91,
-      'NZD': 1.64,
-      'PHP': 57.61,
-      'VND': 25292.50,
-      'IDR': 15950.35
-    },
-    'EUR': {
-      'MYR': 5.08,
-      'USD': 1.07,
-      'GBP': 0.85,
-      'SGD': 1.46,
-      'JPY': 165.57,
-      'CNY': 7.73,
-      'THB': 38.44,
-      'INR': 89.50,
-      'AUD': 1.64,
-      'CAD': 1.47,
-      'HKD': 8.39,
-      'KRW': 1466.03,
-      'CHF': 0.97,
-      'NZD': 1.76,
-      'PHP': 61.84,
-      'VND': 27153.50,
-      'IDR': 17123.98
-    },
+  // BNM API configuration
+  static const String _bnmApiBaseUrl = 'https://api.bnm.gov.my/public';
+  static const String _exchangeRateEndpoint = '/exchange-rate';
+  static const Map<String, String> _bnmHeaders = {
+    'Accept': 'application/vnd.BNM.API.v1+json',
+    'Content-Type': 'application/json',
   };
 
-  // Cache for exchange rates
-  final Map<String, Map<String, double>> _cachedRates = {};
-  DateTime _lastFetchTime = DateTime(2000); // Initial time in the past
-
-  // Special map to track rates used for conversions to ensure consistency
-  final Map<String, Map<String, double>> _usedRates = {};
-
-  // API endpoints
-  static const String _exchangeRateApiUrl =
-      'https://open.er-api.com/v6/latest/';
-
-  /// Constants for cache expiration
+  // Cache configuration
+  static const String _cacheKeyPrefix = 'bnm_exchange_rates_';
+  static const String _lastUpdateKey = 'bnm_last_update';
   static const int _cacheExpirationHours = 6;
-  static const int _localStorageExpirationHours = 24;
 
-  /// Get the latest exchange rates from an API or Firestore
-  Future<Map<String, double>> getExchangeRates(String baseCurrency) async {
+  // Cache for exchange rates
+  final Map<String, Map<String, double>> _memoryCache = {};
+  DateTime _lastMemoryCacheUpdate = DateTime(2000);
+
+  // Supported currencies by BNM (only the ones requested by user)
+  static const List<String> _supportedCurrencies = [
+    'USD',
+    'EUR',
+    'SGD',
+    'CNY',
+    'AUD',
+    'IDR',
+  ];
+
+  // Default fallback rates (approximate, for emergency use only)
+  // Updated rates as of recent data (1 MYR = X foreign currency)
+  final Map<String, double> _defaultRates = {
+    'USD': 0.22, // 1 MYR ≈ 0.22 USD
+    'EUR': 0.21, // 1 MYR ≈ 0.21 EUR
+    'SGD': 0.30, // 1 MYR ≈ 0.30 SGD
+    'CNY': 1.60, // 1 MYR ≈ 1.60 CNY
+    'AUD': 0.35, // 1 MYR ≈ 0.35 AUD
+    'IDR': 3500, // 1 MYR ≈ 3500 IDR
+  };
+
+  /// Get exchange rates for MYR to other currencies
+  Future<Map<String, double>> getExchangeRates() async {
     try {
-      // 1. Check in-memory cache first (fastest)
-      final inMemoryRates = _getFromMemoryCache(baseCurrency);
-      if (inMemoryRates != null) return inMemoryRates;
-
-      // 2. Try local storage next
-      final localRates = await _getStoredRates(baseCurrency);
-      if (localRates != null) {
-        _updateCachedRates(baseCurrency, localRates);
-        _fetchFreshRatesInBackground(baseCurrency);
-        return localRates;
+      // 1. Check memory cache first
+      if (_isMemoryCacheValid()) {
+        debugPrint('Using memory cache for exchange rates');
+        return _memoryCache['MYR'] ?? {};
       }
 
-      // 3. Try network sources if connected
+      // 2. Check if connected to internet
       final isConnected = await _isNetworkConnected();
+      debugPrint('Network connection status: $isConnected');
+
       if (isConnected) {
-        // Try Firestore first (shared across app users)
-        final firestoreRates =
-            await _getExchangeRatesFromFirestore(baseCurrency);
-        if (firestoreRates != null) {
-          _saveRatesToAllCaches(baseCurrency, firestoreRates);
-          return firestoreRates;
-        }
-
-        // Then try external API
-        final apiRates = await _fetchExchangeRatesFromApi(baseCurrency);
-        if (apiRates != null) {
-          _saveRatesToAllCaches(baseCurrency, apiRates);
+        // 3. Try to fetch from BNM API
+        debugPrint('Attempting to fetch exchange rates from BNM API');
+        final apiRates = await _fetchFromBnmApi();
+        if (apiRates != null && apiRates.isNotEmpty) {
+          debugPrint(
+              'Successfully fetched ${apiRates.length} rates from BNM API: $apiRates');
+          // Cache the fresh data
+          await _cacheRates(apiRates);
+          _updateMemoryCache(apiRates);
           return apiRates;
+        } else {
+          debugPrint(
+              'Failed to fetch rates from BNM API or received empty response');
         }
       }
 
-      // 4. Fall back to default rates
-      if (_defaultRates.containsKey(baseCurrency)) {
-        final defaultRates = _defaultRates[baseCurrency]!;
-        _storeRatesLocally(baseCurrency, defaultRates);
-        return defaultRates;
+      // 4. Try to get from local storage
+      debugPrint('Attempting to get cached exchange rates');
+      final cachedRates = await _getCachedRates();
+      if (cachedRates != null && cachedRates.isNotEmpty) {
+        debugPrint('Using cached exchange rates: $cachedRates');
+        _updateMemoryCache(cachedRates);
+
+        // Notify user they're using cached data if offline
+        if (!isConnected) {
+          final lastUpdate = await getLastUpdateTime();
+          _notificationService.showUsingCachedDataNotification(
+            lastUpdateTime: lastUpdate,
+            onRefresh: () async {
+              await refreshRates();
+            },
+          );
+        }
+
+        return cachedRates;
       }
 
-      // Last resort: empty map
+      // 5. If all else fails and we're offline, notify user
+      if (!isConnected) {
+        debugPrint('No cached data available and device is offline');
+        _notificationService.showOfflineNotification(
+          onRetry: () async {
+            await refreshRates();
+          },
+        );
+        return {};
+      }
+
+      // 6. Last resort: return empty map
+      debugPrint('No exchange rates available from any source');
       return {};
     } catch (e) {
       debugPrint('Error getting exchange rates: $e');
-      // Fallback to default rates
-      return _defaultRates[baseCurrency] ?? {};
+
+      // Try cached rates on error
+      final cachedRates = await _getCachedRates();
+      if (cachedRates != null) {
+        debugPrint('Using cached rates after error: $cachedRates');
+        return cachedRates;
+      }
+
+      debugPrint('No fallback data available');
+      return {};
     }
+  }
+
+  /// Fetch exchange rates from BNM API
+  Future<Map<String, double>?> _fetchFromBnmApi() async {
+    try {
+      // BNM API provides rates with MYR as base currency
+      final uri = Uri.parse('$_bnmApiBaseUrl$_exchangeRateEndpoint');
+
+      final response = await http
+          .get(uri, headers: _bnmHeaders)
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        if (data['data'] != null && data['data'] is List) {
+          final rates = <String, double>{};
+
+          for (final item in data['data']) {
+            if (item['currency_code'] != null && item['rate'] != null) {
+              final currency = item['currency_code'] as String;
+              final unit = item['unit'] as int? ?? 1;
+              final rateData = item['rate'] as Map<String, dynamic>;
+              final middleRate = _parseRate(rateData['middle_rate']);
+
+              if (middleRate != null &&
+                  _supportedCurrencies.contains(currency)) {
+                // BNM gives rates as: unit of foreign currency = middleRate MYR
+                // We need: 1 MYR = X foreign currency
+                // So: 1 MYR = unit / middleRate foreign currency
+                final convertedRate = unit / middleRate;
+                rates[currency] = convertedRate;
+              }
+            }
+          }
+
+          debugPrint(
+              'Successfully fetched ${rates.length} exchange rates from BNM API');
+          return rates;
+        }
+      } else {
+        debugPrint('BNM API error: ${response.statusCode} - ${response.body}');
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching from BNM API: $e');
+      return null;
+    }
+  }
+
+  /// Parse rate value from API response
+  double? _parseRate(dynamic rateValue) {
+    if (rateValue == null) return null;
+
+    if (rateValue is num) {
+      return rateValue.toDouble();
+    }
+
+    if (rateValue is String) {
+      return double.tryParse(rateValue);
+    }
+
+    return null;
   }
 
   /// Check if device is connected to network
@@ -154,243 +211,165 @@ class CurrencyConversionService {
     return await _connectivityService!.isConnected;
   }
 
-  /// Get rates from memory cache if not expired
-  Map<String, double>? _getFromMemoryCache(String baseCurrency) {
+  /// Check if memory cache is still valid
+  bool _isMemoryCacheValid() {
+    if (_memoryCache.isEmpty) return false;
+
     final now = DateTime.now();
-    if (_cachedRates.containsKey(baseCurrency) &&
-        now.difference(_lastFetchTime).inHours < _cacheExpirationHours) {
-      return _cachedRates[baseCurrency];
-    }
-    return null;
+    final timeSinceUpdate = now.difference(_lastMemoryCacheUpdate);
+
+    return timeSinceUpdate.inHours < _cacheExpirationHours;
   }
 
-  /// Update the in-memory cache with new rates
-  void _updateCachedRates(String baseCurrency, Map<String, double> rates) {
-    _cachedRates[baseCurrency] = rates;
-    _lastFetchTime = DateTime.now();
+  /// Update memory cache
+  void _updateMemoryCache(Map<String, double> rates) {
+    _memoryCache['MYR'] = rates;
+    _lastMemoryCacheUpdate = DateTime.now();
   }
 
-  /// Save rates to all caching mechanisms (memory, local storage, Firestore)
-  Future<void> _saveRatesToAllCaches(
-      String baseCurrency, Map<String, double> rates) async {
-    _updateCachedRates(baseCurrency, rates);
-    await _storeRatesLocally(baseCurrency, rates);
-    await _saveExchangeRatesToFirestore(baseCurrency, rates);
-  }
-
-  /// Fetch fresh rates in the background without blocking UI
-  Future<void> _fetchFreshRatesInBackground(String baseCurrency) async {
-    try {
-      if (!await _isNetworkConnected()) return;
-
-      final apiRates = await _fetchExchangeRatesFromApi(baseCurrency);
-      if (apiRates != null) {
-        _saveRatesToAllCaches(baseCurrency, apiRates);
-      }
-    } catch (e) {
-      debugPrint('Error updating rates in background: $e');
-    }
-  }
-
-  /// Store rates locally using SharedPreferences
-  Future<void> _storeRatesLocally(
-      String baseCurrency, Map<String, double> rates) async {
+  /// Cache rates to local storage
+  Future<void> _cacheRates(Map<String, double> rates) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final ratesData = {
+      final cacheData = {
         'rates': rates,
-        'timestamp': DateTime.now().millisecondsSinceEpoch
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
       };
 
-      await prefs.setString(
-          'exchange_rates_$baseCurrency', jsonEncode(ratesData));
+      await prefs.setString('${_cacheKeyPrefix}MYR', json.encode(cacheData));
+      await prefs.setInt(_lastUpdateKey, DateTime.now().millisecondsSinceEpoch);
+
+      debugPrint('Exchange rates cached successfully');
     } catch (e) {
-      debugPrint('Error storing rates locally: $e');
+      debugPrint('Error caching rates: $e');
     }
   }
 
-  /// Get rates stored locally
-  Future<Map<String, double>?> _getStoredRates(String baseCurrency) async {
+  /// Get cached rates from local storage
+  Future<Map<String, double>?> _getCachedRates() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final ratesString = prefs.getString('exchange_rates_$baseCurrency');
+      final cacheString = prefs.getString('${_cacheKeyPrefix}MYR');
 
-      if (ratesString == null) return null;
+      if (cacheString == null) return null;
 
-      final ratesData = jsonDecode(ratesString) as Map<String, dynamic>;
+      final cacheData = json.decode(cacheString) as Map<String, dynamic>;
       final timestamp =
-          DateTime.fromMillisecondsSinceEpoch(ratesData['timestamp'] as int);
+          DateTime.fromMillisecondsSinceEpoch(cacheData['timestamp'] as int);
 
-      // Check if rates are less than 24 hours old
-      if (DateTime.now().difference(timestamp).inHours <
-          _localStorageExpirationHours) {
-        final ratesMap = ratesData['rates'] as Map<String, dynamic>;
-        return ratesMap
-            .map((key, value) => MapEntry(key, (value as num).toDouble()));
+      // Check if cache is not too old (extend to 7 days for offline use)
+      final now = DateTime.now();
+      if (now.difference(timestamp).inDays > 7) {
+        return null;
       }
 
-      return null;
+      final ratesMap = cacheData['rates'] as Map<String, dynamic>;
+      return ratesMap
+          .map((key, value) => MapEntry(key, (value as num).toDouble()));
     } catch (e) {
-      debugPrint('Error getting stored rates: $e');
+      debugPrint('Error getting cached rates: $e');
       return null;
     }
   }
 
-  /// Fetch exchange rates from an external API
-  Future<Map<String, double>?> _fetchExchangeRatesFromApi(
-      String baseCurrency) async {
-    try {
-      final response =
-          await http.get(Uri.parse('$_exchangeRateApiUrl$baseCurrency'));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        if (data['rates'] != null) {
-          return Map<String, double>.from(data['rates']);
-        }
-      }
-      return null;
-    } catch (e) {
-      debugPrint('Error fetching exchange rates from API: $e');
-      return null;
-    }
-  }
-
-  /// Get exchange rates from Firestore
-  Future<Map<String, double>?> _getExchangeRatesFromFirestore(
-      String baseCurrency) async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('exchange_rates')
-          .doc(baseCurrency)
-          .get();
-
-      if (doc.exists && doc.data() != null) {
-        final data = doc.data()!;
-
-        // Check if rates are recent (less than 24 hours old)
-        final timestamp = data['timestamp'] as Timestamp?;
-        if (timestamp != null) {
-          final updateTime = timestamp.toDate();
-          if (DateTime.now().difference(updateTime).inHours <
-              _localStorageExpirationHours) {
-            final rates = data['rates'] as Map<String, dynamic>?;
-            if (rates != null) {
-              return rates.map(
-                  (key, value) => MapEntry(key, (value as num).toDouble()));
-            }
-          }
-        }
-      }
-      return null;
-    } catch (e) {
-      debugPrint('Error getting exchange rates from Firestore: $e');
-      return null;
-    }
-  }
-
-  /// Save exchange rates to Firestore for caching
-  Future<void> _saveExchangeRatesToFirestore(
-      String baseCurrency, Map<String, double> rates) async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
-      await FirebaseFirestore.instance
-          .collection('exchange_rates')
-          .doc(baseCurrency)
-          .set({
-        'rates': rates,
-        'timestamp': FieldValue.serverTimestamp(),
-        'updatedBy': user.uid,
-      });
-    } catch (e) {
-      debugPrint('Error saving exchange rates to Firestore: $e');
-    }
-  }
-
-  /// Get the exchange rate between two currencies
-  /// Returns the direct conversion rate or null if not available
+  /// Get exchange rate between two currencies
   Future<double?> getExchangeRate(
       String fromCurrency, String toCurrency) async {
-    // If currencies are the same, rate is 1
+    debugPrint('Getting exchange rate: $fromCurrency -> $toCurrency');
+
     if (fromCurrency == toCurrency) return 1.0;
 
-    // Check if we already have a saved rate for consistency
-    if (_usedRates.containsKey(fromCurrency) &&
-        _usedRates[fromCurrency]!.containsKey(toCurrency)) {
-      return _usedRates[fromCurrency]![toCurrency];
-    }
-
     try {
-      // Get exchange rates for the base currency
-      final rates = await getExchangeRates(fromCurrency);
+      final rates = await getExchangeRates();
+      debugPrint('Available exchange rates: $rates');
 
-      // If we have a direct conversion rate
-      if (rates.containsKey(toCurrency)) {
-        final rate = rates[toCurrency]!;
-        _saveRateForConsistency(fromCurrency, toCurrency, rate);
+      if (fromCurrency == 'MYR') {
+        // Converting from MYR to other currency
+        final rate = rates[toCurrency];
+        debugPrint('MYR to $toCurrency rate: $rate');
         return rate;
+      } else if (toCurrency == 'MYR') {
+        // Converting from other currency to MYR
+        final rate = rates[fromCurrency];
+        final myrRate = rate != null ? 1.0 / rate : null;
+        debugPrint('$fromCurrency to MYR rate: $myrRate (inverse of $rate)');
+        return myrRate;
+      } else {
+        // Converting between two non-MYR currencies
+        final fromRate = rates[fromCurrency];
+        final toRate = rates[toCurrency];
+        debugPrint(
+            'Cross conversion: $fromCurrency rate: $fromRate, $toCurrency rate: $toRate');
+
+        if (fromRate != null && toRate != null) {
+          // Convert via MYR: fromCurrency -> MYR -> toCurrency
+          final crossRate = toRate / fromRate;
+          debugPrint('Cross rate calculated: $crossRate');
+          return crossRate;
+        }
       }
 
+      debugPrint('No exchange rate found for $fromCurrency -> $toCurrency');
       return null;
     } catch (e) {
-      debugPrint('Error getting exchange rate: $e');
+      debugPrint(
+          'Error getting exchange rate from $fromCurrency to $toCurrency: $e');
       return null;
     }
   }
 
-  /// Save rate and its inverse for future consistency
-  void _saveRateForConsistency(
-      String fromCurrency, String toCurrency, double rate) {
-    // Save direct rate
-    if (!_usedRates.containsKey(fromCurrency)) {
-      _usedRates[fromCurrency] = {};
-    }
-    _usedRates[fromCurrency]![toCurrency] = rate;
-
-    // Save inverse rate
-    if (!_usedRates.containsKey(toCurrency)) {
-      _usedRates[toCurrency] = {};
-    }
-    _usedRates[toCurrency]![fromCurrency] = 1.0 / rate;
-  }
-
-  /// Convert amount from one currency to another with improved consistency
+  /// Convert amount from one currency to another
   Future<double> convertCurrency(
       double amount, String fromCurrency, String toCurrency) async {
-    // If currencies are the same, no conversion needed
+    debugPrint('Converting $amount from $fromCurrency to $toCurrency');
+
     if (fromCurrency == toCurrency) {
+      debugPrint('Same currency, returning original amount: $amount');
       return _formatAmount(amount);
     }
 
     try {
-      // Try using a saved rate first for consistency
-      double? savedRate = _getSavedRate(fromCurrency, toCurrency);
-      if (savedRate != null) {
-        return _formatAmount(amount * savedRate);
+      final rate = await getExchangeRate(fromCurrency, toCurrency);
+      debugPrint('Exchange rate from $fromCurrency to $toCurrency: $rate');
+
+      if (rate != null) {
+        final convertedAmount = _formatAmount(amount * rate);
+        debugPrint(
+            'Converted $amount $fromCurrency to $convertedAmount $toCurrency (rate: $rate)');
+        return convertedAmount;
       }
 
-      // Get fresh rates and convert
-      final rates = await getExchangeRates(fromCurrency);
+      // Enhanced fallback logic for different conversion scenarios
+      double? fallbackRate;
 
-      // If we have a direct conversion rate
-      if (rates.containsKey(toCurrency)) {
-        final rate = rates[toCurrency]!;
-        _saveRateForConsistency(fromCurrency, toCurrency, rate);
-        return _formatAmount(amount * rate);
+      if (fromCurrency == 'MYR' && _defaultRates.containsKey(toCurrency)) {
+        fallbackRate = _defaultRates[toCurrency]!;
+        debugPrint('Using fallback rate MYR to $toCurrency: $fallbackRate');
+      } else if (toCurrency == 'MYR' &&
+          _defaultRates.containsKey(fromCurrency)) {
+        fallbackRate = 1.0 / _defaultRates[fromCurrency]!;
+        debugPrint(
+            'Using fallback rate $fromCurrency to MYR: $fallbackRate (inverse of ${_defaultRates[fromCurrency]})');
+      } else if (_defaultRates.containsKey(fromCurrency) &&
+          _defaultRates.containsKey(toCurrency)) {
+        // Cross conversion using MYR as intermediate
+        final fromToMyrRate = 1.0 / _defaultRates[fromCurrency]!;
+        final myrToToRate = _defaultRates[toCurrency]!;
+        fallbackRate = fromToMyrRate * myrToToRate;
+        debugPrint(
+            'Using fallback cross rate $fromCurrency to $toCurrency: $fallbackRate');
       }
 
-      // Try default rates as fallback
-      if (_defaultRates.containsKey(fromCurrency) &&
-          _defaultRates[fromCurrency]!.containsKey(toCurrency)) {
-        final rate = _defaultRates[fromCurrency]![toCurrency]!;
-        _saveRateForConsistency(fromCurrency, toCurrency, rate);
-        return _formatAmount(amount * rate);
+      if (fallbackRate != null) {
+        final convertedAmount = _formatAmount(amount * fallbackRate);
+        debugPrint(
+            'Converted using fallback: $amount $fromCurrency to $convertedAmount $toCurrency');
+        return convertedAmount;
       }
 
-      // If all else fails, return the original amount with 2 decimal places
-      debugPrint('No conversion rate found for $fromCurrency to $toCurrency');
+      // If no rate available, return original amount
+      debugPrint(
+          'No conversion rate available from $fromCurrency to $toCurrency, returning original amount');
       return _formatAmount(amount);
     } catch (e) {
       debugPrint('Error converting currency: $e');
@@ -398,54 +377,84 @@ class CurrencyConversionService {
     }
   }
 
-  /// Get saved rate if available
-  double? _getSavedRate(String fromCurrency, String toCurrency) {
-    if (_usedRates.containsKey(fromCurrency) &&
-        _usedRates[fromCurrency]!.containsKey(toCurrency)) {
-      return _usedRates[fromCurrency]![toCurrency];
-    }
-    return null;
-  }
-
   /// Format amount to 2 decimal places
   double _formatAmount(double amount) {
     return double.parse(amount.toStringAsFixed(2));
   }
 
-  /// Convert amount back using the saved exchange rate for consistency
-  Future<double> convertBack(
-      double amount, String fromCurrency, String toCurrency) async {
-    // If currencies are the same, no conversion needed
-    if (fromCurrency == toCurrency) {
-      return _formatAmount(amount);
-    }
-
+  /// Force refresh exchange rates from API
+  Future<bool> refreshRates() async {
     try {
-      // Check for direct saved rate (toCurrency -> fromCurrency)
-      double? directRate = _getSavedRate(toCurrency, fromCurrency);
-      if (directRate != null) {
-        return _formatAmount(amount * directRate);
+      final isConnected = await _isNetworkConnected();
+
+      if (!isConnected) {
+        _notificationService.showOfflineNotification(
+          customMessage: 'Cannot refresh rates while offline',
+        );
+        return false;
       }
 
-      // Check for inverse of saved rate (fromCurrency -> toCurrency)
-      double? inverseSourceRate = _getSavedRate(fromCurrency, toCurrency);
-      if (inverseSourceRate != null) {
-        double inverseRate = 1.0 / inverseSourceRate;
-        _saveRateForConsistency(toCurrency, fromCurrency, inverseRate);
-        return _formatAmount(amount * inverseRate);
+      _notificationService.showLoadingNotification();
+
+      final apiRates = await _fetchFromBnmApi();
+      if (apiRates != null && apiRates.isNotEmpty) {
+        await _cacheRates(apiRates);
+        _updateMemoryCache(apiRates);
+        _notificationService.showBackOnlineNotification();
+        return true;
       }
 
-      // Get a fresh rate
-      final exchangeRate = await getExchangeRate(toCurrency, fromCurrency);
-      if (exchangeRate != null) {
-        return _formatAmount(amount * exchangeRate);
-      }
-
-      // Fall back to regular conversion if no inverse found
-      return await convertCurrency(amount, toCurrency, fromCurrency);
+      return false;
     } catch (e) {
-      debugPrint('Error converting currency back: $e');
-      return _formatAmount(amount);
+      debugPrint('Error refreshing rates: $e');
+      return false;
+    }
+  }
+
+  /// Get the last update time
+  Future<DateTime?> getLastUpdateTime() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final timestamp = prefs.getInt(_lastUpdateKey);
+
+      if (timestamp != null) {
+        return DateTime.fromMillisecondsSinceEpoch(timestamp);
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint('Error getting last update time: $e');
+      return null;
+    }
+  }
+
+  /// Get supported currencies
+  List<String> getSupportedCurrencies() {
+    return List.from(_supportedCurrencies);
+  }
+
+  /// Check if rates are stale (older than cache expiration)
+  Future<bool> areRatesStale() async {
+    final lastUpdate = await getLastUpdateTime();
+    if (lastUpdate == null) return true;
+
+    final now = DateTime.now();
+    return now.difference(lastUpdate).inHours >= _cacheExpirationHours;
+  }
+
+  /// Clear all cached data
+  Future<void> clearCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('${_cacheKeyPrefix}MYR');
+      await prefs.remove(_lastUpdateKey);
+
+      _memoryCache.clear();
+      _lastMemoryCacheUpdate = DateTime(2000);
+
+      debugPrint('Exchange rate cache cleared');
+    } catch (e) {
+      debugPrint('Error clearing cache: $e');
     }
   }
 }

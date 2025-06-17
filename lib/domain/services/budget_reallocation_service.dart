@@ -24,41 +24,50 @@ class BudgetReallocationService {
     try {
       debugPrint(
           '🔄 BudgetReallocationService: Starting budget reallocation...');
+      debugPrint('🔄 Current budget total: ${currentBudget.total}');
+      debugPrint('🔄 Current budget left: ${currentBudget.left}');
+      debugPrint('🔄 Current budget saving: ${currentBudget.saving}');
+      debugPrint(
+          '🔄 Predictions count: ${predictions.predictedExpenses.length}');
+      debugPrint(
+          '🔄 Reallocation suggestions: ${predictions.budgetReallocationSuggestions.length}');
 
-      return await Future.microtask(() async {
-        // Validate input data
-        _validateReallocationData(currentBudget, predictions);
+      // Validate input data
+      _validateReallocationData(currentBudget, predictions);
 
-        // Check if reallocation is needed and possible
-        final reallocationAnalysis =
-            _analyzeReallocationNeed(currentBudget, predictions);
-        if (!reallocationAnalysis.isReallocationNeeded) {
-          debugPrint(
-              '🔄 No reallocation needed - all categories within budget');
-          return currentBudget;
-        }
+      // Check if reallocation is needed and possible
+      final reallocationAnalysis =
+          _analyzeReallocationNeed(currentBudget, predictions);
 
-        if (!reallocationAnalysis.isReallocationPossible) {
-          throw ReallocationException(
-            'Cannot reallocate budget - all categories exceed or will exceed their limits',
-            code: 'REALLOCATION_IMPOSSIBLE',
-          );
-        }
+      if (!reallocationAnalysis.isReallocationNeeded) {
+        debugPrint('🔄 No reallocation needed - all categories within budget');
+        return currentBudget;
+      }
 
-        // Perform the actual reallocation
-        final reallocatedBudget = _performReallocation(
-          currentBudget,
-          predictions,
-          reallocationAnalysis,
+      if (!reallocationAnalysis.isReallocationPossible) {
+        throw ReallocationException(
+          'Cannot reallocate budget - insufficient surplus to cover shortfalls',
+          code: 'REALLOCATION_IMPOSSIBLE',
         );
+      }
 
-        // Save the updated budget
-        await _budgetRepository.setBudget(monthId, reallocatedBudget);
+      // Perform the actual reallocation
+      final reallocatedBudget = _performReallocation(
+        currentBudget,
+        predictions,
+        reallocationAnalysis,
+      );
 
-        debugPrint(
-            '✅ BudgetReallocationService: Reallocation completed successfully');
-        return reallocatedBudget;
-      });
+      // Save the updated budget
+      await _budgetRepository.setBudget(monthId, reallocatedBudget);
+
+      debugPrint(
+          '✅ BudgetReallocationService: Reallocation completed successfully');
+      debugPrint('✅ New budget total: ${reallocatedBudget.total}');
+      debugPrint('✅ New budget left: ${reallocatedBudget.left}');
+      debugPrint('✅ New budget saving: ${reallocatedBudget.saving}');
+
+      return reallocatedBudget;
     } catch (e, stackTrace) {
       debugPrint('❌ BudgetReallocationService: Reallocation failed: $e');
       final error = AppError.from(e, stackTrace);

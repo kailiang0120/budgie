@@ -15,6 +15,7 @@ import '../widgets/submit_button.dart';
 import '../utils/auth_utils.dart';
 import '../viewmodels/expenses_viewmodel.dart';
 import 'add_expense_screen.dart';
+import '../utils/app_constants.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -30,7 +31,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
 
   bool _isUpgrading = false;
-  bool _showPassword = false;
   bool _isEditingProfile = false;
   bool _isUpdatingProfile = false;
   String? _selectedPhotoUrl;
@@ -447,45 +447,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  // Custom password field with visibility toggle
-  Widget _buildPasswordField() {
-    return TextFormField(
-      controller: _passwordController,
-      decoration: InputDecoration(
-        labelText: 'Password',
-        hintText: 'Enter your password',
-        prefixIcon: const Icon(Icons.lock),
-        suffixIcon: IconButton(
-          icon: Icon(
-            _showPassword ? Icons.visibility_off : Icons.visibility,
-          ),
-          onPressed: () {
-            setState(() {
-              _showPassword = !_showPassword;
-            });
-          },
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15.0),
-        ),
-        filled: true,
-        fillColor: Theme.of(context).cardColor,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      ),
-      obscureText: !_showPassword,
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter a password';
-        }
-        if (value.length < 6) {
-          return 'Password must be at least 6 characters';
-        }
-        return null;
-      },
-    );
-  }
-
   void _handleLogout(BuildContext context) async {
     await AuthUtils.handleSignOut(context);
   }
@@ -588,7 +549,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
         title: Text(
-          'Profile',
+          AppConstants.profileTitle,
           style: TextStyle(
             color: Theme.of(context).textTheme.titleLarge?.color,
           ),
@@ -629,12 +590,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: Colors.amber.withAlpha((255 * 0.1).round()),
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: Icon(
                             Icons.info_outline,
                             color: Colors.amber.shade800,
-                            size: 24,
+                            size: 24.sp,
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -642,8 +603,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Text(
                             'Guest Account',
                             style: TextStyle(
-                              fontSize: 18.sp,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 19.sp,
+                              fontWeight: FontWeight.w700,
                               color:
                                   Theme.of(context).textTheme.titleLarge?.color,
                             ),
@@ -661,41 +622,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withAlpha((255 * 0.05).round()),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: Colors.green.withAlpha((255 * 0.2).round())),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Upgrade to a permanent account to:',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.green.shade800,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color:
+                                  Colors.green.withAlpha((255 * 0.05).round()),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color:
+                                    Colors.green.withAlpha((255 * 0.2).round()),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          ...[
-                            '• Save your data securely in the cloud',
-                            '• Access your budget across multiple devices',
-                            '• Protect your data from being lost',
-                          ].map((text) => Padding(
-                                padding: const EdgeInsets.only(bottom: 4),
-                                child: Text(
-                                  text,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Upgrade to a permanent account to:',
                                   style: TextStyle(
-                                    fontSize: 13.sp,
-                                    color: Colors.green.shade700,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green.shade800,
                                   ),
                                 ),
-                              )),
-                        ],
-                      ),
+                                const SizedBox(height: 8),
+                                ...[
+                                  '• Save your data securely in the cloud',
+                                  '• Access your budget across multiple devices',
+                                  '• Protect your data from being lost',
+                                ].map((text) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Text(
+                                        text,
+                                        style: TextStyle(
+                                          fontSize: 13.sp,
+                                          color: Colors.green.shade700,
+                                        ),
+                                      ),
+                                    )),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
 
@@ -723,39 +694,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             },
                           ),
                           const SizedBox(height: 16),
-                          _buildPasswordField(),
-                          const SizedBox(height: 20),
-                          ElevatedButton(
+                          CustomTextField(
+                            controller: _passwordController,
+                            labelText: 'Password',
+                            hintText: 'Enter your password',
+                            prefixIcon: Icons.lock,
+                            isPassword: true,
+                            isRequired: true,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Please enter a password';
+                              }
+                              if (value.length < 6) {
+                                return 'Password must be at least 6 characters';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          SubmitButton(
+                            text: 'Upgrade Account',
+                            isLoading: _isUpgrading,
                             onPressed: _isUpgrading
-                                ? null
+                                ? () {}
                                 : () => _handleGuestUpgrade(context),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.amber.shade800,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              disabledBackgroundColor: Colors.amber.shade800
-                                  .withAlpha((255 * 0.5).round()),
-                            ),
-                            child: _isUpgrading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.white),
-                                    ),
-                                  )
-                                : Text(
-                                    'Upgrade Account',
-                                    style: TextStyle(
-                                      fontSize: 16.sp,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                            icon: Icons.upgrade,
+                            color: Colors.amber.shade800,
                           ),
                           const SizedBox(height: 24),
                           Row(

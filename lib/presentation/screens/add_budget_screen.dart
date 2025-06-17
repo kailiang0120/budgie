@@ -498,7 +498,13 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(AppConstants.setBudgetTitle),
+        title: Text(
+          AppConstants.setBudgetTitle,
+          style: TextStyle(
+            color: Theme.of(context).textTheme.titleLarge?.color,
+          ),
+        ),
+        centerTitle: true,
       ),
       body: Form(
         key: _formKey,

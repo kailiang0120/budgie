@@ -6,7 +6,6 @@ import '../../domain/entities/expense.dart';
 import '../../domain/entities/recurring_expense.dart';
 import '../../data/infrastructure/services/settings_service.dart';
 import '../../data/infrastructure/services/data_collection_service.dart';
-import '../../domain/repositories/expenses_repository.dart';
 import '../../presentation/viewmodels/expenses_viewmodel.dart';
 import '../../presentation/widgets/recurring_expense_config.dart';
 import '../../di/injection_container.dart' as di;
@@ -19,9 +18,6 @@ import '../widgets/custom_text_field.dart';
 import '../widgets/date_time_picker_field.dart';
 import '../widgets/submit_button.dart';
 import '../../data/infrastructure/errors/app_error.dart';
-import '../../data/infrastructure/services/settings_service.dart';
-import '../../data/infrastructure/services/data_collection_service.dart';
-import '../../di/injection_container.dart' as di;
 
 class AddExpenseScreen extends StatefulWidget {
   const AddExpenseScreen({Key? key}) : super(key: key);
@@ -34,7 +30,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isSubmitting = false;
 
-  // 使用懒加载和缓存优化
+  // Use lazy loading and caching optimization
   late final ValueNotifier<String> _currency;
   final _amountController = TextEditingController();
   final _remarkController = TextEditingController();
@@ -150,7 +146,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           method: _getPaymentMethodEnum(_selectedPaymentMethod.value),
           description: _isRecurring.value
               ? _recurringFrequency.value.displayName
-              : "One-time Payment",
+              : 'One-time Payment',
           currency: _currency.value,
           recurringDetails: recurringDetails,
         );
@@ -231,8 +227,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           onPressed: () => Navigator.pop(
               context, false), // Return false when no action taken
         ),
-        title: const Text(
+        title: Text(
           AppConstants.newExpenseTitle,
+          style: TextStyle(
+            color: Theme.of(context).textTheme.titleLarge?.color,
+          ),
         ),
         centerTitle: true,
         bottom: PreferredSize(

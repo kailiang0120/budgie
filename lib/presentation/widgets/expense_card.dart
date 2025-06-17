@@ -10,7 +10,6 @@ import '../viewmodels/expenses_viewmodel.dart';
 import '../../core/constants/routes.dart';
 import '../utils/app_theme.dart';
 import '../viewmodels/budget_viewmodel.dart';
-import '../../di/injection_container.dart' as di;
 
 class ExpenseCard extends StatefulWidget {
   final Expense expense;

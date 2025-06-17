@@ -337,6 +337,7 @@ class _LoginScreenState extends State<LoginScreen>
               hintText: 'Enter your password',
               prefixIcon: Icons.lock,
               isPassword: true,
+              isRequired: true,
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter your password';

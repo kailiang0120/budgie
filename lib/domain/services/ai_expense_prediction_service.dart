@@ -225,7 +225,7 @@ class AIExpensePredictionService {
     Map<String, dynamic>? userProfile,
   ) {
     // For daily predictions, use last 7 days for more recent patterns
-    final cutoffDate = DateTime.now().subtract(const Duration(days: 7));
+    final cutoffDate = DateTime.now().subtract(const Duration(days: 14));
     final recentExpenses = pastExpenses
         .where((expense) => expense.date.isAfter(cutoffDate))
         .toList();
@@ -241,7 +241,7 @@ class AIExpensePredictionService {
 
     debugPrint('🤖 [DAILY DATA PREPARATION] =============================');
     debugPrint('🤖 Total expenses in dataset: ${pastExpenses.length}');
-    debugPrint('🤖 Expenses in last 7 days: ${recentExpenses.length}');
+    debugPrint('🤖 Expenses in last 14 days: ${recentExpenses.length}');
     debugPrint('🤖 Same day of week (last 30 days): ${sameDayExpenses.length}');
     debugPrint(
         '🤖 Target date: ${targetDate.toIso8601String().split('T')[0]} (${_getDayName(targetDayOfWeek)})');
@@ -321,7 +321,7 @@ ${request.pastExpenses.map((expense) => '- ${expense.date}: ${expense.amount} ${
 **Instructions:**
 1. Focus on DAILY spending patterns, not monthly totals
 2. Consider the specific day of the week ($targetDayOfWeek) and typical activities for that day
-3. Analyze recent expense patterns (last 7 days) and same-day-of-week historical data
+3. Analyze recent expense patterns (last 14 days) and same-day-of-week historical data
 4. Predict realistic individual expenses likely to occur on $targetDayOfWeek
 5. Consider factors like: work days vs weekends, meal patterns, commute needs, typical $targetDayOfWeek activities
 6. Provide specific, actionable predictions for tomorrow only

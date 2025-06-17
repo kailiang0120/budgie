@@ -21,20 +21,18 @@ class DialogUtils {
             borderRadius: BorderRadius.circular(16.r),
           ),
           title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Icon(
                 Icons.warning_amber_rounded,
                 color: Colors.amber[700],
-                size: 28.sp,
+                size: 32.sp,
               ),
-              SizedBox(width: 8.w),
-              Expanded(
-                child: Text(
-                  'Warning: Data Loss Risk',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.error,
-                  ),
+              Text(
+                'Warning! Data Loss Risk',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.error,
                 ),
               ),
             ],
@@ -50,7 +48,7 @@ class DialogUtils {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              SizedBox(height: 16.h),
+              const SizedBox(height: 16),
               Container(
                 padding: EdgeInsets.all(12.w),
                 decoration: BoxDecoration(
