@@ -3,15 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import '../../../di/injection_container.dart' as di;
-import '../../../domain/services/ai_budget_suggestion_service.dart';
-import '../../../domain/repositories/budget_repository.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
-import '../../../data/datasources/local_data_source.dart';
-import '../../../domain/entities/budget_suggestion.dart';
 import 'settings_service.dart';
 
-const fetchBudgetSuggestionTask = 'fetchBudgetSuggestionTask';
+const autoReallocationTask = 'autoReallocationTask';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -26,9 +21,8 @@ void callbackDispatcher() {
 
       if (currentUser != null) {
         await settingsService.initializeForUser(currentUser.uid);
-        // Check if auto budget reallocation is enabled (check both settings for compatibility)
-        if (!settingsService.automaticRebalanceSuggestions &&
-            !settingsService.autoBudget) {
+        // Check if auto budget reallocation is enabled
+        if (!settingsService.automaticRebalanceSuggestions) {
           debugPrint(
               'Background task skipped: User has disabled automatic budget reallocation.');
           return Future.value(true);
@@ -41,28 +35,10 @@ void callbackDispatcher() {
       debugPrint('Background task started: $task');
 
       switch (task) {
-        case fetchBudgetSuggestionTask:
-          final budgetRepository = di.sl<BudgetRepository>();
-          final aiSuggestionService = di.sl<AIBudgetSuggestionService>();
-          final localDataSource = di.sl<LocalDataSource>();
-
-          final monthId = DateFormat('yyyy-MM').format(DateTime.now());
-          final budget = await budgetRepository.getBudget(monthId);
-
-          if (budget != null) {
-            final suggestions =
-                await aiSuggestionService.getBudgetSuggestions(budget);
-            final suggestionEntity = BudgetSuggestion(
-              monthId: monthId,
-              userId: currentUser.uid,
-              suggestions: suggestions,
-              timestamp: DateTime.now(),
-            );
-            await localDataSource.saveBudgetSuggestion(suggestionEntity);
-            debugPrint('Successfully fetched and saved budget suggestion.');
-          } else {
-            debugPrint('No budget found for the current month.');
-          }
+        case autoReallocationTask:
+          // Placeholder for future implementation
+          debugPrint(
+              'Auto budget reallocation functionality will be implemented in the future.');
           break;
       }
       return Future.value(true);
@@ -81,20 +57,20 @@ class BackgroundTaskService {
     );
   }
 
-  Future<void> scheduleBudgetSuggestionTask() async {
+  Future<void> scheduleAutoReallocationTask() async {
     await Workmanager().registerPeriodicTask(
       '1',
-      fetchBudgetSuggestionTask,
+      autoReallocationTask,
       frequency: const Duration(hours: 24),
       constraints: Constraints(
         networkType: NetworkType.connected,
       ),
     );
-    debugPrint('Budget suggestion task scheduled.');
+    debugPrint('Auto budget reallocation task scheduled.');
   }
 
-  Future<void> cancelBudgetSuggestionTask() async {
+  Future<void> cancelAutoReallocationTask() async {
     await Workmanager().cancelByUniqueName('1');
-    debugPrint('Budget suggestion task canceled.');
+    debugPrint('Auto budget reallocation task canceled.');
   }
 }

@@ -108,16 +108,6 @@ class Users extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// Budget suggestions table for storing AI-generated recommendations
-class BudgetSuggestions extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  TextColumn get monthId => text()();
-  TextColumn get userId => text()();
-  TextColumn get suggestions => text()(); // Stores the raw text from the AI
-  DateTimeColumn get timestamp => dateTime()();
-  BoolColumn get isRead => boolean().withDefault(const Constant(false))();
-}
-
 /// Create database connection
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
@@ -134,7 +124,6 @@ LazyDatabase _openConnection() {
   SyncQueue,
   Users,
   ExchangeRates,
-  BudgetSuggestions,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
@@ -190,8 +179,7 @@ class AppDatabase extends _$AppDatabase {
           }
         }
         if (from <= 5 && to >= 6) {
-          // Add table for budget suggestions and new user setting
-          await m.createTable(budgetSuggestions);
+          // Add automatic rebalance suggestions setting
           final tableInfo =
               await m.database.customSelect('PRAGMA table_info(users)').get();
           final hasColumn = tableInfo.any(

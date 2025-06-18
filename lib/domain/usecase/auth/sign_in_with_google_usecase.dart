@@ -37,6 +37,18 @@ class SignInWithGoogleUseCase {
       throw Exception('Authentication failed - Invalid user');
     }
 
+    // Make sure we reload the firebase user to get fresh data
+    try {
+      final currentFirebaseUser =
+          firebase_auth.FirebaseAuth.instance.currentUser;
+      if (currentFirebaseUser != null) {
+        await currentFirebaseUser.reload();
+      }
+    } catch (e) {
+      // Non-fatal, just log it
+      print('Error reloading Firebase user after Google sign-in: $e');
+    }
+
     // If we were previously anonymous, ensure we remove stored guest ID
     if (isAnonymous) {
       final prefs = await SharedPreferences.getInstance();

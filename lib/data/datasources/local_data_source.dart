@@ -1,7 +1,6 @@
 import '../../domain/entities/budget.dart';
 import '../../domain/entities/expense.dart';
 import '../../domain/entities/user.dart';
-import '../../domain/entities/budget_suggestion.dart';
 
 /// Abstract interface for local data source operations
 abstract class LocalDataSource {
@@ -31,11 +30,7 @@ abstract class LocalDataSource {
   Future<void> markBudgetAsSynced(String monthId, String userId);
   Future<void> clearAllBudgetSyncOperations(String userId);
 
-  // Budget suggestions operations
-  Future<List<BudgetSuggestion>> getBudgetSuggestions(
-      String monthId, String userId);
-  Future<void> saveBudgetSuggestion(BudgetSuggestion suggestion);
-  Future<void> deleteBudgetSuggestion(int id);
+  // Budget reallocation settings are handled via user settings
 
   // Exchange rates operations
   Future<Map<String, double>?> getExchangeRates(

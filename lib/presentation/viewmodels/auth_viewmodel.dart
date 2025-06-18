@@ -7,7 +7,7 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecase/auth/sign_in_with_email_usecase.dart';
 import '../../domain/usecase/auth/create_user_with_email_usecase.dart';
 import '../../domain/usecase/auth/sign_in_with_google_usecase.dart';
-import '../../domain/usecase/auth/sign_in_with_apple_usecase.dart';
+
 import '../../domain/usecase/auth/sign_in_as_guest_usecase.dart';
 import '../../domain/usecase/auth/upgrade_guest_account_usecase.dart';
 import '../../domain/usecase/auth/secure_sign_out_anonymous_user_usecase.dart';
@@ -22,7 +22,7 @@ class AuthViewModel extends ChangeNotifier {
   final SignInWithEmailUseCase _signInWithEmailUseCase;
   final CreateUserWithEmailUseCase _createUserWithEmailUseCase;
   final SignInWithGoogleUseCase _signInWithGoogleUseCase;
-  final SignInWithAppleUseCase _signInWithAppleUseCase;
+
   final SignInAsGuestUseCase _signInAsGuestUseCase;
   final UpgradeGuestAccountUseCase _upgradeGuestAccountUseCase;
   final SecureSignOutAnonymousUserUseCase _secureSignOutAnonymousUserUseCase;
@@ -42,7 +42,6 @@ class AuthViewModel extends ChangeNotifier {
     required SignInWithEmailUseCase signInWithEmailUseCase,
     required CreateUserWithEmailUseCase createUserWithEmailUseCase,
     required SignInWithGoogleUseCase signInWithGoogleUseCase,
-    required SignInWithAppleUseCase signInWithAppleUseCase,
     required SignInAsGuestUseCase signInAsGuestUseCase,
     required UpgradeGuestAccountUseCase upgradeGuestAccountUseCase,
     required SecureSignOutAnonymousUserUseCase
@@ -56,7 +55,6 @@ class AuthViewModel extends ChangeNotifier {
         _signInWithEmailUseCase = signInWithEmailUseCase,
         _createUserWithEmailUseCase = createUserWithEmailUseCase,
         _signInWithGoogleUseCase = signInWithGoogleUseCase,
-        _signInWithAppleUseCase = signInWithAppleUseCase,
         _signInAsGuestUseCase = signInAsGuestUseCase,
         _upgradeGuestAccountUseCase = upgradeGuestAccountUseCase,
         _secureSignOutAnonymousUserUseCase = secureSignOutAnonymousUserUseCase,
@@ -245,36 +243,6 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> signInWithApple() async {
-    try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
-
-      final user = await _signInWithAppleUseCase.execute();
-      _currentUser = user;
-    } catch (e) {
-      debugPrint('🔥 AuthViewModel: Apple sign-in error: $e');
-
-      // Set appropriate error message
-      if (e.toString().contains('network')) {
-        _error =
-            'Network connection issue. Please check your internet connection and try again.';
-      } else if (e.toString().contains('cancel')) {
-        _error = 'Sign-in was cancelled';
-      } else if (e.toString().contains('credential')) {
-        _error = 'Authentication failed. Please try again.';
-      } else {
-        _error = 'Failed to sign in with Apple: ${e.toString()}';
-      }
-
-      _currentUser = null;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
   /// Sign in as guest (anonymous authentication)
   Future<domain.User?> signInAsGuest() async {
     try {
@@ -367,29 +335,6 @@ class AuthViewModel extends ChangeNotifier {
       debugPrint('Secure sign out error: $e');
       _error = e.toString();
       rethrow; // Rethrow to allow UI to handle the error
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> resetPassword(String email) async {
-    if (email.isEmpty) {
-      _error = 'Email cannot be empty';
-      notifyListeners();
-      return;
-    }
-
-    try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
-
-      await _authRepository.resetPassword(email);
-      debugPrint('Password reset email sent');
-    } catch (e) {
-      debugPrint('Password reset error: $e');
-      _error = 'Failed to reset password: ${e.toString()}';
     } finally {
       _isLoading = false;
       notifyListeners();

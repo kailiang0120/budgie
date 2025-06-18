@@ -32,7 +32,6 @@ import '../domain/services/expense_detection_service.dart';
 import '../presentation/services/expense_card_manager_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../data/infrastructure/services/secure_storage_service.dart';
-import '../domain/services/ai_budget_suggestion_service.dart';
 import '../data/infrastructure/services/background_task_service.dart';
 import '../data/infrastructure/services/offline_notification_service.dart';
 import '../data/infrastructure/services/firebase_data_fetcher_service.dart';
@@ -41,7 +40,6 @@ import '../data/infrastructure/services/firebase_data_fetcher_service.dart';
 import '../domain/usecase/auth/sign_in_with_email_usecase.dart';
 import '../domain/usecase/auth/create_user_with_email_usecase.dart';
 import '../domain/usecase/auth/sign_in_with_google_usecase.dart';
-import '../domain/usecase/auth/sign_in_with_apple_usecase.dart';
 import '../domain/usecase/auth/sign_in_as_guest_usecase.dart';
 import '../domain/usecase/auth/upgrade_guest_account_usecase.dart';
 import '../domain/usecase/auth/secure_sign_out_anonymous_user_usecase.dart';
@@ -357,12 +355,6 @@ class DependencyContainer {
       InitializationPriority.optional,
     );
 
-    _registerLazyService<AIBudgetSuggestionService>(
-      'AIBudgetSuggestionService',
-      () => AIBudgetSuggestionService(secureStorageService: sl()),
-      InitializationPriority.optional,
-    );
-
     // Data collection - optional feature
     _registerLazyService<DataCollectionService>(
       'DataCollectionService',
@@ -452,7 +444,6 @@ class DependencyContainer {
         signInWithEmailUseCase: sl(),
         createUserWithEmailUseCase: sl(),
         signInWithGoogleUseCase: sl(),
-        signInWithAppleUseCase: sl(),
         signInAsGuestUseCase: sl(),
         upgradeGuestAccountUseCase: sl(),
         secureSignOutAnonymousUserUseCase: sl(),
@@ -503,17 +494,6 @@ class DependencyContainer {
     _registerLazyService<SignInWithGoogleUseCase>(
       'SignInWithGoogleUseCase',
       () => SignInWithGoogleUseCase(
-        authRepository: sl(),
-        syncService: sl(),
-        themeViewModel: sl(),
-        settingsService: sl(),
-      ),
-      InitializationPriority.important,
-    );
-
-    _registerLazyService<SignInWithAppleUseCase>(
-      'SignInWithAppleUseCase',
-      () => SignInWithAppleUseCase(
         authRepository: sl(),
         syncService: sl(),
         themeViewModel: sl(),

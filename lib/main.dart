@@ -168,19 +168,6 @@ Future<void> _initializeSyncService() async {
   }
 }
 
-/*
-/// Initialize notification services
-Future<void> _initializeNotificationServices() async {
-  try {
-    // Initialize background notification services
-    await di.initializeBackgroundServices();
-    debugPrint('✅ Notification services initialized');
-  } catch (e) {
-    debugPrint('⚠️ Notification services initialization failed: $e');
-  }
-}
-*/
-
 /// Initialize user-specific services if user is logged in
 Future<void> _initializeUserSpecificServices(User? currentUser) async {
   if (currentUser == null) return;

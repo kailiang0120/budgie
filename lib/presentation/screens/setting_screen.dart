@@ -215,23 +215,24 @@ class _SettingScreenState extends State<SettingScreen> {
 
   Future<void> _handleAutomaticRebalance(bool value) async {
     try {
-      // Update both settings to maintain backward compatibility
-      await _settingsService.updateAutoBudgetSetting(value);
+      // Update the setting
       await _settingsService.updateAutomaticRebalanceSuggestions(value);
-      debugPrint('Auto budget reallocation updated to: $value');
+      debugPrint('Auto budget reallocation setting updated to: $value');
 
       if (value) {
-        await _backgroundTaskService.scheduleBudgetSuggestionTask();
+        // Schedule the task
+        await _backgroundTaskService.scheduleAutoReallocationTask();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'Auto budget reallocation enabled. AI will automatically optimize your budget daily.'),
+                'Auto budget reallocation enabled. Your budget will be optimized automatically.'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 1),
           ),
         );
       } else {
-        await _backgroundTaskService.cancelBudgetSuggestionTask();
+        // Cancel the task
+        await _backgroundTaskService.cancelAutoReallocationTask();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Auto budget reallocation disabled.'),
@@ -241,7 +242,7 @@ class _SettingScreenState extends State<SettingScreen> {
         );
       }
     } catch (e) {
-      debugPrint('Error updating auto budget reallocation: $e');
+      debugPrint('Error updating auto budget reallocation setting: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -622,7 +623,7 @@ class _SettingScreenState extends State<SettingScreen> {
             value: _settingsService.automaticRebalanceSuggestions,
             onChanged: _handleAutomaticRebalance,
             subtitle:
-                'Automatically optimize your budget using AI-powered analysis',
+                'Automatically reallocate budget based on spending patterns',
           ),
           SwitchTile(
             title: 'Allow notification',

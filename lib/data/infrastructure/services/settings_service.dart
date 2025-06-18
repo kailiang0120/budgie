@@ -597,14 +597,15 @@ class SettingsService extends ChangeNotifier {
     }
   }
 
-  // Update automatic rebalance suggestions setting with offline support
+  // Update automatic budget reallocation setting with offline support
   Future<void> updateAutomaticRebalanceSuggestions(bool enabled) async {
     try {
       final user = _auth.currentUser;
       if (user != null) {
-        // Update both settings to keep them synchronized
+        // Update the setting value
         _automaticRebalanceSuggestions = enabled;
-        _autoBudget = enabled; // Keep autoBudget in sync
+
+        // Keep autoBudget separate now (no longer synced)
 
         // Create settings object for saving
         final settings = {
@@ -612,7 +613,7 @@ class SettingsService extends ChangeNotifier {
           'theme': _theme,
           'settings': {
             'allowNotification': _allowNotification,
-            'autoBudget': enabled, // Use the same value
+            'autoBudget': _autoBudget, // Use existing value instead of syncing
             'improveAccuracy': _improveAccuracy,
             'automaticRebalanceSuggestions': enabled,
           },
@@ -625,7 +626,8 @@ class SettingsService extends ChangeNotifier {
           await _firestore.collection('users').doc(user.uid).set({
             'settings': {
               'allowNotification': _allowNotification,
-              'autoBudget': enabled, // Use the same value
+              'autoBudget':
+                  _autoBudget, // Use existing value instead of syncing
               'improveAccuracy': _improveAccuracy,
               'automaticRebalanceSuggestions': enabled,
             },

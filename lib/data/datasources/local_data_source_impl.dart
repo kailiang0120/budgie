@@ -9,7 +9,7 @@ import '../../domain/entities/expense.dart' as domain;
 import '../../domain/entities/recurring_expense.dart' as domain;
 import '../../domain/entities/user.dart' as domain;
 import '../../domain/entities/category.dart';
-import '../../domain/entities/budget_suggestion.dart' as domain;
+
 import '../local/database/app_database.dart';
 import 'local_data_source.dart';
 
@@ -450,49 +450,6 @@ class LocalDataSourceImpl implements LocalDataSource {
         .write(const BudgetsCompanion(isSynced: Value(true)));
   }
 
-  // Budget suggestions operations
-  @override
-  Future<void> saveBudgetSuggestion(domain.BudgetSuggestion suggestion) async {
-    await _database.into(_database.budgetSuggestions).insert(
-          BudgetSuggestionsCompanion.insert(
-            monthId: suggestion.monthId,
-            userId: suggestion.userId,
-            suggestions: suggestion.suggestions,
-            timestamp: suggestion.timestamp,
-            isRead: Value(suggestion.isRead),
-          ),
-        );
-  }
-
-  Future<domain.BudgetSuggestion?> getLatestBudgetSuggestion(
-      String monthId, String userId) async {
-    final query = _database.select(_database.budgetSuggestions)
-      ..where((tbl) => tbl.monthId.equals(monthId) & tbl.userId.equals(userId))
-      ..orderBy([(tbl) => OrderingTerm.desc(tbl.timestamp)])
-      ..limit(1);
-
-    final suggestion = await query.getSingleOrNull();
-
-    if (suggestion == null) {
-      return null;
-    }
-
-    return domain.BudgetSuggestion(
-      id: suggestion.id,
-      monthId: suggestion.monthId,
-      userId: suggestion.userId,
-      suggestions: suggestion.suggestions,
-      timestamp: suggestion.timestamp,
-      isRead: suggestion.isRead,
-    );
-  }
-
-  Future<void> markBudgetSuggestionAsRead(int id) async {
-    await (_database.update(_database.budgetSuggestions)
-          ..where((tbl) => tbl.id.equals(id)))
-        .write(const BudgetSuggestionsCompanion(isRead: Value(true)));
-  }
-
   // Sync operations
   @override
   Future<void> addToSyncQueue(String entityType, String entityId, String userId,
@@ -587,34 +544,7 @@ class LocalDataSourceImpl implements LocalDataSource {
     _database.close();
   }
 
-  // Budget suggestions operations
-  @override
-  Future<List<domain.BudgetSuggestion>> getBudgetSuggestions(
-      String monthId, String userId) async {
-    final suggestions = await (_database.select(_database.budgetSuggestions)
-          ..where(
-              (tbl) => tbl.monthId.equals(monthId) & tbl.userId.equals(userId))
-          ..orderBy([(tbl) => OrderingTerm.desc(tbl.timestamp)]))
-        .get();
-
-    return suggestions
-        .map((s) => domain.BudgetSuggestion(
-              id: s.id,
-              monthId: s.monthId,
-              userId: s.userId,
-              suggestions: s.suggestions,
-              timestamp: s.timestamp,
-              isRead: s.isRead,
-            ))
-        .toList();
-  }
-
-  @override
-  Future<void> deleteBudgetSuggestion(int id) async {
-    await (_database.delete(_database.budgetSuggestions)
-          ..where((tbl) => tbl.id.equals(id)))
-        .go();
-  }
+  // Budget reallocation settings are handled via user settings
 
   // Exchange rates operations
   @override
