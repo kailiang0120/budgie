@@ -216,10 +216,7 @@ class DependencyContainer {
 
     try {
       // Settings service - depends on local data source and connectivity
-      sl.registerLazySingleton(() => SettingsService(
-            localDataSource: sl(),
-            connectivityService: sl(),
-          ));
+      sl.registerLazySingleton(() => SettingsService());
 
       // Theme ViewModel - depends on settings service
       sl.registerLazySingleton(() => ThemeViewModel(settingsService: sl()));

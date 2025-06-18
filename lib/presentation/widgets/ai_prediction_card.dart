@@ -70,17 +70,17 @@ class _AIPredictionCardState extends State<AIPredictionCard> {
       // Validate data
       if (expensesResult.expenses.isEmpty) {
         setState(() {
-          _predictionError = 'Need expense history to generate predictions';
           _isLoadingPrediction = false;
         });
+        _showErrorSnackBar('Need expense history to generate predictions');
         return;
       }
 
       if (!budgetResult.hasBudget) {
         setState(() {
-          _predictionError = 'Budget data required for predictions';
           _isLoadingPrediction = false;
         });
+        _showErrorSnackBar('Budget data required for predictions');
         return;
       }
 
@@ -148,12 +148,39 @@ class _AIPredictionCardState extends State<AIPredictionCard> {
       }
     } catch (e) {
       setState(() {
-        _predictionError = e.toString();
         _isLoadingPrediction = false;
       });
-
+      _showErrorSnackBar(e.toString());
       debugPrint('🤖 AI Prediction failed: $e');
     }
+  }
+
+  void _showErrorSnackBar(String errorMessage) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline, color: Colors.white, size: 16.sp),
+            SizedBox(width: 8.w),
+            Flexible(
+              fit: FlexFit.loose,
+              child: Text(
+                errorMessage,
+                style: TextStyle(fontSize: 12.sp),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red[700],
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   /// Reallocate budget based on AI predictions
@@ -302,40 +329,40 @@ class _AIPredictionCardState extends State<AIPredictionCard> {
 
   @override
   Widget build(BuildContext context) {
-    // Show loading button when prediction is being loaded
-    if (_predictionResult == null && _predictionError == null) {
-      return SizedBox(
-        width: 48.w,
-        height: 48.h,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Theme.of(context)
-                .colorScheme
-                .primary
-                .withAlpha((255 * 0.1).toInt()),
-            borderRadius: BorderRadius.circular(12.r),
+    final themeColor = Theme.of(context).colorScheme.primary;
+
+    // Always show the button, regardless of prediction state
+    if (_predictionResult == null) {
+      return Container(
+        height: 45.h,
+        width: 45.h,
+        decoration: BoxDecoration(
+          color: themeColor.withAlpha((255 * 0.1).toInt()),
+          borderRadius: BorderRadius.circular(12.r),
+          border: Border.all(
+            color: themeColor.withAlpha((255 * 0.3).toInt()),
           ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12.r),
-              onTap: _isLoadingPrediction ? null : _getAIPrediction,
-              child: Center(
-                child: _isLoadingPrediction
-                    ? SizedBox(
-                        width: 24.w,
-                        height: 24.h,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.w,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      )
-                    : Icon(
-                        Icons.lightbulb_outline,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 24.sp,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8.r),
+            onTap: _isLoadingPrediction ? null : _getAIPrediction,
+            child: Center(
+              child: _isLoadingPrediction
+                  ? SizedBox(
+                      width: 20.w,
+                      height: 20.h,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.w,
+                        color: themeColor,
                       ),
-              ),
+                    )
+                  : Icon(
+                      Icons.lightbulb_outline,
+                      color: themeColor,
+                      size: 20.sp,
+                    ),
             ),
           ),
         ),
@@ -350,10 +377,6 @@ class _AIPredictionCardState extends State<AIPredictionCard> {
   }
 
   Widget _buildCardContent(BuildContext context) {
-    if (_predictionError != null) {
-      return _buildErrorContent(context);
-    }
-
     if (_predictionResult == null) return const SizedBox.shrink();
 
     final prediction = _predictionResult!;
@@ -408,77 +431,12 @@ class _AIPredictionCardState extends State<AIPredictionCard> {
     );
   }
 
-  Widget _buildErrorContent(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              Icons.lightbulb_outline,
-              color: Colors.red[400],
-              size: 24.sp,
-            ),
-            SizedBox(width: 8.w),
-            Text(
-              'AI Prediction Error',
-              style: TextStyle(
-                fontSize: 18.sp,
-                fontWeight: FontWeight.bold,
-                color: Colors.red[400],
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 12.h),
-        Text(
-          _predictionError!,
-          style: TextStyle(
-            color: Colors.red[300],
-            fontSize: 14.sp,
-          ),
-        ),
-        SizedBox(height: 16.h),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            IconButton(
-              onPressed: () {
-                setState(() {
-                  _predictionError = null;
-                });
-              },
-              icon: const Icon(Icons.close, size: 20),
-              tooltip: 'Dismiss',
-              style: IconButton.styleFrom(
-                foregroundColor: Colors.grey[600],
-                backgroundColor: Colors.grey[100],
-                padding: const EdgeInsets.all(8),
-              ),
-            ),
-            SizedBox(width: 8.w),
-            IconButton(
-              onPressed: _getAIPrediction,
-              icon: const Icon(Icons.refresh, size: 20),
-              tooltip: 'Retry',
-              style: IconButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                padding: const EdgeInsets.all(8),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   Widget _buildHeader(BuildContext context, String tomorrowFormatted,
       ExpensePredictionResponse prediction) {
     return Row(
       children: [
         Container(
-          padding: EdgeInsets.all(8.w),
+          padding: EdgeInsets.all(4.w),
           decoration: BoxDecoration(
             color: Theme.of(context)
                 .colorScheme

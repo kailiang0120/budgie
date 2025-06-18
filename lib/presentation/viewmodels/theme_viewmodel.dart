@@ -16,6 +16,10 @@ class ThemeViewModel extends ChangeNotifier {
       : _settingsService = settingsService {
     // Start with light theme as default to match SettingsService defaults
     debugPrint('🎨 ThemeViewModel created with default light theme');
+
+    // Initialize theme from settings service
+    _currentTheme = _settingsService.theme;
+    _isDarkMode = _currentTheme == 'dark';
   }
 
   Future<void> setTheme(String theme) async {
@@ -27,7 +31,7 @@ class ThemeViewModel extends ChangeNotifier {
 
     debugPrint('🎨 Theme changed to: $theme');
 
-    // Save theme setting to user settings
+    // Save theme setting to local settings service
     await _settingsService.updateTheme(theme);
   }
 
@@ -37,28 +41,27 @@ class ThemeViewModel extends ChangeNotifier {
   }
 
   // Initialize theme for a specific user (called when user logs in)
+  // This is kept for API compatibility but now just refreshes from global settings
   Future<void> initializeForUser(String userId) async {
     try {
-      debugPrint('🎨 ThemeViewModel: Initializing theme for user: $userId');
+      debugPrint('🎨 ThemeViewModel: Refreshing theme from settings service');
 
-      // Get theme from SettingsService which manages user settings
+      // Get theme from SettingsService which manages device settings
       final userTheme = _settingsService.theme;
-      debugPrint('🎨 ThemeViewModel: Found user theme: $userTheme');
+      debugPrint('🎨 ThemeViewModel: Found theme: $userTheme');
 
       _currentTheme = userTheme;
       _isDarkMode = userTheme == 'dark';
       notifyListeners();
 
-      debugPrint(
-          '🎨 ThemeViewModel: Theme initialization completed for user: $userId');
+      debugPrint('🎨 ThemeViewModel: Theme refresh completed');
     } catch (e) {
-      debugPrint(
-          '🎨 ThemeViewModel: Error initializing theme for user $userId: $e');
+      debugPrint('🎨 ThemeViewModel: Error refreshing theme: $e');
       // Don't rethrow - just keep the default theme
     }
   }
 
-  // 根据具体主题模式返回相应颜色
+  // Get theme color based on current theme mode
   Color getThemeColor(Color lightColor, Color darkColor) {
     return _isDarkMode ? darkColor : lightColor;
   }

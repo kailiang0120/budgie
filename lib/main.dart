@@ -175,7 +175,7 @@ Future<void> _initializeUserSpecificServices(User? currentUser) async {
   try {
     debugPrint('👤 User logged in, initializing user-specific services...');
 
-    // Initialize SettingsService for the current user
+    // Initialize SettingsService for the current user (only loads currency from Firebase)
     final settingsService = di.sl<SettingsService>();
     await settingsService.initializeForUser(currentUser.uid);
     debugPrint('✅ SettingsService initialized for user');

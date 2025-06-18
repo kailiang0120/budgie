@@ -44,6 +44,9 @@ class MainActivity : FlutterActivity() {
                     stopNotificationListener()
                     result.success(null)
                 }
+                "isNotificationServiceEnabled" -> {
+                    result.success(isNotificationServiceEnabled())
+                }
                 else -> {
                     result.notImplemented()
                 }

@@ -178,6 +178,14 @@ class _SettingScreenState extends State<SettingScreen> {
             ),
           );
         }
+
+        // Force refresh UI to reflect the current setting state
+        // This is important if the permission was denied but the UI still shows enabled
+        if (mounted) {
+          setState(() {
+            // This will trigger a rebuild with the latest setting value
+          });
+        }
       } else {
         // If the user turned the setting OFF, trigger the disable workflow.
         final result =
@@ -192,6 +200,13 @@ class _SettingScreenState extends State<SettingScreen> {
               duration: const Duration(seconds: 1),
             ),
           );
+        }
+
+        // Force refresh UI to reflect the current setting state
+        if (mounted) {
+          setState(() {
+            // This will trigger a rebuild with the latest setting value
+          });
         }
       }
     } catch (e) {
@@ -209,6 +224,11 @@ class _SettingScreenState extends State<SettingScreen> {
       // Ensure the setting is off if any catastrophic error occurs.
       if (_settingsService.allowNotification) {
         await _settingsService.updateNotificationSetting(false);
+
+        // Force refresh UI
+        if (mounted) {
+          setState(() {});
+        }
       }
     }
   }

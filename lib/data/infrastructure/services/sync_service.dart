@@ -140,10 +140,7 @@ class SyncService {
         await _syncBudgets(userId);
       }
 
-      // 3. Sync user settings
-      await _syncUserSettings(userId);
-
-      // 4. Process any remaining operations from the queue
+      // 3. Process any remaining operations from the queue
       await _processPendingOperations(userId, skipBudgets);
 
       debugPrint('Data synchronization completed successfully');
@@ -259,70 +256,6 @@ class SyncService {
     }
   }
 
-  /// Sync user settings
-  Future<void> _syncUserSettings(String userId) async {
-    try {
-      debugPrint('Syncing user settings...');
-      final settings = await _localDataSource.getUserSettings(userId);
-
-      if (settings != null) {
-        // Check if settings need syncing (not marked as synced)
-        final userData = <String, dynamic>{
-          'updatedAt': FieldValue.serverTimestamp(),
-        };
-
-        // Only add non-null values
-        if (settings['currency'] != null) {
-          userData['currency'] = settings['currency'];
-        }
-        if (settings['theme'] != null) {
-          userData['theme'] = settings['theme'];
-        }
-
-        // Handle nested settings
-        final Map<String, dynamic> settingsMap = {};
-        if (settings.containsKey('settings') && settings['settings'] is Map) {
-          final nestedSettings = settings['settings'] as Map<String, dynamic>;
-          if (nestedSettings['allowNotification'] != null) {
-            settingsMap['allowNotification'] =
-                nestedSettings['allowNotification'];
-          }
-          if (nestedSettings['autoBudget'] != null) {
-            settingsMap['autoBudget'] = nestedSettings['autoBudget'];
-          }
-          if (nestedSettings['improveAccuracy'] != null) {
-            settingsMap['improveAccuracy'] = nestedSettings['improveAccuracy'];
-          }
-        }
-
-        // Also check for root-level settings (backward compatibility)
-        if (settings['allowNotification'] != null) {
-          settingsMap['allowNotification'] = settings['allowNotification'];
-        }
-        if (settings['autoBudget'] != null) {
-          settingsMap['autoBudget'] = settings['autoBudget'];
-        }
-        if (settings['improveAccuracy'] != null) {
-          settingsMap['improveAccuracy'] = settings['improveAccuracy'];
-        }
-
-        if (settingsMap.isNotEmpty) {
-          userData['settings'] = settingsMap;
-        }
-
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userId)
-            .set(userData, SetOptions(merge: true));
-
-        await _localDataSource.markUserSettingsAsSynced(userId);
-        debugPrint('User settings synced successfully');
-      }
-    } catch (e) {
-      debugPrint('Error syncing user settings: $e');
-    }
-  }
-
   /// Process any remaining operations from the sync queue
   Future<void> _processPendingOperations(
       String userId, bool skipBudgets) async {
@@ -364,9 +297,6 @@ class SyncService {
               if (!skipBudgets) {
                 await _syncBudget(entityId, userId, operationType);
               }
-              break;
-            case 'user_settings':
-              await _syncUserSettings(userId);
               break;
             case 'recurring_details':
               // Recurring details are now embedded in expenses, no separate sync needed

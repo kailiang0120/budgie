@@ -28,6 +28,7 @@ class NotificationManagerService {
   // Service state
   bool _isListening = false;
   StreamSubscription<NotificationEvent>? _notificationSubscription;
+  bool _isInitialized = false; // Track initialization state
 
   // Service dependencies
   late final ExpenseDetector _expenseDetector;
@@ -42,6 +43,13 @@ class NotificationManagerService {
   /// Initialize the notification manager and all its dependencies
   Future<void> initialize() async {
     try {
+      // Check if already initialized to prevent duplicate initialization
+      if (_isInitialized) {
+        debugPrint(
+            '🔔 NotificationManagerService: Already initialized, skipping');
+        return;
+      }
+
       debugPrint('🔔 NotificationManagerService: Initializing...');
 
       // Initialize service dependencies
@@ -62,8 +70,8 @@ class NotificationManagerService {
       // Setup notification listener
       await _setupNotificationListener();
 
-      // Auto-start if user has enabled notifications
-      // await _checkAndStartIfEnabled();
+      // Mark as initialized
+      _isInitialized = true;
 
       debugPrint('✅ NotificationManagerService: Initialization completed');
     } catch (e, stackTrace) {

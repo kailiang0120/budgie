@@ -106,8 +106,13 @@ class LocalDataSourceImpl implements LocalDataSource {
         improveAccuracy: Value(settingsMap['improveAccuracy'] as bool? ??
             settings['improveAccuracy'] as bool? ??
             false),
+        automaticRebalanceSuggestions: Value(
+            settingsMap['automaticRebalanceSuggestions'] as bool? ??
+                settings['automaticRebalanceSuggestions'] as bool? ??
+                false),
         lastModified: Value(DateTime.now()),
-        isSynced: const Value(false),
+        isSynced: const Value(
+            true), // Always mark as synced since we're not syncing with Firebase
       );
 
       debugPrint('💾 LocalDataSource: Created companion object with values:');
@@ -116,12 +121,13 @@ class LocalDataSourceImpl implements LocalDataSource {
       debugPrint('  - allowNotification: ${companion.allowNotification.value}');
       debugPrint('  - autoBudget: ${companion.autoBudget.value}');
       debugPrint('  - improveAccuracy: ${companion.improveAccuracy.value}');
+      debugPrint(
+          '  - automaticRebalanceSuggestions: ${companion.automaticRebalanceSuggestions.value}');
 
       await _database.into(_database.users).insertOnConflictUpdate(companion);
       debugPrint('💾 LocalDataSource: User settings saved to database');
 
-      await addToSyncQueue('user_settings', userId, userId, 'update');
-      debugPrint('💾 LocalDataSource: Added to sync queue');
+      // No longer adding to sync queue since we're keeping settings local only
     } catch (e, stackTrace) {
       debugPrint('❌ LocalDataSource: Error saving user settings: $e');
       debugPrint('❌ LocalDataSource: Stack trace: $stackTrace');
@@ -131,9 +137,8 @@ class LocalDataSourceImpl implements LocalDataSource {
 
   @override
   Future<void> markUserSettingsAsSynced(String userId) async {
-    await (_database.update(_database.users)
-          ..where((tbl) => tbl.id.equals(userId)))
-        .write(const UsersCompanion(isSynced: Value(true)));
+    // No-op since we're not syncing settings with Firebase
+    return;
   }
 
   // Expenses operations
@@ -641,5 +646,21 @@ class LocalDataSourceImpl implements LocalDataSource {
 
   Future<void> clearSyncQueue() async {
     await _database.delete(_database.syncQueue).go();
+  }
+
+  @override
+  Future<List<domain.User>> getUsers() async {
+    final userRows = await _database.select(_database.users).get();
+
+    return userRows
+        .map((userRow) => domain.User(
+              id: userRow.id,
+              email: userRow.email,
+              displayName: userRow.displayName,
+              photoUrl: userRow.photoUrl,
+              currency: userRow.currency,
+              theme: userRow.theme,
+            ))
+        .toList();
   }
 }

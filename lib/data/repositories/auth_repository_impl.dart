@@ -52,9 +52,8 @@ class AuthRepositoryImpl implements AuthRepository {
         ? user.displayName
         : 'User ${user.uid.substring(0, 5)}';
 
-    // Get user settings from Firestore
+    // Get currency from Firestore (user-specific)
     String currency = 'MYR';
-    String theme = 'light';
 
     try {
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
@@ -62,11 +61,10 @@ class AuthRepositoryImpl implements AuthRepository {
         final userData = userDoc.data();
         if (userData != null) {
           currency = userData['currency'] ?? 'MYR';
-          theme = userData['theme'] ?? 'light';
         }
       }
     } catch (e) {
-      debugPrint('Error fetching user settings: $e');
+      debugPrint('Error fetching user currency: $e');
     }
 
     return domain.User(
@@ -75,7 +73,7 @@ class AuthRepositoryImpl implements AuthRepository {
       displayName: displayName,
       photoUrl: user.photoURL,
       currency: currency,
-      theme: theme,
+      theme: 'light', // Theme is now device-based, not user-based
     );
   }
 
@@ -968,186 +966,32 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final user = _auth.currentUser;
       if (user == null) {
-        throw Exception('Cannot update settings: No authenticated user');
+        throw Exception('No user is currently signed in');
       }
 
       final Map<String, dynamic> updates = {};
-      if (currency != null) updates['currency'] = currency;
-      if (theme != null) updates['theme'] = theme;
-      if (displayName != null) updates['displayName'] = displayName;
+
+      // Only update currency in Firestore, other settings are handled locally
+      if (currency != null) {
+        updates['currency'] = currency;
+      }
+
+      // Update display name if provided
+      if (displayName != null) {
+        updates['displayName'] = displayName;
+        // Also update Firebase Auth profile
+        await user.updateDisplayName(displayName);
+      }
 
       if (updates.isNotEmpty) {
-        await _firestore.collection('users').doc(user.uid).set(
-              updates,
-              SetOptions(merge: true),
-            );
-        debugPrint('User settings updated successfully');
+        updates['updatedAt'] = FieldValue.serverTimestamp();
+        await _firestore.collection('users').doc(user.uid).update(updates);
+        debugPrint('User settings updated: $updates');
       }
     } catch (e) {
       debugPrint('Error updating user settings: $e');
       throw Exception('Failed to update user settings: $e');
     }
-  }
-
-  // Helper method to link anonymous account with Apple
-  Future<domain.User> linkAnonymousWithApple() async {
-    try {
-      final currentUser = _auth.currentUser;
-
-      if (currentUser == null) {
-        throw Exception('No user is currently signed in');
-      }
-
-      if (!currentUser.isAnonymous) {
-        throw Exception('Current user is not an anonymous user');
-      }
-
-      debugPrint('Linking anonymous account to Apple');
-
-      // Generate a random nonce
-      final rawNonce = _generateNonce();
-      final nonce = _sha256ofString(rawNonce);
-
-      // Request credentials from Apple
-      final appleCredential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: nonce,
-      );
-
-      // Create OAuthCredential for linking
-      final oauthCredential =
-          firebase_auth.OAuthProvider('apple.com').credential(
-        idToken: appleCredential.identityToken,
-        rawNonce: rawNonce,
-      );
-
-      // Link anonymous account with Apple credential
-      final userCredential =
-          await currentUser.linkWithCredential(oauthCredential);
-      final user = userCredential.user;
-
-      if (user == null) {
-        throw Exception('Failed to link account: No user returned');
-      }
-
-      // Update display name if available
-      final displayName =
-          '${appleCredential.givenName ?? ''} ${appleCredential.familyName ?? ''}'
-              .trim();
-      if (displayName.isNotEmpty) {
-        await user.updateDisplayName(displayName);
-        await user.reload();
-      }
-
-      // Update user document to remove guest flag
-      await _firestore.collection('users').doc(user.uid).update({
-        'isGuest': false,
-        'email': user.email,
-        'displayName': user.displayName ?? displayName,
-        'photoURL': user.photoURL,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      debugPrint('Successfully linked anonymous account to Apple');
-
-      // Return updated user
-      return await _mapFirebaseUserToDomain(user);
-    } catch (e) {
-      debugPrint('Error linking anonymous account with Apple: $e');
-      throw Exception('Failed to link account with Apple: $e');
-    }
-  }
-
-  @override
-  Future<domain.User> signInWithApple() async {
-    try {
-      debugPrint('Starting Apple sign-in flow');
-
-      // Check if current user is anonymous - if so, link accounts
-      final currentUser = _auth.currentUser;
-      if (currentUser != null && currentUser.isAnonymous) {
-        debugPrint('Current user is anonymous, attempting to link with Apple');
-        return await linkAnonymousWithApple();
-      }
-
-      // Generate a random nonce
-      final rawNonce = _generateNonce();
-      final nonce = _sha256ofString(rawNonce);
-
-      // Request credentials from Apple
-      final appleCredential = await SignInWithApple.getAppleIDCredential(
-        scopes: [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: nonce,
-      );
-
-      // Create OAuthCredential for Firebase
-      final oauthCredential =
-          firebase_auth.OAuthProvider('apple.com').credential(
-        idToken: appleCredential.identityToken,
-        rawNonce: rawNonce,
-      );
-
-      // Sign in to Firebase with the Apple credential
-      final userCredential = await _auth.signInWithCredential(oauthCredential);
-      final user = userCredential.user;
-
-      if (user == null) {
-        debugPrint('Firebase sign-in with Apple failed - null user');
-        throw Exception('Sign-in failed');
-      }
-
-      // If this is a new user, update the display name from Apple credentials
-      if (userCredential.additionalUserInfo?.isNewUser == true) {
-        final displayName =
-            '${appleCredential.givenName ?? ''} ${appleCredential.familyName ?? ''}'
-                .trim();
-        if (displayName.isNotEmpty) {
-          await user.updateDisplayName(displayName);
-          await user.reload();
-        }
-      }
-
-      debugPrint('Firebase sign-in with Apple successful: ${user.uid}');
-
-      // Ensure user document exists with default settings
-      await _ensureUserDocumentExists(user);
-
-      // Return the mapped user
-      final domainUser = await _mapFirebaseUserToDomain(user);
-
-      debugPrint('Returning user: ${domainUser.id}');
-      return domainUser;
-    } catch (e) {
-      debugPrint('Apple sign-in error: $e');
-
-      if (e.toString().contains('canceled')) {
-        throw Exception('Sign-in was cancelled');
-      }
-
-      throw Exception('Failed to sign in with Apple: $e');
-    }
-  }
-
-  /// Generates a cryptographically secure random nonce for Apple sign-in
-  String _generateNonce([int length = 32]) {
-    const charset =
-        '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
-    final random = Random.secure();
-    return List.generate(length, (_) => charset[random.nextInt(charset.length)])
-        .join();
-  }
-
-  /// Returns the SHA-256 hash of [input] in hex notation
-  String _sha256ofString(String input) {
-    final bytes = utf8.encode(input);
-    final digest = sha256.convert(bytes);
-    return digest.toString();
   }
 
   /// Ensures a user document exists in Firestore with default settings
@@ -1162,21 +1006,16 @@ class AuthRepositoryImpl implements AuthRepository {
       if (!userDoc.exists) {
         debugPrint('Creating new user document with default settings');
 
-        // Create a complete user document with all default fields
+        // Create a user document with only essential fields
+        // Settings will be handled locally, only currency is stored in the user document
         await _firestore.collection('users').doc(user.uid).set({
           'email': user.email,
           'displayName': user.displayName ?? 'User ${user.uid.substring(0, 8)}',
           'photoURL': user.photoURL,
-          'currency': 'MYR',
-          'theme': 'light',
+          'currency': 'MYR', // Default currency
           'isGuest': false,
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
-          'settings': {
-            'allowNotification': false,
-            'autoBudget': false,
-            'improveAccuracy': false,
-          },
         });
 
         debugPrint('User document created successfully');
@@ -1191,43 +1030,12 @@ class AuthRepositoryImpl implements AuthRepository {
         if (userData?['currency'] == null) {
           updates['currency'] = 'MYR';
         }
-        if (userData?['theme'] == null) {
-          updates['theme'] = 'light';
-        }
         if (userData?['displayName'] == null) {
           updates['displayName'] =
               user.displayName ?? 'User ${user.uid.substring(0, 8)}';
         }
         if (userData?['photoURL'] == null) {
           updates['photoURL'] = user.photoURL;
-        }
-        if (userData?['settings'] == null) {
-          updates['settings'] = {
-            'allowNotification': false,
-            'autoBudget': false,
-            'improveAccuracy': false,
-          };
-        } else {
-          // Check individual settings
-          final settings = userData!['settings'] as Map<String, dynamic>? ?? {};
-          final settingsUpdates = <String, dynamic>{};
-
-          if (settings['allowNotification'] == null) {
-            settingsUpdates['allowNotification'] = false;
-          }
-          if (settings['autoBudget'] == null) {
-            settingsUpdates['autoBudget'] = false;
-          }
-          if (settings['improveAccuracy'] == null) {
-            settingsUpdates['improveAccuracy'] = false;
-          }
-
-          if (settingsUpdates.isNotEmpty) {
-            updates['settings'] = {
-              ...settings,
-              ...settingsUpdates,
-            };
-          }
         }
 
         // Add updatedAt timestamp
@@ -1242,7 +1050,6 @@ class AuthRepositoryImpl implements AuthRepository {
     } catch (e) {
       debugPrint('Error ensuring user document exists: $e');
       // Don't throw here as this is not critical for sign-in to succeed
-      // The SettingsService will handle creating defaults if needed
     }
   }
 

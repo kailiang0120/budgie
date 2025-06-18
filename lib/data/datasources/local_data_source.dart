@@ -7,6 +7,7 @@ abstract class LocalDataSource {
   // User operations
   Future<User?> getUser(String userId);
   Future<void> saveUser(User user);
+  Future<List<User>> getUsers();
 
   // User Settings operations
   Future<Map<String, dynamic>?> getUserSettings(String userId);
