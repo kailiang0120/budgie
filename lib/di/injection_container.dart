@@ -40,14 +40,10 @@ import '../data/infrastructure/services/firebase_data_fetcher_service.dart';
 import '../domain/usecase/auth/sign_in_with_email_usecase.dart';
 import '../domain/usecase/auth/create_user_with_email_usecase.dart';
 import '../domain/usecase/auth/sign_in_with_google_usecase.dart';
-import '../domain/usecase/auth/sign_in_as_guest_usecase.dart';
-import '../domain/usecase/auth/upgrade_guest_account_usecase.dart';
-import '../domain/usecase/auth/secure_sign_out_anonymous_user_usecase.dart';
 import '../domain/usecase/auth/refresh_auth_state_usecase.dart';
 import '../domain/usecase/auth/update_profile_usecase.dart';
 import '../domain/usecase/auth/update_user_settings_usecase.dart';
 import '../domain/usecase/auth/initialize_user_data_usecase.dart';
-import '../domain/usecase/auth/is_guest_user_usecase.dart';
 
 // Budget use cases
 import '../domain/usecase/budget/load_budget_usecase.dart';
@@ -441,14 +437,10 @@ class DependencyContainer {
         signInWithEmailUseCase: sl(),
         createUserWithEmailUseCase: sl(),
         signInWithGoogleUseCase: sl(),
-        signInAsGuestUseCase: sl(),
-        upgradeGuestAccountUseCase: sl(),
-        secureSignOutAnonymousUserUseCase: sl(),
         refreshAuthStateUseCase: sl(),
         updateProfileUseCase: sl(),
         updateUserSettingsUseCase: sl(),
         initializeUserDataUseCase: sl(),
-        isGuestUserUseCase: sl(),
       ),
     );
 
@@ -471,8 +463,6 @@ class DependencyContainer {
       () => SignInWithEmailUseCase(
         authRepository: sl(),
         syncService: sl(),
-        themeViewModel: sl(),
-        settingsService: sl(),
       ),
       InitializationPriority.important,
     );
@@ -482,8 +472,6 @@ class DependencyContainer {
       () => CreateUserWithEmailUseCase(
         authRepository: sl(),
         syncService: sl(),
-        themeViewModel: sl(),
-        settingsService: sl(),
       ),
       InitializationPriority.important,
     );
@@ -493,43 +481,14 @@ class DependencyContainer {
       () => SignInWithGoogleUseCase(
         authRepository: sl(),
         syncService: sl(),
-        themeViewModel: sl(),
-        settingsService: sl(),
       ),
       InitializationPriority.important,
-    );
-
-    _registerLazyService<SignInAsGuestUseCase>(
-      'SignInAsGuestUseCase',
-      () => SignInAsGuestUseCase(
-        authRepository: sl(),
-        syncService: sl(),
-        themeViewModel: sl(),
-        settingsService: sl(),
-      ),
-      InitializationPriority.important,
-    );
-
-    _registerLazyService<UpgradeGuestAccountUseCase>(
-      'UpgradeGuestAccountUseCase',
-      () => UpgradeGuestAccountUseCase(
-        authRepository: sl(),
-        syncService: sl(),
-      ),
-      InitializationPriority.background,
-    );
-
-    _registerLazyService<SecureSignOutAnonymousUserUseCase>(
-      'SecureSignOutAnonymousUserUseCase',
-      () => SecureSignOutAnonymousUserUseCase(authRepository: sl()),
-      InitializationPriority.background,
     );
 
     _registerLazyService<RefreshAuthStateUseCase>(
       'RefreshAuthStateUseCase',
       () => RefreshAuthStateUseCase(
         authRepository: sl(),
-        themeViewModel: sl(),
       ),
       InitializationPriority.important,
     );
@@ -550,16 +509,8 @@ class DependencyContainer {
       'InitializeUserDataUseCase',
       () => InitializeUserDataUseCase(
         syncService: sl(),
-        themeViewModel: sl(),
-        settingsService: sl(),
       ),
       InitializationPriority.important,
-    );
-
-    _registerLazyService<IsGuestUserUseCase>(
-      'IsGuestUserUseCase',
-      () => IsGuestUserUseCase(),
-      InitializationPriority.background,
     );
   }
 
@@ -602,11 +553,14 @@ class DependencyContainer {
     _registerLazyService<RefreshBudgetUseCase>(
       'RefreshBudgetUseCase',
       () => RefreshBudgetUseCase(
+        budgetRepository: sl(),
+        expensesRepository: sl(),
+        budgetCalculationService: sl(),
         connectivityService: sl(),
         syncService: sl(),
         loadBudgetUseCase: sl(),
       ),
-      InitializationPriority.background,
+      InitializationPriority.important,
     );
   }
 
@@ -615,8 +569,7 @@ class DependencyContainer {
       'AddExpenseUseCase',
       () => AddExpenseUseCase(
         expensesRepository: sl(),
-        budgetRepository: sl(),
-        budgetCalculationService: sl(),
+        refreshBudgetUseCase: sl(),
       ),
       InitializationPriority.important,
     );
@@ -625,8 +578,7 @@ class DependencyContainer {
       'UpdateExpenseUseCase',
       () => UpdateExpenseUseCase(
         expensesRepository: sl(),
-        budgetRepository: sl(),
-        budgetCalculationService: sl(),
+        refreshBudgetUseCase: sl(),
       ),
       InitializationPriority.important,
     );
@@ -635,8 +587,7 @@ class DependencyContainer {
       'DeleteExpenseUseCase',
       () => DeleteExpenseUseCase(
         expensesRepository: sl(),
-        budgetRepository: sl(),
-        budgetCalculationService: sl(),
+        refreshBudgetUseCase: sl(),
       ),
       InitializationPriority.important,
     );

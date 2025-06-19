@@ -349,7 +349,7 @@ class ExpensesViewModel extends ChangeNotifier
   Future<void> addExpense(Expense expense) async {
     try {
       // Add expense to database
-      await _addExpenseUseCase.execute(expense, _expenses);
+      await _addExpenseUseCase.execute(expense);
 
       // Clear cache to ensure data consistency
       _filterExpensesUseCase.clearCache();
@@ -367,7 +367,7 @@ class ExpensesViewModel extends ChangeNotifier
   Future<void> updateExpense(Expense expense) async {
     try {
       // Update expense data
-      await _updateExpenseUseCase.execute(expense, _expenses);
+      await _updateExpenseUseCase.execute(expense);
 
       // Clear cache to ensure data consistency
       _filterExpensesUseCase.clearCache();
@@ -386,7 +386,7 @@ class ExpensesViewModel extends ChangeNotifier
       final expenseToDelete = _expenses.firstWhere((e) => e.id == id);
 
       // Delete expense
-      await _deleteExpenseUseCase.execute(id, expenseToDelete, _expenses);
+      await _deleteExpenseUseCase.execute(id, expenseToDelete);
 
       // Clear cache
       _filterExpensesUseCase.clearCache();

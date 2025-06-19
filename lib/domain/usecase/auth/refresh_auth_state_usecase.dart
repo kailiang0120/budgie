@@ -2,18 +2,14 @@ import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:flutter/foundation.dart';
 import '../../entities/user.dart';
 import '../../repositories/auth_repository.dart';
-import '../../../presentation/viewmodels/theme_viewmodel.dart';
 
 /// Use case for refreshing authentication state
 class RefreshAuthStateUseCase {
   final AuthRepository _authRepository;
-  final ThemeViewModel _themeViewModel;
 
   RefreshAuthStateUseCase({
     required AuthRepository authRepository,
-    required ThemeViewModel themeViewModel,
-  })  : _authRepository = authRepository,
-        _themeViewModel = themeViewModel;
+  }) : _authRepository = authRepository;
 
   /// Execute the refresh auth state use case
   Future<User?> execute() async {
@@ -34,23 +30,7 @@ class RefreshAuthStateUseCase {
         await firebaseUser.reload();
         final refreshedUser = await _authRepository.getCurrentUser();
 
-        // Initialize theme if user is authenticated
-        if (refreshedUser != null) {
-          debugPrint(
-              '🔥 Initializing theme for authenticated user: ${refreshedUser.id}');
-          await _themeViewModel.initializeForUser(refreshedUser.id);
-          debugPrint('🔥 Theme initialization completed for refreshed user');
-        }
-
         return refreshedUser;
-      }
-
-      // Initialize theme if user is authenticated
-      if (currentUser != null) {
-        debugPrint(
-            '🔥 Initializing theme for authenticated user: ${currentUser.id}');
-        await _themeViewModel.initializeForUser(currentUser.id);
-        debugPrint('🔥 Theme initialization completed for refreshed user');
       }
 
       return currentUser;

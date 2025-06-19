@@ -1,0 +1,10 @@
+# Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
+/linux/
+/windows/
+/macos/
+/ios/
+/web/
+/.github/
+/.idea/
+.lib.zip
+/build/

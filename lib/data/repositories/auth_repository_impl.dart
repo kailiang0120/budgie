@@ -396,9 +396,6 @@ class AuthRepositoryImpl implements AuthRepository {
             debugPrint(
                 'Successfully migrated data from anonymous user to existing account');
 
-            // Migrate other collections like expenses, budgets, etc.
-            await _migrateUserData(anonymousUserId, existingUser.uid);
-
             // Delete the anonymous user document after migration
             try {
               await _firestore
@@ -476,420 +473,20 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
-  /// Helper method to migrate user data from anonymous account to permanent account
-  Future<void> _migrateUserData(String fromUserId, String toUserId) async {
-    try {
-      debugPrint('Starting data migration from $fromUserId to $toUserId');
-
-      // Migrate expenses
-      final expenses = await _firestore
-          .collection('expenses')
-          .where('userId', isEqualTo: fromUserId)
-          .get();
-
-      debugPrint('Found ${expenses.docs.length} expenses to migrate');
-
-      for (final doc in expenses.docs) {
-        final data = doc.data();
-        data['userId'] = toUserId;
-        data['previousUserId'] = fromUserId;
-        data['migratedAt'] = FieldValue.serverTimestamp();
-
-        // Create a new document with the same ID but under the new user
-        await _firestore.collection('expenses').doc(doc.id).set(data);
-      }
-
-      // Migrate budgets
-      final budgets = await _firestore
-          .collection('budgets')
-          .where('userId', isEqualTo: fromUserId)
-          .get();
-
-      debugPrint('Found ${budgets.docs.length} budgets to migrate');
-
-      for (final doc in budgets.docs) {
-        final data = doc.data();
-        data['userId'] = toUserId;
-        data['previousUserId'] = fromUserId;
-        data['migratedAt'] = FieldValue.serverTimestamp();
-
-        // For budgets, we need to check if a budget already exists for this month
-        final monthId = data['monthId'];
-        final existingBudget = await _firestore
-            .collection('budgets')
-            .where('userId', isEqualTo: toUserId)
-            .where('monthId', isEqualTo: monthId)
-            .get();
-
-        if (existingBudget.docs.isEmpty) {
-          // No existing budget, create a new one
-          await _firestore
-              .collection('budgets')
-              .doc('${monthId}_$toUserId')
-              .set(data);
-        } else {
-          debugPrint('Budget already exists for month $monthId, merging data');
-          // Existing budget found, merge the data
-          final existingData = existingBudget.docs.first.data();
-
-          // Logic to merge budgets - prefer higher amounts
-          if ((data['total'] ?? 0) > (existingData['total'] ?? 0)) {
-            existingData['total'] = data['total'];
-          }
-
-          // Merge category budgets
-          final existingCategories = existingData['categories'] ?? {};
-          final newCategories = data['categories'] ?? {};
-
-          newCategories.forEach((category, budget) {
-            if (!existingCategories.containsKey(category) ||
-                (existingCategories[category]['budget'] ?? 0) <
-                    budget['budget']) {
-              existingCategories[category] = budget;
-            }
-          });
-
-          existingData['categories'] = existingCategories;
-          existingData['mergedAt'] = FieldValue.serverTimestamp();
-
-          await _firestore
-              .collection('budgets')
-              .doc(existingBudget.docs.first.id)
-              .set(
-                existingData,
-                SetOptions(merge: true),
-              );
-        }
-      }
-
-      // Migrate recurring expenses
-      final recurringExpenses = await _firestore
-          .collection('recurring_expenses')
-          .where('userId', isEqualTo: fromUserId)
-          .get();
-
-      debugPrint(
-          'Found ${recurringExpenses.docs.length} recurring expenses to migrate');
-
-      for (final doc in recurringExpenses.docs) {
-        final data = doc.data();
-        data['userId'] = toUserId;
-        data['previousUserId'] = fromUserId;
-        data['migratedAt'] = FieldValue.serverTimestamp();
-
-        await _firestore.collection('recurring_expenses').doc(doc.id).set(data);
-      }
-
-      debugPrint('Data migration completed successfully');
-    } catch (e) {
-      debugPrint('Error during data migration: $e');
-      // Don't throw here, we want to continue with authentication even if migration fails
-    }
-  }
-
   @override
   Future<domain.User> signInAnonymously() async {
-    try {
-      debugPrint('Starting anonymous sign-in flow');
-
-      // Check if the current user is already anonymous
-      final currentUser = _auth.currentUser;
-      if (currentUser != null && currentUser.isAnonymous) {
-        debugPrint('Reusing existing anonymous user: ${currentUser.uid}');
-
-        // Check if this user exists in Firestore to ensure data consistency
-        final userDoc =
-            await _firestore.collection('users').doc(currentUser.uid).get();
-
-        if (!userDoc.exists) {
-          // User document doesn't exist, create it
-          debugPrint(
-              'Creating missing user document for existing anonymous user');
-          await _firestore.collection('users').doc(currentUser.uid).set({
-            'isGuest': true,
-            'displayName': 'Guest User',
-            'photoURL': null,
-            'email': null,
-            'createdAt': FieldValue.serverTimestamp(),
-            'updatedAt': FieldValue.serverTimestamp(),
-            'currency': 'MYR',
-            'theme': 'light',
-            'settings': {
-              'allowNotification': false,
-              'autoBudget': false,
-              'improveAccuracy': false,
-            }
-          }, SetOptions(merge: true));
-        }
-
-        // Return existing user instead of creating a new one
-        return await _mapFirebaseUserToDomain(currentUser);
-      }
-
-      // Check if we have a stored guest user ID in shared preferences
-      final prefs = await SharedPreferences.getInstance();
-      final storedGuestUserId = prefs.getString('last_guest_user_id');
-
-      if (storedGuestUserId != null) {
-        debugPrint('Found stored guest user ID: $storedGuestUserId');
-
-        try {
-          // Try to sign in with the stored ID
-          // First, check if this anonymous user still exists in Firebase Auth
-          final isValid = await _checkIfAnonymousUserExists(storedGuestUserId);
-
-          if (isValid) {
-            debugPrint(
-                'Verified stored guest user is valid, attempting to reuse');
-
-            // If the current user is different or null, sign in with the stored user
-            if (currentUser == null || currentUser.uid != storedGuestUserId) {
-              // We can't directly sign in as a specific anonymous user,
-              // but we can check if the anonymous account has an entry in Firestore
-              // and create a new anonymous user if not
-
-              // Create a new anonymous user
-              final userCredential = await _auth.signInAnonymously();
-              final newUser = userCredential.user;
-
-              if (newUser == null) {
-                throw Exception('Failed to create new anonymous user');
-              }
-
-              // Try to transfer data from the old anonymous user
-              try {
-                await _migrateUserData(storedGuestUserId, newUser.uid);
-                debugPrint(
-                    'Migrated data from stored guest user to new anonymous user');
-              } catch (e) {
-                debugPrint('Error migrating from stored guest user: $e');
-                // Continue with the new user anyway
-              }
-
-              // Store the new user ID
-              await prefs.setString('last_guest_user_id', newUser.uid);
-
-              // Create initial user document
-              await _firestore.collection('users').doc(newUser.uid).set({
-                'isGuest': true,
-                'displayName': 'Guest User',
-                'photoURL': null,
-                'email': null,
-                'createdAt': FieldValue.serverTimestamp(),
-                'updatedAt': FieldValue.serverTimestamp(),
-                'currency': 'MYR',
-                'theme': 'light',
-                'previousGuestId': storedGuestUserId,
-                'settings': {
-                  'allowNotification': false,
-                  'autoBudget': false,
-                  'improveAccuracy': false,
-                }
-              }, SetOptions(merge: true));
-
-              return await _mapFirebaseUserToDomain(newUser);
-            } else {
-              // Current user is already the stored guest user
-              return await _mapFirebaseUserToDomain(currentUser);
-            }
-          } else {
-            debugPrint(
-                'Stored guest user is invalid, creating new anonymous user');
-            // Clear the stored ID since it's invalid
-            await prefs.remove('last_guest_user_id');
-          }
-        } catch (e) {
-          debugPrint('Error trying to reuse stored guest user: $e');
-          // Continue with creating a new anonymous user
-        }
-      }
-
-      // Sign in anonymously with Firebase
-      final userCredential = await _auth.signInAnonymously();
-      final user = userCredential.user;
-
-      if (user == null) {
-        debugPrint('Anonymous sign-in failed - null user');
-        throw Exception('Anonymous sign-in failed');
-      }
-
-      debugPrint('Anonymous sign-in successful: ${user.uid}');
-
-      // Store the guest user ID for future use
-      await prefs.setString('last_guest_user_id', user.uid);
-
-      // Create initial user document with default settings
-      await _firestore.collection('users').doc(user.uid).set({
-        'isGuest': true,
-        'displayName': 'Guest User',
-        'photoURL': null,
-        'email': null,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'currency': 'MYR',
-        'theme': 'light',
-        'settings': {
-          'allowNotification': false,
-          'autoBudget': false,
-          'improveAccuracy': false,
-        }
-      }, SetOptions(merge: true));
-
-      // Map to domain user and return
-      final domainUser = await _mapFirebaseUserToDomain(user);
-      return domainUser;
-    } catch (e) {
-      debugPrint('Anonymous sign-in error: $e');
-      throw Exception('Failed to sign in anonymously: $e');
-    }
+    throw Exception('Method not implemented');
   }
 
-  /// Check if an anonymous user exists in Firebase
-  Future<bool> _checkIfAnonymousUserExists(String userId) async {
-    try {
-      // Get the currently signed-in Firebase user
-      final firebaseUser = _auth.currentUser;
-
-      // If there's already a signed-in user with a different ID, it's likely invalid
-      if (firebaseUser != null && firebaseUser.uid != userId) {
-        debugPrint('🔥 AuthRepository: Found different user ID than requested');
-        return false;
-      }
-
-      // Try to see if we have this user in Firestore
-      final userDoc = await _firestore.collection('users').doc(userId).get();
-      if (userDoc.exists) {
-        debugPrint('🔥 AuthRepository: Found user document in Firestore');
-        // The user exists in Firestore, which means it's a valid user
-        return true;
-      }
-
-      // If we reach here, we couldn't verify the user exists
-      debugPrint('🔥 AuthRepository: Could not verify user existence');
-      return false;
-    } catch (e) {
-      debugPrint(
-          '🔥 AuthRepository: Error checking if anonymous user exists: $e');
-      return false;
-    }
+  @override
+  Future<domain.User> linkAnonymousAccount(
+      {required String email, required String password}) async {
+    throw Exception('Method not implemented');
   }
 
-  /// Delete guest user and all associated data
   @override
   Future<void> deleteGuestUser() async {
-    try {
-      final currentUser = _auth.currentUser;
-      if (currentUser == null || !currentUser.isAnonymous) {
-        throw Exception('No anonymous user to delete');
-      }
-
-      final userId = currentUser.uid;
-      debugPrint('Deleting guest user and all associated data: $userId');
-
-      try {
-        // Try to delete user data first, but continue if permission denied
-        await _deleteUserDataFromFirestore(userId);
-      } catch (e) {
-        // Log the error but continue with deleting the user account
-        debugPrint('Warning: Could not delete user data: $e');
-        debugPrint('Continuing with authentication account deletion anyway');
-      }
-
-      // Delete the Authentication user account (this also signs them out)
-      await currentUser.delete();
-
-      debugPrint(
-          'Guest user authentication account successfully deleted: $userId');
-    } catch (e) {
-      debugPrint('Error deleting guest user: $e');
-      throw Exception('Failed to delete guest user: $e');
-    }
-  }
-
-  /// Delete all user data from Firestore
-  Future<void> _deleteUserDataFromFirestore(String userId) async {
-    debugPrint('Attempting to delete all Firestore data for user: $userId');
-
-    // Keep track of what was deleted
-    bool anyDataDeleted = false;
-
-    // Delete user document
-    try {
-      await _firestore.collection('users').doc(userId).delete();
-      debugPrint('Deleted user document');
-      anyDataDeleted = true;
-    } catch (e) {
-      debugPrint('Error deleting user document: $e');
-      // Continue with other deletions
-    }
-
-    // Delete user's expenses
-    try {
-      final expenses = await _firestore
-          .collection('expenses')
-          .where('userId', isEqualTo: userId)
-          .get();
-
-      for (final doc in expenses.docs) {
-        try {
-          await doc.reference.delete();
-        } catch (e) {
-          debugPrint('Error deleting expense document ${doc.id}: $e');
-        }
-      }
-      debugPrint('Attempted to delete ${expenses.docs.length} expenses');
-      if (expenses.docs.isNotEmpty) anyDataDeleted = true;
-    } catch (e) {
-      debugPrint('Error querying expenses: $e');
-    }
-
-    // Delete user's budgets
-    try {
-      final budgets = await _firestore
-          .collection('budgets')
-          .where('userId', isEqualTo: userId)
-          .get();
-
-      for (final doc in budgets.docs) {
-        try {
-          await doc.reference.delete();
-        } catch (e) {
-          debugPrint('Error deleting budget document ${doc.id}: $e');
-        }
-      }
-      debugPrint('Attempted to delete ${budgets.docs.length} budgets');
-      if (budgets.docs.isNotEmpty) anyDataDeleted = true;
-    } catch (e) {
-      debugPrint('Error querying budgets: $e');
-    }
-
-    // Delete user's recurring expenses
-    try {
-      final recurringExpenses = await _firestore
-          .collection('recurring_expenses')
-          .where('userId', isEqualTo: userId)
-          .get();
-
-      for (final doc in recurringExpenses.docs) {
-        try {
-          await doc.reference.delete();
-        } catch (e) {
-          debugPrint('Error deleting recurring expense document ${doc.id}: $e');
-        }
-      }
-      debugPrint(
-          'Attempted to delete ${recurringExpenses.docs.length} recurring expenses');
-      if (recurringExpenses.docs.isNotEmpty) anyDataDeleted = true;
-    } catch (e) {
-      debugPrint('Error querying recurring expenses: $e');
-    }
-
-    // Report on the overall result
-    if (anyDataDeleted) {
-      debugPrint('Successfully deleted some data for user: $userId');
-    } else {
-      debugPrint('Warning: No data was deleted for user: $userId');
-    }
+    throw Exception('Method not implemented');
   }
 
   @override
@@ -959,35 +556,36 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
-  // 更新用户设置
+  /// Updates user settings
   @override
   Future<void> updateUserSettings(
-      {String? currency, String? theme, String? displayName}) async {
+      {String? currency, String? displayName}) async {
     try {
-      final user = _auth.currentUser;
-      if (user == null) {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
         throw Exception('No user is currently signed in');
       }
 
-      final Map<String, dynamic> updates = {};
+      final userId = currentUser.uid;
+      final userDoc = await _firestore.collection('users').doc(userId).get();
 
-      // Only update currency in Firestore, other settings are handled locally
+      // Prepare update data
+      final updateData = <String, dynamic>{
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
       if (currency != null) {
-        updates['currency'] = currency;
+        updateData['currency'] = currency;
       }
 
-      // Update display name if provided
       if (displayName != null) {
-        updates['displayName'] = displayName;
-        // Also update Firebase Auth profile
-        await user.updateDisplayName(displayName);
+        updateData['displayName'] = displayName;
       }
 
-      if (updates.isNotEmpty) {
-        updates['updatedAt'] = FieldValue.serverTimestamp();
-        await _firestore.collection('users').doc(user.uid).update(updates);
-        debugPrint('User settings updated: $updates');
-      }
+      // Update the user document
+      await _firestore.collection('users').doc(userId).update(updateData);
+
+      debugPrint('User settings updated successfully');
     } catch (e) {
       debugPrint('Error updating user settings: $e');
       throw Exception('Failed to update user settings: $e');
@@ -1050,79 +648,6 @@ class AuthRepositoryImpl implements AuthRepository {
     } catch (e) {
       debugPrint('Error ensuring user document exists: $e');
       // Don't throw here as this is not critical for sign-in to succeed
-    }
-  }
-
-  @override
-  Future<domain.User> linkAnonymousAccount(
-      {required String email, required String password}) async {
-    try {
-      final currentUser = _auth.currentUser;
-
-      if (currentUser == null) {
-        throw Exception('No user is currently signed in');
-      }
-
-      if (!currentUser.isAnonymous) {
-        throw Exception('Current user is not an anonymous user');
-      }
-
-      debugPrint('Linking anonymous account to email: $email');
-
-      // We have the current user's ID already in currentUser.uid
-
-      // Create email credential
-      final credential = firebase_auth.EmailAuthProvider.credential(
-        email: email,
-        password: password,
-      );
-
-      // Try to link the anonymous account with the email credential
-      try {
-        final userCredential = await currentUser.linkWithCredential(credential);
-        final user = userCredential.user;
-
-        if (user == null) {
-          throw Exception('Failed to link account: No user returned');
-        }
-
-        // Update user document to remove guest flag
-        await _firestore.collection('users').doc(user.uid).update({
-          'isGuest': false,
-          'email': email,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-
-        debugPrint('Successfully linked anonymous account to email: $email');
-        return await _mapFirebaseUserToDomain(user);
-      } catch (e) {
-        debugPrint('Error linking anonymous account with email: $e');
-
-        // Handle specific Firebase errors
-        if (e is firebase_auth.FirebaseAuthException) {
-          switch (e.code) {
-            case 'email-already-in-use':
-              // This email is already associated with another account
-              // Similar to Google sign-in, we could implement data migration here
-              // but email/password doesn't provide the credential in the error
-              // so we can't directly sign in with it
-              throw Exception(
-                  'This email is already in use by another account. Please use a different email or sign in with that account.');
-            case 'invalid-email':
-              throw Exception('The email address is not valid');
-            case 'weak-password':
-              throw Exception('The password is too weak');
-            default:
-              throw Exception('Failed to link account: ${e.message}');
-          }
-        }
-
-        rethrow;
-      }
-    } catch (e) {
-      debugPrint('Error in linkAnonymousAccount: $e');
-      if (e is Exception) rethrow;
-      throw Exception('Failed to link anonymous account: $e');
     }
   }
 }

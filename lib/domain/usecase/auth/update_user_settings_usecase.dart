@@ -12,12 +12,10 @@ class UpdateUserSettingsUseCase {
   /// Execute the update user settings use case
   Future<User> execute({
     String? currency,
-    String? theme,
     String? displayName,
   }) async {
     await _authRepository.updateUserSettings(
       currency: currency,
-      theme: theme,
       displayName: displayName,
     );
 

@@ -141,7 +141,7 @@ class DialogUtils {
                   showLoadingDialog(context, message: 'Deleting data...');
 
                   // Call the secure sign out method which handles data deletion
-                  await authViewModel.secureSignOutAnonymousUser();
+                  await authViewModel.signOut();
 
                   // Check if the widget is still mounted before using navigator
                   if (navigator.mounted) {

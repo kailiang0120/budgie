@@ -23,7 +23,6 @@ class _LoginScreenState extends State<LoginScreen>
   late final Animation<double> _logoFadeAnimation;
   late AuthViewModel _authViewModel;
   bool _isLoading = false;
-  bool _isGuestLoading = false;
   bool _isEmailSignInLoading = false;
   bool _showEmailSignIn = false;
 
@@ -209,9 +208,8 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
           backgroundColor: Colors.white,
           textColor: Colors.black87,
-          onPressed: _isLoading || _isGuestLoading || _isEmailSignInLoading
-              ? () {}
-              : _handleGoogleSignIn,
+          onPressed:
+              _isLoading || _isEmailSignInLoading ? () {} : _handleGoogleSignIn,
         ),
         SizedBox(height: 16.h),
 
@@ -225,7 +223,7 @@ class _LoginScreenState extends State<LoginScreen>
           ),
           backgroundColor: Colors.blue.shade700,
           textColor: Colors.white,
-          onPressed: _isLoading || _isGuestLoading || _isEmailSignInLoading
+          onPressed: _isLoading || _isEmailSignInLoading
               ? () {}
               : () {
                   setState(() {
@@ -237,26 +235,15 @@ class _LoginScreenState extends State<LoginScreen>
 
         // Guest Sign-in
         AuthButton(
-          label: _isGuestLoading ? 'Signing in...' : 'Continue as Guest',
-          leadingIcon: _isGuestLoading
-              ? SizedBox(
-                  width: 24.w,
-                  height: 24.h,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.w,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white70),
-                  ),
-                )
-              : Icon(
-                  Icons.person_outline,
-                  size: 24.sp,
-                  color: Colors.white,
-                ),
+          label: 'Continue as Guest',
+          leadingIcon: Icon(
+            Icons.person_outline,
+            size: 24.sp,
+            color: Colors.white,
+          ),
           backgroundColor: Colors.grey.shade700,
           textColor: Colors.white,
-          onPressed: _isLoading || _isGuestLoading || _isEmailSignInLoading
-              ? () {}
-              : _handleGuestSignIn,
+          onPressed: null, // Disabled as anonymous sign-in has been removed
         ),
         const Spacer(),
 
@@ -521,31 +508,6 @@ class _LoginScreenState extends State<LoginScreen>
       if (mounted) {
         setState(() {
           _isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _handleGuestSignIn() async {
-    setState(() {
-      _isGuestLoading = true;
-    });
-
-    try {
-      final result = await _authViewModel.signInAsGuest();
-
-      // Only navigate to home if sign-in was successful
-      if (mounted && result != null) {
-        Navigator.pushReplacementNamed(context, Routes.home);
-      }
-    } catch (e) {
-      if (mounted) {
-        _showErrorSnackBar(context, e.toString());
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isGuestLoading = false;
         });
       }
     }

@@ -27,16 +27,5 @@ abstract class AuthRepository {
   Future<User> signInWithGoogle();
 
   /// Updates user settings
-  Future<void> updateUserSettings(
-      {String? currency, String? theme, String? displayName});
-
-  /// Signs in a user anonymously (as guest)
-  Future<User> signInAnonymously();
-
-  /// Links anonymous account to permanent credentials
-  Future<User> linkAnonymousAccount(
-      {required String email, required String password});
-
-  /// Delete anonymous user and all associated data
-  Future<void> deleteGuestUser();
+  Future<void> updateUserSettings({String? currency, String? displayName});
 }

@@ -181,7 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final viewModel = Provider.of<AuthViewModel>(context);
     final themeViewModel = Provider.of<ThemeViewModel>(context);
     final user = viewModel.currentUser;
-    final isGuest = viewModel.isGuestUser;
+    final isGuest = false; // Guest functionality has been removed
 
     return Container(
       padding: EdgeInsets.all(24.w),
@@ -399,7 +399,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Also update the user settings in Firestore
       if (displayName.isNotEmpty) {
         await viewModel.updateUserSettings(
-          theme: null, // Keep current theme
           displayName: displayName,
         );
       }
@@ -493,56 +492,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _handleGuestUpgrade(BuildContext context) async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    setState(() {
-      _isUpgrading = true;
-    });
-
-    try {
-      final viewModel = Provider.of<AuthViewModel>(context, listen: false);
-      await viewModel.upgradeGuestAccount(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-
-      if (mounted) {
-        scaffoldMessenger.showSnackBar(
-          const SnackBar(
-            content: Text('Account upgraded successfully!'),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isUpgrading = false;
-        });
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final viewModel = Provider.of<AuthViewModel>(context);
     final themeViewModel = Provider.of<ThemeViewModel>(context);
-    final isGuest = viewModel.isGuestUser;
+    final isGuest = false; // Guest functionality has been removed
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -717,7 +671,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             isLoading: _isUpgrading,
                             onPressed: _isUpgrading
                                 ? () {}
-                                : () => _handleGuestUpgrade(context),
+                                : () => _handleGoogleSignIn(context),
                             icon: Icons.upgrade,
                             color: Colors.amber.shade800,
                           ),

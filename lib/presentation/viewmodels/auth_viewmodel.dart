@@ -7,30 +7,20 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecase/auth/sign_in_with_email_usecase.dart';
 import '../../domain/usecase/auth/create_user_with_email_usecase.dart';
 import '../../domain/usecase/auth/sign_in_with_google_usecase.dart';
-
-import '../../domain/usecase/auth/sign_in_as_guest_usecase.dart';
-import '../../domain/usecase/auth/upgrade_guest_account_usecase.dart';
-import '../../domain/usecase/auth/secure_sign_out_anonymous_user_usecase.dart';
 import '../../domain/usecase/auth/refresh_auth_state_usecase.dart';
 import '../../domain/usecase/auth/update_profile_usecase.dart';
 import '../../domain/usecase/auth/update_user_settings_usecase.dart';
 import '../../domain/usecase/auth/initialize_user_data_usecase.dart';
-import '../../domain/usecase/auth/is_guest_user_usecase.dart';
 
 class AuthViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
   final SignInWithEmailUseCase _signInWithEmailUseCase;
   final CreateUserWithEmailUseCase _createUserWithEmailUseCase;
   final SignInWithGoogleUseCase _signInWithGoogleUseCase;
-
-  final SignInAsGuestUseCase _signInAsGuestUseCase;
-  final UpgradeGuestAccountUseCase _upgradeGuestAccountUseCase;
-  final SecureSignOutAnonymousUserUseCase _secureSignOutAnonymousUserUseCase;
   final RefreshAuthStateUseCase _refreshAuthStateUseCase;
   final UpdateProfileUseCase _updateProfileUseCase;
   final UpdateUserSettingsUseCase _updateUserSettingsUseCase;
   final InitializeUserDataUseCase _initializeUserDataUseCase;
-  final IsGuestUserUseCase _isGuestUserUseCase;
 
   domain.User? _currentUser;
   bool _isLoading = false;
@@ -42,27 +32,18 @@ class AuthViewModel extends ChangeNotifier {
     required SignInWithEmailUseCase signInWithEmailUseCase,
     required CreateUserWithEmailUseCase createUserWithEmailUseCase,
     required SignInWithGoogleUseCase signInWithGoogleUseCase,
-    required SignInAsGuestUseCase signInAsGuestUseCase,
-    required UpgradeGuestAccountUseCase upgradeGuestAccountUseCase,
-    required SecureSignOutAnonymousUserUseCase
-        secureSignOutAnonymousUserUseCase,
     required RefreshAuthStateUseCase refreshAuthStateUseCase,
     required UpdateProfileUseCase updateProfileUseCase,
     required UpdateUserSettingsUseCase updateUserSettingsUseCase,
     required InitializeUserDataUseCase initializeUserDataUseCase,
-    required IsGuestUserUseCase isGuestUserUseCase,
   })  : _authRepository = authRepository,
         _signInWithEmailUseCase = signInWithEmailUseCase,
         _createUserWithEmailUseCase = createUserWithEmailUseCase,
         _signInWithGoogleUseCase = signInWithGoogleUseCase,
-        _signInAsGuestUseCase = signInAsGuestUseCase,
-        _upgradeGuestAccountUseCase = upgradeGuestAccountUseCase,
-        _secureSignOutAnonymousUserUseCase = secureSignOutAnonymousUserUseCase,
         _refreshAuthStateUseCase = refreshAuthStateUseCase,
         _updateProfileUseCase = updateProfileUseCase,
         _updateUserSettingsUseCase = updateUserSettingsUseCase,
-        _initializeUserDataUseCase = initializeUserDataUseCase,
-        _isGuestUserUseCase = isGuestUserUseCase {
+        _initializeUserDataUseCase = initializeUserDataUseCase {
     _initAuth();
   }
 
@@ -243,66 +224,6 @@ class AuthViewModel extends ChangeNotifier {
     }
   }
 
-  /// Sign in as guest (anonymous authentication)
-  Future<domain.User?> signInAsGuest() async {
-    try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
-
-      final user = await _signInAsGuestUseCase.execute();
-      _currentUser = user;
-      return _currentUser;
-    } catch (e) {
-      debugPrint('🔥 AuthViewModel: Guest sign-in error: $e');
-      _error = 'Failed to sign in as guest: ${e.toString()}';
-      _currentUser = null;
-      return null;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  /// Upgrade guest account to permanent account
-  Future<void> upgradeGuestAccount(
-      {required String email, required String password}) async {
-    try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
-
-      final user = await _upgradeGuestAccountUseCase.execute(
-        email: email,
-        password: password,
-      );
-
-      _currentUser = user;
-
-      // Refresh user data
-      await refreshAuthState();
-    } catch (e) {
-      debugPrint('🔥 AuthViewModel: Error upgrading guest account: $e');
-
-      // Set appropriate error message
-      if (e.toString().contains('email-already-in-use')) {
-        _error = 'This email is already in use by another account';
-      } else if (e.toString().contains('weak-password')) {
-        _error = 'The password is too weak';
-      } else if (e.toString().contains('invalid-email')) {
-        _error = 'The email address is not valid';
-      } else {
-        _error = 'Failed to upgrade account: ${e.toString()}';
-      }
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  /// Check if current user is a guest
-  bool get isGuestUser => _isGuestUserUseCase.execute();
-
   Future<void> signOut() async {
     try {
       _isLoading = true;
@@ -315,26 +236,6 @@ class AuthViewModel extends ChangeNotifier {
     } catch (e) {
       debugPrint('Sign out error: $e');
       _error = 'Failed to sign out: ${e.toString()}';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  /// Securely sign out an anonymous user with data deletion
-  Future<void> secureSignOutAnonymousUser() async {
-    try {
-      _isLoading = true;
-      _error = null;
-      notifyListeners();
-
-      await _secureSignOutAnonymousUserUseCase.execute();
-      _currentUser = null;
-      debugPrint('Anonymous user securely signed out and deleted');
-    } catch (e) {
-      debugPrint('Secure sign out error: $e');
-      _error = e.toString();
-      rethrow; // Rethrow to allow UI to handle the error
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -365,7 +266,7 @@ class AuthViewModel extends ChangeNotifier {
 
   /// Update user settings
   Future<void> updateUserSettings(
-      {String? currency, String? theme, String? displayName}) async {
+      {String? currency, String? displayName}) async {
     try {
       _isLoading = true;
       _error = null;
@@ -373,7 +274,6 @@ class AuthViewModel extends ChangeNotifier {
 
       final updatedUser = await _updateUserSettingsUseCase.execute(
         currency: currency,
-        theme: theme,
         displayName: displayName,
       );
 
