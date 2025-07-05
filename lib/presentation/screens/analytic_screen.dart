@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 
 import '../viewmodels/expenses_viewmodel.dart';
+import '../viewmodels/budget_viewmodel.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/date_picker_button.dart';
 import '../widgets/animated_float_button.dart';
-import '../widgets/ai_prediction_card.dart';
 import '../widgets/category_distribution_card.dart';
 import '../widgets/spending_trends_card.dart';
+import '../utils/app_constants.dart';
 import 'add_expense_screen.dart';
 
 import '../../core/constants/routes.dart';
@@ -33,6 +33,7 @@ class _AnalyticScreenState extends State<AnalyticScreen>
   bool _isLoading = false;
   String? _errorMessage;
   bool _isInitialized = false;
+  DateFilterMode _filterMode = DateFilterMode.month;
 
   // Flag to prevent redundant refreshes
   bool _isDataLoaded = false;
@@ -143,6 +144,10 @@ class _AnalyticScreenState extends State<AnalyticScreen>
       final expensesViewModel =
           Provider.of<ExpensesViewModel>(context, listen: false);
 
+      // Get BudgetViewModel to load budget data as well
+      final budgetViewModel =
+          Provider.of<BudgetViewModel>(context, listen: false);
+
       // Get current month ID for consistency
       _currentMonthId = _getMonthIdFromDate(_selectedDate);
       debugPrint('Analytics: Current month ID: $_currentMonthId');
@@ -157,6 +162,19 @@ class _AnalyticScreenState extends State<AnalyticScreen>
         debugPrint('Analytics: Filter set, refreshing data...');
         // Refresh expenses data
         await expensesViewModel.refreshData();
+
+        // Load and refresh budget data
+        debugPrint('Analytics: Loading budget data for $_currentMonthId');
+        await budgetViewModel.loadBudget(_currentMonthId);
+        await budgetViewModel.refreshBudget(_currentMonthId);
+
+        // Get the current expenses for this month to update budget calculations
+        final currentExpenses = expensesViewModel.getExpensesForMonth(
+            _selectedDate.year, _selectedDate.month);
+
+        // Recalculate budget with current expenses
+        await budgetViewModel.calculateBudgetRemaining(
+            currentExpenses, _currentMonthId);
 
         _isDataLoaded = true;
         debugPrint('Analytics: Data loaded successfully');
@@ -210,17 +228,41 @@ class _AnalyticScreenState extends State<AnalyticScreen>
       final expensesViewModel =
           Provider.of<ExpensesViewModel>(context, listen: false);
 
-      // Clear any cached data and refresh from source
+      // Get BudgetViewModel to refresh budget data as well
+      final budgetViewModel =
+          Provider.of<BudgetViewModel>(context, listen: false);
+
+      // Current month ID for budget refresh
+      final monthId = _getMonthIdFromDate(_selectedDate);
+
+      // Step 1: Clear any cached data and refresh expenses from source
       debugPrint('Analytics: Refreshing expenses data...');
       await expensesViewModel.refreshData();
 
-      // Reapply filter for current screen
+      // Step 2: Reapply filter for current screen
       debugPrint('Analytics: Reapplying filter for analytics screen...');
       expensesViewModel.setSelectedMonth(_selectedDate,
           persist: true, screenKey: 'analytics');
 
+      // Step 3: Refresh budget data for the selected month
+      debugPrint('Analytics: Refreshing budget for month: $monthId');
+
+      // First load the current budget
+      await budgetViewModel.loadBudget(monthId);
+
+      // Then refresh the budget to recalculate with expenses
+      await budgetViewModel.refreshBudget(monthId);
+
+      // Get the current expenses for this month to update budget calculations
+      final currentExpenses = expensesViewModel.getExpensesForMonth(
+          _selectedDate.year, _selectedDate.month);
+
+      // Recalculate budget with current expenses
+      await budgetViewModel.calculateBudgetRemaining(currentExpenses, monthId);
+
+      debugPrint('Analytics: Budget and expenses data refreshed successfully');
+
       _isDataLoaded = true;
-      debugPrint('Analytics: Refresh completed successfully');
 
       if (mounted) {
         setState(() {
@@ -245,12 +287,28 @@ class _AnalyticScreenState extends State<AnalyticScreen>
 
   void _onDateChanged(DateTime newDate) {
     debugPrint(
-        'Analytics: Date changed from ${_selectedDate.year}-${_selectedDate.month} to ${newDate.year}-${newDate.month}');
+        'Analytics: Date changed from ${_selectedDate.year}-${_selectedDate.month}-${_selectedDate.day} to ${newDate.year}-${newDate.month}-${newDate.day}');
 
-    // Avoid redundant operations if date hasn't changed
-    if (_selectedDate.year == newDate.year &&
-        _selectedDate.month == newDate.month) {
-      debugPrint('Analytics: Date unchanged, skipping refresh');
+    // Check if date has actually changed based on filter mode
+    bool dateChanged = false;
+    switch (_filterMode) {
+      case DateFilterMode.day:
+        dateChanged = _selectedDate.year != newDate.year ||
+            _selectedDate.month != newDate.month ||
+            _selectedDate.day != newDate.day;
+        break;
+      case DateFilterMode.month:
+        dateChanged = _selectedDate.year != newDate.year ||
+            _selectedDate.month != newDate.month;
+        break;
+      case DateFilterMode.year:
+        dateChanged = _selectedDate.year != newDate.year;
+        break;
+    }
+
+    if (!dateChanged) {
+      debugPrint(
+          'Analytics: Date unchanged for current filter mode, skipping refresh');
       return;
     }
 
@@ -268,18 +326,40 @@ class _AnalyticScreenState extends State<AnalyticScreen>
     final expensesViewModel =
         Provider.of<ExpensesViewModel>(context, listen: false);
 
-    debugPrint('Analytics: Setting filter for new date');
-    // Make sure we're setting the filter
-    expensesViewModel.setSelectedMonth(_selectedDate,
-        persist: true, screenKey: 'analytics');
+    debugPrint(
+        'Analytics: Setting filter for new date with mode: $_filterMode');
+    // Set filter based on mode
+    expensesViewModel.setFilterMode(_filterMode, _selectedDate,
+        screenKey: 'analytics');
 
     debugPrint('Analytics: Filter set, loading data...');
     // Load data with the new date filter
     _loadData();
   }
 
+  void _onFilterModeChanged(DateFilterMode newMode) {
+    if (_filterMode == newMode) return;
+
+    setState(() {
+      _filterMode = newMode;
+      _isDataLoaded = false; // Reset data loaded flag when filter mode changes
+    });
+
+    debugPrint('Analytics: Filter mode changed to: $newMode');
+
+    // Apply the new filter mode
+    final expensesViewModel =
+        Provider.of<ExpensesViewModel>(context, listen: false);
+
+    expensesViewModel.setFilterMode(_filterMode, _selectedDate,
+        screenKey: 'analytics');
+
+    // Reload data with new filter mode
+    _loadData();
+  }
+
   void _navigateToLogin() {
-    Navigator.pushReplacementNamed(context, Routes.login);
+    Navigator.pushReplacementNamed(context, Routes.home);
   }
 
   Widget _buildErrorWidget() {
@@ -364,28 +444,25 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                   child: CustomScrollView(
                     slivers: [
                       SliverPadding(
-                        padding: EdgeInsets.only(top: 16.h),
-                        sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
+                        padding:
+                            EdgeInsets.only(top: AppConstants.spacingLarge.h),
+                        sliver:
+                            const SliverToBoxAdapter(child: SizedBox.shrink()),
                       ),
 
                       SliverPadding(
-                        padding: EdgeInsets.symmetric(horizontal: 16.w),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: AppConstants.spacingLarge.w,
+                            vertical: AppConstants.spacingSmall.h),
                         sliver: SliverToBoxAdapter(
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: DatePickerButton(
-                                  date: _selectedDate,
-                                  themeColor:
-                                      Theme.of(context).colorScheme.primary,
-                                  prefix: 'Filter by',
-                                  onDateChanged: _onDateChanged,
-                                  showDaySelection: false,
-                                ),
-                              ),
-                              SizedBox(width: 12.w),
-                              AIPredictionCard(selectedDate: _selectedDate),
-                            ],
+                          child: DatePickerButton(
+                            date: _selectedDate,
+                            themeColor: Theme.of(context).colorScheme.primary,
+                            prefix: 'Filter by',
+                            onDateChanged: _onDateChanged,
+                            filterMode: _filterMode,
+                            onFilterModeChanged: _onFilterModeChanged,
+                            showFilterModeSelector: true,
                           ),
                         ),
                       ),
@@ -393,7 +470,8 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                       // Category Distribution Pie Chart
                       SliverPadding(
                         padding: EdgeInsets.symmetric(
-                            horizontal: 16.w, vertical: 16.h),
+                            horizontal: AppConstants.spacingLarge.w,
+                            vertical: AppConstants.spacingLarge.h),
                         sliver: SliverToBoxAdapter(
                           child: CategoryDistributionCard(
                             selectedDate: _selectedDate,
@@ -404,17 +482,20 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                       // Spending Trends Visualization
                       SliverPadding(
                         padding: EdgeInsets.symmetric(
-                            horizontal: 16.w, vertical: 8.h),
+                            horizontal: AppConstants.spacingLarge.w,
+                            vertical: AppConstants.spacingSmall.h),
                         sliver: SliverToBoxAdapter(
                           child: SpendingTrendsCard(
                             selectedDate: _selectedDate,
+                            filterMode: _filterMode,
                           ),
                         ),
                       ),
 
                       SliverPadding(
                         padding: EdgeInsets.only(bottom: 80.h),
-                        sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
+                        sliver:
+                            const SliverToBoxAdapter(child: SizedBox.shrink()),
                       ),
                     ],
                   ),

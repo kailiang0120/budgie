@@ -9,6 +9,7 @@ import '../../domain/usecase/budget/save_budget_usecase.dart';
 import '../../domain/usecase/budget/convert_budget_currency_usecase.dart';
 import '../../domain/usecase/budget/calculate_budget_remaining_usecase.dart';
 import '../../domain/usecase/budget/refresh_budget_usecase.dart';
+import '../../domain/usecase/budget/delete_budget_usecase.dart';
 
 class BudgetViewModel extends ChangeNotifier {
   final BudgetRepository _budgetRepository;
@@ -17,6 +18,7 @@ class BudgetViewModel extends ChangeNotifier {
   final ConvertBudgetCurrencyUseCase _convertBudgetCurrencyUseCase;
   final CalculateBudgetRemainingUseCase _calculateBudgetRemainingUseCase;
   final RefreshBudgetUseCase _refreshBudgetUseCase;
+  final DeleteBudgetUseCase _deleteBudgetUseCase;
 
   Budget? budget;
   bool isLoading = false;
@@ -29,12 +31,14 @@ class BudgetViewModel extends ChangeNotifier {
     required ConvertBudgetCurrencyUseCase convertBudgetCurrencyUseCase,
     required CalculateBudgetRemainingUseCase calculateBudgetRemainingUseCase,
     required RefreshBudgetUseCase refreshBudgetUseCase,
+    required DeleteBudgetUseCase deleteBudgetUseCase,
   })  : _budgetRepository = budgetRepository,
         _loadBudgetUseCase = loadBudgetUseCase,
         _saveBudgetUseCase = saveBudgetUseCase,
         _convertBudgetCurrencyUseCase = convertBudgetCurrencyUseCase,
         _calculateBudgetRemainingUseCase = calculateBudgetRemainingUseCase,
-        _refreshBudgetUseCase = refreshBudgetUseCase;
+        _refreshBudgetUseCase = refreshBudgetUseCase,
+        _deleteBudgetUseCase = deleteBudgetUseCase;
 
   /// Load budget for a specific month and check if currency conversion is needed
   Future<void> loadBudget(String monthId, {bool checkCurrency = false}) async {
@@ -58,10 +62,6 @@ class BudgetViewModel extends ChangeNotifier {
       final error = AppError.from(e, stackTrace);
       error.log();
       errorMessage = error.message;
-      // If authentication error, clear budget data
-      if (error is AuthError) {
-        budget = null;
-      }
       isLoading = false;
       notifyListeners();
     }
@@ -70,12 +70,32 @@ class BudgetViewModel extends ChangeNotifier {
   /// Force refresh the budget data
   Future<void> refreshBudget(String monthId) async {
     try {
-      debugPrint('🔄 BudgetViewModel: Manual budget refresh requested');
+      debugPrint(
+          '🔄 BudgetViewModel: Manual budget refresh requested for month: $monthId');
       isLoading = true;
       notifyListeners();
 
+      // First try to get the budget directly from repository to check if it exists
+      final existingBudget = await _budgetRepository.getBudget(monthId);
+      debugPrint(
+          '🔄 BudgetViewModel: Existing budget found: ${existingBudget != null}');
+      if (existingBudget != null) {
+        debugPrint(
+            '🔄 BudgetViewModel: Existing budget total: ${existingBudget.total}, currency: ${existingBudget.currency}');
+      }
+
+      // Now use the refresh use case to recalculate with expenses
       final refreshedBudget = await _refreshBudgetUseCase.execute(monthId);
+      debugPrint(
+          '🔄 BudgetViewModel: Refresh use case returned budget: ${refreshedBudget != null}');
+
+      if (refreshedBudget != null) {
+        debugPrint(
+            '🔄 BudgetViewModel: Refreshed budget total: ${refreshedBudget.total}, currency: ${refreshedBudget.currency}');
+      }
+
       budget = refreshedBudget;
+      debugPrint('🔄 BudgetViewModel: Budget after refresh: ${budget != null}');
     } catch (e) {
       debugPrint('🔄 BudgetViewModel: Error refreshing budget: $e');
       errorMessage = 'Failed to refresh budget: ${e.toString()}';
@@ -87,33 +107,55 @@ class BudgetViewModel extends ChangeNotifier {
 
   /// Handle currency changes from settings
   Future<void> onCurrencyChanged(String newCurrency) async {
-    // Check if we already have a budget to convert
-    if (budget == null) {
-      debugPrint('🔄 No budget to convert, skipping onCurrencyChanged');
-      return; // No budget to convert
-    }
-
-    // Check if the currency is already the same
-    if (budget!.currency == newCurrency) {
-      debugPrint(
-          '🔄 Budget currency already matches new currency: $newCurrency');
-      return; // Already in the right currency
-    }
-
     try {
+      debugPrint(
+          '💱 BudgetViewModel: Currency change requested to: $newCurrency');
+
       isLoading = true;
+      errorMessage = null;
       notifyListeners();
 
       // Get current month ID for saving
       final now = DateTime.now();
       final monthId = '${now.year}-${now.month.toString().padLeft(2, '0')}';
 
+      // Load the current budget first
+      final currentBudget = await _loadBudgetUseCase.execute(monthId);
+
+      if (currentBudget == null) {
+        debugPrint('💱 BudgetViewModel: No budget found for month: $monthId');
+        return;
+      }
+
+      // Check if conversion is needed
+      if (currentBudget.currency == newCurrency) {
+        debugPrint(
+            '💱 BudgetViewModel: Budget already in target currency: $newCurrency');
+        budget = currentBudget;
+        return;
+      }
+
+      debugPrint(
+          '💱 BudgetViewModel: Converting budget from ${currentBudget.currency} to $newCurrency');
+
+      // Perform currency conversion
       final convertedBudget =
           await _convertBudgetCurrencyUseCase.execute(monthId, newCurrency);
-      budget = convertedBudget;
+
+      if (convertedBudget != null) {
+        budget = convertedBudget;
+        debugPrint(
+            '💱 BudgetViewModel: Currency conversion completed successfully');
+      } else {
+        debugPrint(
+            '💱 BudgetViewModel: Currency conversion failed, keeping original budget');
+        budget = currentBudget;
+        errorMessage = 'Failed to convert budget currency';
+      }
     } catch (e) {
-      debugPrint('❌ Error handling currency change: $e');
-      errorMessage = 'Failed to update budget with new currency';
+      debugPrint('💱 BudgetViewModel: Error handling currency change: $e');
+      errorMessage =
+          'Failed to update budget with new currency: ${e.toString()}';
     } finally {
       isLoading = false;
       notifyListeners();
@@ -122,16 +164,25 @@ class BudgetViewModel extends ChangeNotifier {
 
   Future<void> saveBudgetWithMonthId(String monthId, Budget newBudget) async {
     try {
+      debugPrint('💾 BudgetViewModel: Saving budget for month: $monthId');
+      debugPrint(
+          '💾 BudgetViewModel: Budget total: ${newBudget.total}, left: ${newBudget.left}, currency: ${newBudget.currency}');
+
       errorMessage = null;
       isLoading = true;
       notifyListeners();
 
       await _saveBudgetUseCase.execute(monthId, newBudget);
+
+      // Explicitly set the budget property to ensure UI updates
       budget = newBudget;
+
+      debugPrint('💾 BudgetViewModel: Budget saved successfully');
     } catch (e, stackTrace) {
       final error = AppError.from(e, stackTrace);
       error.log();
       errorMessage = error.message;
+      debugPrint('💾 BudgetViewModel: Error saving budget: ${error.message}');
     } finally {
       isLoading = false;
       notifyListeners();
@@ -163,18 +214,9 @@ class BudgetViewModel extends ChangeNotifier {
       isLoading = true;
       notifyListeners();
 
-      // Use the calculate budget remaining use case
       final updatedBudget =
           await _calculateBudgetRemainingUseCase.execute(budget!, expenses);
-
-      // Update budget data in memory
       budget = updatedBudget;
-
-      // Save the updated budget to Firebase/local storage
-      final targetMonthId = monthId ?? _getCurrentMonthId();
-      await _saveBudgetUseCase.execute(targetMonthId, updatedBudget);
-
-      debugPrint('💾 Budget recalculated and saved for month: $targetMonthId');
     } catch (e, stackTrace) {
       final error = AppError.from(e, stackTrace);
       error.log();
@@ -185,15 +227,68 @@ class BudgetViewModel extends ChangeNotifier {
     }
   }
 
-  /// Get current month ID
+  /// Create a new budget with just the total amount and currency
+  Future<void> createBudget(
+      String monthId, double totalAmount, String currency) async {
+    try {
+      errorMessage = null;
+      isLoading = true;
+      notifyListeners();
+
+      // Create a simple budget with just the total amount
+      final newBudget = Budget(
+        total: totalAmount,
+        left: totalAmount,
+        categories: {}, // No predefined categories
+        saving: 0,
+        currency: currency,
+      );
+
+      // Save the budget
+      await _saveBudgetUseCase.execute(monthId, newBudget);
+      budget = newBudget;
+    } catch (e, stackTrace) {
+      final error = AppError.from(e, stackTrace);
+      error.log();
+      errorMessage = error.message;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Delete budget for a specific month
+  Future<void> deleteBudget(String monthId) async {
+    try {
+      debugPrint('🗑️ BudgetViewModel: Deleting budget for month: $monthId');
+
+      isLoading = true;
+      errorMessage = null;
+      notifyListeners();
+
+      // Delete the budget using the use case
+      await _deleteBudgetUseCase.execute(monthId);
+
+      // Clear the current budget if it's the one that was deleted
+      if (budget != null && monthId == _getCurrentMonthId()) {
+        budget = null;
+      }
+
+      debugPrint('🗑️ BudgetViewModel: Budget deleted successfully');
+    } catch (e, stackTrace) {
+      final error = AppError.from(e, stackTrace);
+      debugPrint(
+          '🗑️ BudgetViewModel: Error deleting budget: ${error.message}');
+      errorMessage = 'Failed to delete budget: ${error.message}';
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Helper method to get the current month ID
   String _getCurrentMonthId() {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}';
-  }
-
-  @override
-  void dispose() {
-    _saveBudgetUseCase.dispose();
-    super.dispose();
   }
 }

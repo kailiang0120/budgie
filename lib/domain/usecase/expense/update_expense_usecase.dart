@@ -1,30 +1,42 @@
-import '../../entities/expense.dart';
-import '../../repositories/expenses_repository.dart';
+import 'package:budgie/domain/entities/expense.dart';
+import 'package:budgie/domain/repositories/expenses_repository.dart';
+import 'package:flutter/foundation.dart';
+
 import '../budget/refresh_budget_usecase.dart';
 import '../../../data/infrastructure/errors/app_error.dart';
+import '../../../data/infrastructure/network/connectivity_service.dart';
+import '../../../data/infrastructure/services/settings_service.dart';
 
 /// Use case for updating an existing expense
 class UpdateExpenseUseCase {
   final ExpensesRepository _expensesRepository;
   final RefreshBudgetUseCase _refreshBudgetUseCase;
+  final ConnectivityService _connectivityService;
+  final SettingsService _settingsService;
 
   UpdateExpenseUseCase({
     required ExpensesRepository expensesRepository,
     required RefreshBudgetUseCase refreshBudgetUseCase,
+    required ConnectivityService connectivityService,
+    required SettingsService settingsService,
   })  : _expensesRepository = expensesRepository,
-        _refreshBudgetUseCase = refreshBudgetUseCase;
+        _refreshBudgetUseCase = refreshBudgetUseCase,
+        _connectivityService = connectivityService,
+        _settingsService = settingsService;
 
   /// Execute the update expense use case
   Future<void> execute(Expense expense) async {
     try {
-      // Update expense in local database
+      debugPrint('Updating expense: ${expense.id}');
+
+      // Update expense in repository
       await _expensesRepository.updateExpense(expense);
 
       // Update budget after expense change
       await _updateBudgetAfterExpenseChange(expense);
     } catch (e, stackTrace) {
       final appError = AppError.from(e, stackTrace);
-      appError.log();
+      debugPrint('Error updating expense: ${appError.message}');
       rethrow;
     }
   }
@@ -32,19 +44,16 @@ class UpdateExpenseUseCase {
   /// Update budget after expense change
   Future<void> _updateBudgetAfterExpenseChange(Expense expense) async {
     try {
-      // Get the month ID for this expense
-      final monthId = _getMonthIdFromDate(expense.date);
+      // Get the month from the expense date
+      final expenseDate = expense.date;
+      final monthId =
+          '${expenseDate.year}-${expenseDate.month.toString().padLeft(2, '0')}';
 
-      // Use the refresh budget use case to update the budget
+      // Refresh budget for the month
       await _refreshBudgetUseCase.execute(monthId);
-    } catch (e, stackTrace) {
-      final error = AppError.from(e, stackTrace);
-      error.log();
+    } catch (e) {
+      debugPrint('Error updating budget after expense change: $e');
+      // Don't rethrow - this is a secondary operation
     }
-  }
-
-  /// Get month ID from date
-  String _getMonthIdFromDate(DateTime date) {
-    return '${date.year}-${date.month.toString().padLeft(2, '0')}';
   }
 }

@@ -112,7 +112,7 @@ class CustomTextField extends StatefulWidget {
     this.isMultiline = false,
     this.maxLines,
     this.minLines,
-    this.borderRadius = 15.0,
+    this.borderRadius = 12.0,
     this.enabled = true,
     this.autofocus = false,
     this.textInputAction,
@@ -142,7 +142,7 @@ class CustomTextField extends StatefulWidget {
     bool allowDecimal = true,
     bool allowZero = false,
     int? maxLength,
-    double borderRadius = 15.0,
+    double? borderRadius,
     bool enabled = true,
   }) {
     return CustomTextField(
@@ -184,7 +184,7 @@ class CustomTextField extends StatefulWidget {
         if (!allowDecimal) FilteringTextInputFormatter.digitsOnly,
       ],
       isRequired: isRequired,
-      borderRadius: borderRadius,
+      borderRadius: borderRadius ?? AppConstants.borderRadiusMedium,
       enabled: enabled,
     );
   }
@@ -288,6 +288,10 @@ class _CustomTextFieldState extends State<CustomTextField> {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final effectiveMaxLines =
+        widget.isMultiline ? (widget.maxLines ?? 5) : (widget.maxLines ?? 1);
+    final effectiveMinLines =
+        widget.isMultiline ? (widget.minLines ?? 3) : (widget.minLines ?? 1);
 
     return TextFormField(
       controller: widget.controller,
@@ -300,7 +304,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
         errorText: widget.errorText,
         prefixText: widget.prefixText,
         prefixIcon: widget.prefixIcon != null
-            ? Icon(widget.prefixIcon, size: 20.sp)
+            ? Icon(widget.prefixIcon, size: AppConstants.iconSizeMedium.sp)
             : null,
         suffixText: widget.suffixText,
         suffixIcon: _buildSuffixIcon(),
@@ -359,17 +363,15 @@ class _CustomTextFieldState extends State<CustomTextField> {
           fontSize: 14.sp,
         ),
         contentPadding: EdgeInsets.symmetric(
-          horizontal: 16.w,
-          vertical: 16.h,
+          horizontal: AppConstants.spacingLarge.w,
+          vertical: AppConstants.spacingMedium.h,
         ),
       ),
       keyboardType:
           widget.isMultiline ? TextInputType.multiline : widget.keyboardType,
       obscureText: widget.isPassword ? _obscureText : false,
-      maxLines: widget.isPassword
-          ? 1
-          : (widget.isMultiline ? widget.maxLines ?? 5 : widget.maxLines ?? 1),
-      minLines: widget.isMultiline ? widget.minLines ?? 3 : null,
+      maxLines: effectiveMaxLines,
+      minLines: effectiveMinLines,
       inputFormatters: widget.inputFormatters,
       onChanged: widget.onChanged,
       validator: widget.validator ??
@@ -380,7 +382,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
               : null),
       style: TextStyle(
         fontFamily: AppTheme.fontFamily,
-        fontSize: 16.sp,
+        fontSize: AppConstants.textSizeMedium.sp,
         color: widget.enabled
             ? Theme.of(context).textTheme.bodyMedium?.color
             : (isDarkMode ? Colors.grey[500] : Colors.grey[400]),

@@ -3,6 +3,8 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../domain/entities/budget.dart';
 import '../utils/category_manager.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/app_constants.dart';
+import '../utils/app_theme.dart';
 
 class BudgetCard extends StatelessWidget {
   final Budget? budget;
@@ -13,18 +15,20 @@ class BudgetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const themeColor = Color(0xFFF57C00);
+    final themeColor = AppTheme.primaryColor;
 
     return GestureDetector(
       onTap: onTap,
       child: Card(
-        elevation: 4,
-        shadowColor: Colors.black.withAlpha((255 * 0.1).toInt()),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+        elevation: AppConstants.elevationLarge,
+        shadowColor:
+            Colors.black.withAlpha((255 * AppConstants.opacityOverlay).toInt()),
+        shape: RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.circular(AppConstants.borderRadiusLarge.r)),
         child: Container(
           width: double.infinity,
-          padding: EdgeInsets.all(24.w),
+          padding: AppConstants.containerPaddingLarge,
           child: budget == null
               ? _buildEmptyBudget(context, themeColor)
               : _buildBudgetContent(context, themeColor),
@@ -35,27 +39,28 @@ class BudgetCard extends StatelessWidget {
 
   Widget _buildEmptyBudget(BuildContext context, Color themeColor) {
     return Container(
-      padding: EdgeInsets.symmetric(vertical: 24.h),
+      padding: EdgeInsets.symmetric(vertical: AppConstants.spacingXXLarge.h),
       child: Column(
         children: [
           Icon(
             Icons.account_balance_wallet_outlined,
             size: 48.sp,
-            color: themeColor.withAlpha((255 * 0.5).toInt()),
+            color: themeColor
+                .withAlpha((255 * AppConstants.opacityMedium).toInt()),
           ),
-          SizedBox(height: 16.h),
+          SizedBox(height: AppConstants.spacingLarge.h),
           Text(
             'Set Budget',
             style: TextStyle(
-              fontSize: 20.sp,
+              fontSize: AppConstants.textSizeXXLarge.sp,
               color: Colors.grey,
             ),
           ),
-          SizedBox(height: 8.h),
+          SizedBox(height: AppConstants.spacingSmall.h),
           Text(
             'Tap here to set your monthly budget',
             style: TextStyle(
-              fontSize: 14.sp,
+              fontSize: AppConstants.textSizeMedium.sp,
               color: Colors.grey[500],
             ),
           ),
@@ -85,33 +90,35 @@ class BudgetCard extends StatelessWidget {
         Row(
           children: [
             Container(
-              padding: EdgeInsets.all(10.w),
+              padding: AppConstants.containerPaddingSmall,
               decoration: BoxDecoration(
-                color: themeColor.withAlpha((255 * 0.1).toInt()),
-                borderRadius: BorderRadius.circular(12.r),
+                color: themeColor
+                    .withAlpha((255 * AppConstants.opacityOverlay).toInt()),
+                borderRadius:
+                    BorderRadius.circular(AppConstants.borderRadiusMedium.r),
               ),
               child: Icon(
                 Icons.account_balance_wallet,
-                size: 28.sp,
+                size: AppConstants.iconSizeXLarge.sp,
                 color: themeColor,
               ),
             ),
-            SizedBox(width: 16.w),
+            SizedBox(width: AppConstants.spacingLarge.w),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Total Budget',
+                  AppConstants.budgetCardTitle,
                   style: TextStyle(
-                    fontSize: 14.sp,
+                    fontSize: AppConstants.textSizeMedium.sp,
                     color: Colors.grey,
                   ),
                 ),
-                SizedBox(height: 4.h),
+                SizedBox(height: AppConstants.spacingXSmall.h),
                 Text(
                   '$currencySymbol${budget!.total.toStringAsFixed(0)}',
                   style: TextStyle(
-                    fontSize: 20.sp,
+                    fontSize: AppConstants.textSizeXXLarge.sp,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -119,32 +126,36 @@ class BudgetCard extends StatelessWidget {
             ),
           ],
         ),
-        SizedBox(height: 24.h),
+        SizedBox(height: AppConstants.spacingXXLarge.h),
         Text(
           'Amount left for this month',
           style: TextStyle(
-            fontSize: 14.sp,
+            fontSize: AppConstants.textSizeMedium.sp,
             color: Colors.grey,
           ),
         ),
-        SizedBox(height: 8.h),
+        SizedBox(height: AppConstants.spacingSmall.h),
         Row(
           children: [
             Expanded(
               child: Text(
                 '$currencySymbol${remaining.toStringAsFixed(2)}',
                 style: TextStyle(
-                  fontSize: 28.sp,
+                  fontSize: AppConstants.textSizeGiant.sp,
                   fontWeight: FontWeight.w600,
                   color: statusColor,
                 ),
               ),
             ),
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 6.h),
+              padding: EdgeInsets.symmetric(
+                  horizontal: AppConstants.spacingSmall.w,
+                  vertical: AppConstants.spacingXSmall.h),
               decoration: BoxDecoration(
-                color: statusColor.withAlpha((255 * 0.1).toInt()),
-                borderRadius: BorderRadius.circular(12.r),
+                color: statusColor
+                    .withAlpha((255 * AppConstants.opacityOverlay).toInt()),
+                borderRadius:
+                    BorderRadius.circular(AppConstants.borderRadiusMedium.r),
               ),
               child: Text(
                 isNegative
@@ -153,7 +164,7 @@ class BudgetCard extends StatelessWidget {
                         ? 'Low Budget'
                         : 'Budget Healthy',
                 style: TextStyle(
-                  fontSize: 12.sp,
+                  fontSize: AppConstants.textSizeSmall.sp,
                   fontWeight: FontWeight.bold,
                   color: statusColor,
                 ),
@@ -161,9 +172,9 @@ class BudgetCard extends StatelessWidget {
             ),
           ],
         ),
-        SizedBox(height: 16.h),
+        SizedBox(height: AppConstants.spacingLarge.h),
         ClipRRect(
-          borderRadius: BorderRadius.circular(8.r),
+          borderRadius: BorderRadius.circular(AppConstants.borderRadiusSmall.r),
           child: LinearProgressIndicator(
             value: percentage.clamp(0, 1).toDouble(),
             minHeight: 8.h,
@@ -171,14 +182,14 @@ class BudgetCard extends StatelessWidget {
             valueColor: AlwaysStoppedAnimation<Color>(statusColor),
           ),
         ),
-        SizedBox(height: 8.h),
+        SizedBox(height: AppConstants.spacingSmall.h),
         if (!isNegative)
           Align(
             alignment: Alignment.centerRight,
             child: Text(
               'Used ${((1 - percentage) * 100).toStringAsFixed(1)}%',
               style: TextStyle(
-                fontSize: 12.sp,
+                fontSize: AppConstants.textSizeSmall.sp,
                 color: Colors.grey[600],
               ),
             ),
@@ -186,17 +197,17 @@ class BudgetCard extends StatelessWidget {
 
         // 添加类别预算详情
         if (budget!.categories.isNotEmpty) ...[
-          SizedBox(height: 24.h),
+          SizedBox(height: AppConstants.spacingXXLarge.h),
           const Divider(),
-          SizedBox(height: 16.h),
+          SizedBox(height: AppConstants.spacingLarge.h),
           Text(
             'Categories',
             style: TextStyle(
-              fontSize: 16.sp,
+              fontSize: AppConstants.textSizeLarge.sp,
               fontWeight: FontWeight.w600,
             ),
           ),
-          SizedBox(height: 16.h),
+          SizedBox(height: AppConstants.spacingLarge.h),
           _buildCategoryList(),
         ],
       ],
@@ -243,22 +254,24 @@ class BudgetCard extends StatelessWidget {
                 : Colors.green.shade700;
 
         return Container(
-          margin: EdgeInsets.only(bottom: 12.h),
+          margin: EdgeInsets.only(bottom: AppConstants.spacingMedium.h),
           child: Row(
             children: [
               Container(
-                padding: EdgeInsets.all(8.w),
+                padding: EdgeInsets.all(AppConstants.spacingSmall.w),
                 decoration: BoxDecoration(
-                  color: categoryColor.withAlpha((255 * 0.1).toInt()),
-                  borderRadius: BorderRadius.circular(10.r),
+                  color: categoryColor
+                      .withAlpha((255 * AppConstants.opacityOverlay).toInt()),
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadiusSmall.r),
                 ),
                 child: Icon(
                   categoryIcon,
-                  size: 18.sp,
+                  size: AppConstants.iconSizeSmall.sp,
                   color: categoryColor,
                 ),
               ),
-              SizedBox(width: 12.w),
+              SizedBox(width: AppConstants.spacingMedium.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,21 +282,21 @@ class BudgetCard extends StatelessWidget {
                         Text(
                           categoryName,
                           style: TextStyle(
-                            fontSize: 14.sp,
+                            fontSize: AppConstants.textSizeMedium.sp,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                         Text(
                           '$currencySymbol${catBudget.left.toStringAsFixed(0)}',
                           style: TextStyle(
-                            fontSize: 14.sp,
+                            fontSize: AppConstants.textSizeMedium.sp,
                             fontWeight: FontWeight.w500,
                             color: statusColor,
                           ),
                         ),
                       ],
                     ),
-                    SizedBox(height: 6.h),
+                    SizedBox(height: AppConstants.spacingXSmall.h),
                     Stack(
                       children: [
                         Container(

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../data/infrastructure/services/currency_conversion_service.dart';
-import '../../data/infrastructure/services/offline_notification_service.dart';
 import '../../di/injection_container.dart' as di;
+import '../utils/app_constants.dart';
+import '../utils/app_theme.dart';
 
 /// Widget to display exchange rate status and allow manual refresh
 class ExchangeRateStatusWidget extends StatefulWidget {
@@ -49,16 +51,62 @@ class _ExchangeRateStatusWidgetState extends State<ExchangeRateStatusWidget> {
 
     try {
       final currencyService = di.sl<CurrencyConversionService>();
-      final success = await currencyService.refreshRates();
-
+      final success = await currencyService.refreshRates(
+        context: context,
+        onStatus: (message,
+            {isError = false, isLoading = false, isSuccess = false}) {
+          if (context.mounted && message.isNotEmpty) {
+            final color = isError
+                ? Colors.red
+                : isSuccess
+                    ? Colors.green
+                    : isLoading
+                        ? Colors.indigo
+                        : Colors.blue;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(message,
+                    style: TextStyle(
+                      fontFamily: AppTheme.fontFamily,
+                      fontSize: AppConstants.textSizeSmall.sp,
+                      color: Colors.white,
+                    )),
+                backgroundColor: color,
+                duration: Duration(seconds: isLoading ? 2 : 3),
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            );
+          }
+        },
+      );
       if (success) {
         await _checkStatus();
       }
     } catch (e) {
       debugPrint('Error refreshing rates: $e');
-      final notificationService = di.sl<OfflineNotificationService>();
-      notificationService
-          .showErrorNotification('Failed to refresh exchange rates');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh exchange rates',
+                style: TextStyle(
+                  fontFamily: AppTheme.fontFamily,
+                  fontSize: AppConstants.textSizeSmall.sp,
+                  color: Colors.white,
+                )),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -114,29 +162,35 @@ class _ExchangeRateStatusWidgetState extends State<ExchangeRateStatusWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppConstants.spacingMedium.w,
+        vertical: AppConstants.spacingSmall.h,
+      ),
       decoration: BoxDecoration(
-        color: _getStatusColor().withOpacity(0.1),
+        color: _getStatusColor()
+            .withAlpha((255 * AppConstants.opacityOverlay).toInt()),
         border: Border.all(
-          color: _getStatusColor().withOpacity(0.3),
+          color: _getStatusColor()
+              .withAlpha((255 * AppConstants.opacityLow).toInt()),
           width: 1,
         ),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppConstants.borderRadiusSmall.r),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             _getStatusIcon(),
-            size: 16,
+            size: AppConstants.iconSizeSmall.sp,
             color: _getStatusColor(),
           ),
-          const SizedBox(width: 6),
+          SizedBox(width: AppConstants.spacingXSmall.w),
           Flexible(
             child: Text(
               _getStatusText(),
               style: TextStyle(
-                fontSize: 12,
+                fontFamily: AppTheme.fontFamily,
+                fontSize: AppConstants.textSizeSmall.sp,
                 color: _getStatusColor(),
                 fontWeight: FontWeight.w500,
               ),
@@ -144,13 +198,13 @@ class _ExchangeRateStatusWidgetState extends State<ExchangeRateStatusWidget> {
             ),
           ),
           if (_isStale || _lastUpdateTime == null) ...[
-            const SizedBox(width: 8),
+            SizedBox(width: AppConstants.spacingSmall.w),
             GestureDetector(
               onTap: _isLoading ? null : _refreshRates,
               child: _isLoading
                   ? SizedBox(
-                      width: 14,
-                      height: 14,
+                      width: AppConstants.iconSizeSmall.w,
+                      height: AppConstants.iconSizeSmall.h,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
                         valueColor:
@@ -159,7 +213,7 @@ class _ExchangeRateStatusWidgetState extends State<ExchangeRateStatusWidget> {
                     )
                   : Icon(
                       Icons.refresh,
-                      size: 16,
+                      size: AppConstants.iconSizeSmall.sp,
                       color: _getStatusColor(),
                     ),
             ),
@@ -214,10 +268,62 @@ class _CompactExchangeRateStatusWidgetState
 
     try {
       final currencyService = di.sl<CurrencyConversionService>();
-      await currencyService.refreshRates();
-      await _checkStatus();
+      final success = await currencyService.refreshRates(
+        context: context,
+        onStatus: (message,
+            {isError = false, isLoading = false, isSuccess = false}) {
+          if (context.mounted && message.isNotEmpty) {
+            final color = isError
+                ? Colors.red
+                : isSuccess
+                    ? Colors.green
+                    : isLoading
+                        ? Colors.indigo
+                        : Colors.blue;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(message,
+                    style: TextStyle(
+                      fontFamily: AppTheme.fontFamily,
+                      fontSize: AppConstants.textSizeSmall.sp,
+                      color: Colors.white,
+                    )),
+                backgroundColor: color,
+                duration: Duration(seconds: isLoading ? 2 : 3),
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            );
+          }
+        },
+      );
+      if (success) {
+        await _checkStatus();
+      }
     } catch (e) {
       debugPrint('Error refreshing rates: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to refresh exchange rates',
+                style: TextStyle(
+                  fontFamily: AppTheme.fontFamily,
+                  fontSize: AppConstants.textSizeSmall.sp,
+                  color: Colors.white,
+                )),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -229,31 +335,28 @@ class _CompactExchangeRateStatusWidgetState
 
   @override
   Widget build(BuildContext context) {
-    if (!_isStale && !_isLoading) {
-      return const SizedBox.shrink();
-    }
-
     return GestureDetector(
       onTap: _isLoading ? null : _refreshRates,
       child: Container(
-        padding: const EdgeInsets.all(4),
+        padding: EdgeInsets.all(AppConstants.spacingXSmall.w),
         decoration: BoxDecoration(
-          color: Colors.orange.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(4),
+          color: _isStale ? Colors.orange : Colors.green,
+          shape: BoxShape.circle,
         ),
         child: _isLoading
-            ? const SizedBox(
-                width: 12,
-                height: 12,
+            ? SizedBox(
+                width: AppConstants.iconSizeSmall.w,
+                height: AppConstants.iconSizeSmall.h,
                 child: CircularProgressIndicator(
-                  strokeWidth: 1.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                      _isStale ? Colors.orange : Colors.green),
                 ),
               )
-            : const Icon(
-                Icons.refresh,
-                size: 12,
-                color: Colors.orange,
+            : Icon(
+                _isStale ? Icons.sync_problem : Icons.sync,
+                size: AppConstants.iconSizeSmall.sp,
+                color: _isStale ? Colors.orange : Colors.green,
               ),
       ),
     );

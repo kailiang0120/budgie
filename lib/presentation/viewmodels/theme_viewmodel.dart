@@ -14,9 +14,6 @@ class ThemeViewModel extends ChangeNotifier {
 
   ThemeViewModel({required SettingsService settingsService})
       : _settingsService = settingsService {
-    // Start with light theme as default to match SettingsService defaults
-    debugPrint('🎨 ThemeViewModel created with default light theme');
-
     // Initialize theme from settings service
     _currentTheme = _settingsService.theme;
     _isDarkMode = _currentTheme == 'dark';
@@ -28,8 +25,6 @@ class ThemeViewModel extends ChangeNotifier {
     _currentTheme = theme;
     _isDarkMode = theme == 'dark';
     notifyListeners();
-
-    debugPrint('🎨 Theme changed to: $theme');
 
     // Save theme setting to local settings service
     await _settingsService.updateTheme(theme);
@@ -44,17 +39,12 @@ class ThemeViewModel extends ChangeNotifier {
   // This is kept for API compatibility but now just refreshes from global settings
   Future<void> initializeForUser(String userId) async {
     try {
-      debugPrint('🎨 ThemeViewModel: Refreshing theme from settings service');
-
       // Get theme from SettingsService which manages device settings
       final userTheme = _settingsService.theme;
-      debugPrint('🎨 ThemeViewModel: Found theme: $userTheme');
 
       _currentTheme = userTheme;
       _isDarkMode = userTheme == 'dark';
       notifyListeners();
-
-      debugPrint('🎨 ThemeViewModel: Theme refresh completed');
     } catch (e) {
       debugPrint('🎨 ThemeViewModel: Error refreshing theme: $e');
       // Don't rethrow - just keep the default theme

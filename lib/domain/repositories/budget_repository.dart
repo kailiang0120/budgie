@@ -7,4 +7,7 @@ abstract class BudgetRepository {
 
   /// Sets the budget for a specific month
   Future<void> setBudget(String monthId, Budget budget);
+
+  /// Deletes the budget for a specific month
+  Future<void> deleteBudget(String monthId);
 }

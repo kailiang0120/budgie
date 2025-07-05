@@ -102,8 +102,11 @@ class PerformanceTracker {
     debugPrint(
         '🔧 Total service init time: ${report['totalServiceInitTime']}ms');
     debugPrint('📈 Services initialized: ${report['servicesInitialized']}');
-    debugPrint(
-        '⚡ Average service time: ${(report['averageServiceTime'] as double).toStringAsFixed(1)}ms');
+    final avgTime = report['averageServiceTime'];
+    if (avgTime != null && avgTime > 0) {
+      debugPrint(
+          '⚡ Average service time: ${avgTime.toDouble().toStringAsFixed(1)}ms');
+    }
 
     debugPrint('\n🐌 Slowest services:');
     for (final service in report['slowestServices'] as List) {

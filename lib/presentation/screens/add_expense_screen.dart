@@ -6,6 +6,7 @@ import '../../domain/entities/expense.dart';
 import '../../domain/entities/recurring_expense.dart';
 import '../../data/infrastructure/services/settings_service.dart';
 import '../../data/infrastructure/services/data_collection_service.dart';
+import '../../data/infrastructure/services/notification_service.dart';
 import '../../presentation/viewmodels/expenses_viewmodel.dart';
 import '../../presentation/widgets/recurring_expense_config.dart';
 import '../../di/injection_container.dart' as di;
@@ -20,7 +21,9 @@ import '../widgets/submit_button.dart';
 import '../../data/infrastructure/errors/app_error.dart';
 
 class AddExpenseScreen extends StatefulWidget {
-  const AddExpenseScreen({Key? key}) : super(key: key);
+  final Map<String, dynamic>? prefilledData;
+
+  const AddExpenseScreen({Key? key, this.prefilledData}) : super(key: key);
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -52,6 +55,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
   // Get services
   final _settingsService = di.sl<SettingsService>();
+  final _notificationService = di.sl<NotificationService>();
+
+  // Store detection ID for cleanup if this expense comes from notification
+  String? _detectionId;
 
   // Payment method mapping
   final Map<String, PaymentMethod> _paymentMethodMap = {
@@ -67,6 +74,120 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     super.initState();
     // Initialize currency from settings service
     _currency = ValueNotifier<String>(_settingsService.currency);
+
+    // Handle prefilled data from expense extraction
+    if (widget.prefilledData != null) {
+      _preloadDataFromExtraction();
+    }
+  }
+
+  void _preloadDataFromExtraction() {
+    final data = widget.prefilledData!;
+
+    debugPrint('📱 AddExpenseScreen: Processing extracted data: $data');
+
+    // Set amount if available
+    if (data['amount'] != null) {
+      final amount = data['amount'];
+      if (amount is double) {
+        _amountController.text = amount.toStringAsFixed(2);
+      } else if (amount is String) {
+        final cleanAmount = amount.replaceAll(RegExp(r'[^\d.]'), '');
+        final parsedAmount = double.tryParse(cleanAmount);
+        if (parsedAmount != null) {
+          _amountController.text = parsedAmount.toStringAsFixed(2);
+        } else {
+          _amountController.text = amount;
+        }
+      }
+    }
+
+    // Set merchant name as remark (primary change as per user requirement)
+    if (data['merchantName'] != null &&
+        data['merchantName'].toString().trim().isNotEmpty) {
+      _remarkController.text = data['merchantName'].toString();
+    } else if (data['merchant'] != null &&
+        data['merchant'].toString().trim().isNotEmpty) {
+      _remarkController.text = data['merchant'].toString();
+    }
+
+    // Set currency (default to MYR if not extracted or not supported)
+    if (data['currency'] != null) {
+      final extractedCurrency = data['currency'].toString().toUpperCase();
+      // Only use extracted currency if it's supported
+      if (['MYR', 'USD', 'EUR', 'SGD', 'THB', 'IDR']
+          .contains(extractedCurrency)) {
+        _currency.value = extractedCurrency;
+      } else {
+        _currency.value = 'MYR'; // Default to MYR for unsupported currencies
+      }
+    } else {
+      _currency.value = 'MYR'; // Default to MYR if no currency detected
+    }
+
+    // Set payment method if extracted
+    if (data['paymentMethod'] != null ||
+        (data['metadata'] != null &&
+            data['metadata']['paymentMethod'] != null)) {
+      final extractedPaymentMethod =
+          data['paymentMethod'] ?? data['metadata']['paymentMethod'];
+      final normalizedPaymentMethod =
+          _normalizePaymentMethod(extractedPaymentMethod.toString());
+      if (normalizedPaymentMethod != null &&
+          _paymentMethodMap.containsKey(normalizedPaymentMethod)) {
+        _selectedPaymentMethod.value = normalizedPaymentMethod;
+      }
+    }
+
+    // Set date/time if available
+    if (data['datetime'] != null) {
+      try {
+        DateTime parsedDate;
+        if (data['datetime'] is DateTime) {
+          parsedDate = data['datetime'];
+        } else {
+          parsedDate = DateTime.parse(data['datetime'].toString());
+        }
+        _selectedDateTime.value = parsedDate;
+      } catch (e) {
+        // Keep current time if parsing fails
+        debugPrint('Failed to parse extracted datetime: $e');
+      }
+    }
+
+    // Set detection ID if available
+    if (data['detectionId'] != null) {
+      _detectionId = data['detectionId'].toString();
+    }
+
+    debugPrint(
+        '📱 AddExpenseScreen: Preloaded data - Amount: ${_amountController.text}, Merchant: ${_remarkController.text}, Currency: ${_currency.value}, Payment Method: ${_selectedPaymentMethod.value}');
+  }
+
+  /// Normalize extracted payment method to match app's payment method options
+  String? _normalizePaymentMethod(String paymentMethod) {
+    final method = paymentMethod.toLowerCase().trim();
+
+    // Map common variations to app's payment methods
+    if (method.contains('card') ||
+        method.contains('credit') ||
+        method.contains('debit')) {
+      return 'Card';
+    } else if (method.contains('cash') || method.contains('banknote')) {
+      return 'Cash';
+    } else if (method.contains('wallet') ||
+        method.contains('grab') ||
+        method.contains('touch') ||
+        method.contains('pay') ||
+        method.contains('digital')) {
+      return 'E-Wallet';
+    } else if (method.contains('transfer') ||
+        method.contains('bank') ||
+        method.contains('online')) {
+      return 'Bank Transfer';
+    }
+
+    return null; // Return null if no match found, will use default
   }
 
   @override
@@ -190,6 +311,13 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           Navigator.of(context)
               .pop(true); // Return true to indicate successful addition
         }
+
+        // Cleanup after successful expense addition
+        if (_detectionId != null) {
+          _notificationService.cleanupAfterExpenseAdded(_detectionId!);
+          debugPrint(
+              '📱 Notification cleanup completed for detection ID: $_detectionId');
+        }
       } catch (e, stackTrace) {
         final error = AppError.from(e, stackTrace);
         error.log();
@@ -247,7 +375,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
+            padding: EdgeInsets.symmetric(
+                horizontal: AppConstants.spacingLarge.w,
+                vertical: AppConstants.spacingXXLarge.h),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -264,13 +394,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     },
                   ),
                 ),
-                SizedBox(height: 24.h),
+                SizedBox(height: AppConstants.spacingXXLarge.h),
 
                 Row(
                   children: [
                     Container(
                       width: 100.w,
-                      margin: EdgeInsets.only(right: 8.w),
+                      margin:
+                          EdgeInsets.only(right: AppConstants.spacingSmall.w),
                       child: ValueListenableBuilder<String>(
                         valueListenable: _currency,
                         builder: (context, currency, _) {
@@ -305,7 +436,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     ),
                   ],
                 ),
-                SizedBox(height: 16.h),
+                SizedBox(height: AppConstants.spacingLarge.h),
 
                 CustomTextField(
                   controller: _remarkController,
@@ -313,7 +444,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                   isRequired: true,
                   prefixIcon: Icons.note,
                 ),
-                SizedBox(height: 16.h),
+                SizedBox(height: AppConstants.spacingLarge.h),
 
                 ValueListenableBuilder<DateTime>(
                   valueListenable: _selectedDateTime,
@@ -330,7 +461,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     );
                   },
                 ),
-                SizedBox(height: 16.h),
+                SizedBox(height: AppConstants.spacingLarge.h),
 
                 ValueListenableBuilder<String>(
                   valueListenable: _selectedPaymentMethod,
@@ -349,7 +480,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     );
                   },
                 ),
-                SizedBox(height: 16.h),
+                SizedBox(height: AppConstants.spacingLarge.h),
 
                 // Recurring expense toggle and configuration
                 ValueListenableBuilder<bool>(
@@ -361,14 +492,14 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           title: Text(
                             'Recurring Expense',
                             style: TextStyle(
-                              fontSize: 16.sp,
+                              fontSize: AppConstants.textSizeLarge.sp,
                               fontWeight: FontWeight.w500,
                             ),
                           ),
                           subtitle: Text(
                             'Set up automatic recurring payments',
                             style: TextStyle(
-                              fontSize: 11.sp,
+                              fontSize: AppConstants.textSizeSmall.sp,
                               fontWeight: FontWeight.w300,
                             ),
                           ),
@@ -378,7 +509,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                           },
                         ),
                         if (isRecurring) ...[
-                          SizedBox(height: 16.h),
+                          SizedBox(height: AppConstants.spacingLarge.h),
                           RecurringExpenseConfig(
                             initialFrequency: _recurringFrequency.value,
                             initialDayOfMonth: _recurringDayOfMonth.value,
@@ -402,7 +533,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                     );
                   },
                 ),
-                SizedBox(height: 24.h),
+                SizedBox(height: AppConstants.spacingXXLarge.h),
 
                 // Submit button
                 SubmitButton(

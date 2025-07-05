@@ -5,8 +5,7 @@ import '../../repositories/budget_repository.dart';
 import '../../repositories/expenses_repository.dart';
 import '../../services/budget_calculation_service.dart';
 import '../../../data/infrastructure/errors/app_error.dart';
-import '../../../data/infrastructure/network/connectivity_service.dart';
-import '../../../data/infrastructure/services/sync_service.dart';
+import '../../../data/infrastructure/services/settings_service.dart';
 import 'load_budget_usecase.dart';
 
 /// Use case for refreshing budget data and recalculating budget amounts
@@ -14,22 +13,19 @@ class RefreshBudgetUseCase {
   final BudgetRepository _budgetRepository;
   final ExpensesRepository _expensesRepository;
   final BudgetCalculationService _budgetCalculationService;
-  final ConnectivityService _connectivityService;
-  final SyncService _syncService;
+  final SettingsService _settingsService;
   final LoadBudgetUseCase _loadBudgetUseCase;
 
   RefreshBudgetUseCase({
     required BudgetRepository budgetRepository,
     required ExpensesRepository expensesRepository,
     required BudgetCalculationService budgetCalculationService,
-    required ConnectivityService connectivityService,
-    required SyncService syncService,
+    required SettingsService settingsService,
     required LoadBudgetUseCase loadBudgetUseCase,
   })  : _budgetRepository = budgetRepository,
         _expensesRepository = expensesRepository,
         _budgetCalculationService = budgetCalculationService,
-        _connectivityService = connectivityService,
-        _syncService = syncService,
+        _settingsService = settingsService,
         _loadBudgetUseCase = loadBudgetUseCase;
 
   /// Execute the refresh budget use case
@@ -38,16 +34,8 @@ class RefreshBudgetUseCase {
       debugPrint(
           '🔄 RefreshBudgetUseCase: Refreshing budget for month $monthId');
 
-      // 1. First, recalculate budget based on local data
+      // Recalculate budget based on local data
       final updatedBudget = await _recalculateBudget(monthId);
-
-      // 2. After local recalculation, trigger sync if online
-      final isConnected = await _connectivityService.isConnected;
-      if (isConnected) {
-        // Use microtask to avoid blocking UI
-        Future.microtask(
-            () => _syncService.syncData(fullSync: false, skipBudgets: false));
-      }
 
       return updatedBudget;
     } catch (e, stackTrace) {

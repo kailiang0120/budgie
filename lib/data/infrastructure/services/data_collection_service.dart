@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../domain/entities/category.dart' as app_category;
 import 'settings_service.dart';
+import '../../models/expense_detection_models.dart';
 
 /// Unified service for collecting user data for analytics and model improvement
 /// Combines functionality for both anonymized research data and analytics
@@ -16,6 +17,7 @@ class DataCollectionService {
   // Collection names
   static const String _analyticsCollection = 'expense_analytics';
   static const String _modelTrainingCollection = 'model_training_data';
+  static const String _extractionRecordsCollection = 'extraction_records';
 
   // Data structure version for future compatibility
   static const int _dataVersion = 1;
@@ -121,7 +123,108 @@ class DataCollectionService {
     }
   }
 
-  /// Record prediction feedback for model improvement
+  /// Record API extraction result and user interaction for model improvement
+  /// This records both the original API response and the final user-confirmed data
+  Future<String?> recordApiExtraction({
+    required NotificationApiRequest originalRequest,
+    required NotificationApiResponse apiResponse,
+    String extractionMethod = 'api',
+  }) async {
+    if (!_settingsService.improveAccuracy) {
+      debugPrint('📊 DataCollectionService: Data collection disabled by user');
+      return null;
+    }
+
+    try {
+      debugPrint('📊 DataCollectionService: Recording API extraction');
+
+      final recordId = _generateRecordId();
+      final record = ExtractedExpenseRecord(
+        id: recordId,
+        originalRequest: originalRequest,
+        apiResponse: apiResponse,
+        extractionTimestamp: DateTime.now(),
+        extractionMethod: extractionMethod,
+      );
+
+      // Store anonymized extraction record for model training (no login required)
+      final extractionData = {
+        'dataVersion': _dataVersion,
+        'dataType': 'api_extraction',
+        'timestamp': FieldValue.serverTimestamp(),
+        'createdAt': FieldValue.serverTimestamp(),
+        'recordId': recordId,
+        'anonymizedSession': _generateAnonymizedSessionId(),
+        'extraction_record': record.toJson(),
+        'consent': _getConsentMetadata(),
+        'indexing': _getIndexingMetadata(),
+      };
+
+      await _firestore
+          .collection(_extractionRecordsCollection)
+          .add(extractionData);
+
+      debugPrint(
+          '✅ DataCollectionService: API extraction recorded with ID: $recordId');
+      return recordId;
+    } catch (e) {
+      debugPrint(
+          '❌ DataCollectionService: Failed to record API extraction: $e');
+      return null;
+    }
+  }
+
+  /// Record user feedback on extracted expense data
+  /// This updates the existing extraction record with user interaction data
+  Future<void> recordUserFeedback({
+    required String recordId,
+    required bool userAccepted,
+    double? userCorrectedAmount,
+    String? userCorrectedCurrency,
+    String? userSelectedCategory,
+    String? userSelectedPaymentMethod,
+    String? userRemark,
+  }) async {
+    if (!_settingsService.improveAccuracy) return;
+
+    try {
+      debugPrint(
+          '📊 DataCollectionService: Recording user feedback for $recordId');
+
+      final feedbackData = {
+        'user_feedback': {
+          'user_accepted': userAccepted,
+          'user_corrected_amount': userCorrectedAmount,
+          'user_corrected_currency': userCorrectedCurrency,
+          'user_selected_category': userSelectedCategory,
+          'user_selected_payment_method': userSelectedPaymentMethod,
+          'user_remark': userRemark,
+          'user_interaction_timestamp': FieldValue.serverTimestamp(),
+        },
+        'updated_at': FieldValue.serverTimestamp(),
+      };
+
+      // Update the existing extraction record
+      final querySnapshot = await _firestore
+          .collection(_extractionRecordsCollection)
+          .where('recordId', isEqualTo: recordId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        await querySnapshot.docs.first.reference.update(feedbackData);
+        debugPrint(
+            '✅ DataCollectionService: User feedback recorded successfully');
+      } else {
+        debugPrint(
+            '⚠️ DataCollectionService: No extraction record found with ID: $recordId');
+      }
+    } catch (e) {
+      debugPrint('❌ DataCollectionService: Failed to record user feedback: $e');
+    }
+  }
+
+  /// Record prediction feedback for model improvement (legacy method)
   Future<void> recordPredictionFeedback({
     required String predictionType,
     required Map<String, dynamic> originalPrediction,
@@ -305,6 +408,21 @@ class DataCollectionService {
   String _generateAnonymizedUserId(String userId) {
     final hash = userId.hashCode.abs().toString();
     return 'user_$hash';
+  }
+
+  /// Generate unique record ID for extraction records
+  String _generateRecordId() {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final random = timestamp.hashCode.abs();
+    return 'extract_${timestamp}_$random';
+  }
+
+  /// Generate anonymized session ID for data collection without authentication
+  String _generateAnonymizedSessionId() {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final deviceHash =
+        'device'.hashCode.abs(); // Could be enhanced with device-specific data
+    return 'session_${deviceHash}_$timestamp';
   }
 
   /// Sanitize text to remove sensitive information

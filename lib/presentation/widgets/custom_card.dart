@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
 
 class CustomCard extends StatelessWidget {
   final Widget child;
@@ -41,16 +42,16 @@ class CustomCard extends StatelessWidget {
   }) : super(key: key);
 
   // Default responsive padding and margin
-  EdgeInsetsGeometry get _defaultPadding => EdgeInsets.all(16.w);
-  EdgeInsetsGeometry get _defaultMargin => EdgeInsets.only(bottom: 16.h);
+  EdgeInsetsGeometry get _defaultPadding => AppConstants.containerPaddingLarge;
+  EdgeInsetsGeometry get _defaultMargin => AppConstants.cardMarginStandard;
 
   @override
   Widget build(BuildContext context) {
     final effectiveColor = color ?? Theme.of(context).cardColor;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final shadowColor = isDarkMode
-        ? Colors.black.withAlpha((255 * 0.3).toInt())
-        : Colors.black.withAlpha((255 * 0.1).toInt());
+        ? Colors.black.withAlpha((255 * AppConstants.opacityLow).toInt())
+        : Colors.black.withAlpha((255 * AppConstants.opacityOverlay).toInt());
 
     final card = Container(
       width: width?.w,
@@ -103,8 +104,8 @@ class CustomCard extends StatelessWidget {
     IconData? icon,
     Color? iconColor,
     Color? color,
-    double elevation = 2.0,
-    double borderRadius = 15.0,
+    double? elevation,
+    double? borderRadius,
     EdgeInsetsGeometry? padding,
     EdgeInsetsGeometry? margin,
     Border? border,
@@ -116,8 +117,8 @@ class CustomCard extends StatelessWidget {
     return CustomCard(
       key: key,
       color: color,
-      elevation: elevation,
-      borderRadius: borderRadius,
+      elevation: elevation ?? AppConstants.elevationStandard,
+      borderRadius: borderRadius ?? AppConstants.borderRadiusLarge,
       padding: padding,
       margin: margin,
       border: border,
@@ -139,22 +140,22 @@ class CustomCard extends StatelessWidget {
                   Icon(
                     icon,
                     color: iconColor ?? AppTheme.primaryColor,
-                    size: 20.sp,
+                    size: AppConstants.iconSizeMedium.sp,
                   ),
-                  SizedBox(width: 8.w),
+                  SizedBox(width: AppConstants.spacingSmall.w),
                 ],
                 Text(
                   title,
                   style: TextStyle(
                     fontFamily: AppTheme.fontFamily,
-                    fontSize: 18.sp,
+                    fontSize: AppConstants.textSizeXLarge.sp,
                     fontWeight: FontWeight.w500,
                     color: titleColor,
                   ),
                 ),
               ],
             ),
-            SizedBox(height: 16.h),
+            SizedBox(height: AppConstants.spacingLarge.h),
             child,
           ],
         );
@@ -170,8 +171,8 @@ class CustomCard extends StatelessWidget {
     required VoidCallback onActionPressed,
     IconData? actionIcon,
     Color? color,
-    double elevation = 2.0,
-    double borderRadius = 15.0,
+    double? elevation,
+    double? borderRadius,
     EdgeInsetsGeometry? padding,
     EdgeInsetsGeometry? margin,
     Border? border,
@@ -183,8 +184,8 @@ class CustomCard extends StatelessWidget {
     return CustomCard(
       key: key,
       color: color,
-      elevation: elevation,
-      borderRadius: borderRadius,
+      elevation: elevation ?? AppConstants.elevationStandard,
+      borderRadius: borderRadius ?? AppConstants.borderRadiusLarge,
       padding: padding,
       margin: margin,
       border: border,
@@ -196,14 +197,14 @@ class CustomCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           child,
-          SizedBox(height: 16.h),
+          SizedBox(height: AppConstants.spacingLarge.h),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton.icon(
               onPressed: onActionPressed,
               icon: Icon(
                 actionIcon ?? Icons.arrow_forward,
-                size: 18.sp,
+                size: AppConstants.iconSizeSmall.sp,
               ),
               label: Text(actionText),
               style: TextButton.styleFrom(

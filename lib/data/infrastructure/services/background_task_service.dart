@@ -3,10 +3,12 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import '../../../di/injection_container.dart' as di;
-import 'package:firebase_auth/firebase_auth.dart';
 import 'settings_service.dart';
+import 'sync_service.dart';
+import '../../../domain/services/budget_reallocation_service.dart';
 
 const autoReallocationTask = 'autoReallocationTask';
+const dataSyncTask = 'dataSyncTask';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -17,18 +19,18 @@ void callbackDispatcher() {
       await di.init();
 
       final settingsService = di.sl<SettingsService>();
-      final currentUser = FirebaseAuth.instance.currentUser;
 
-      if (currentUser != null) {
-        await settingsService.initializeForUser(currentUser.uid);
-        // Check if auto budget reallocation is enabled
-        if (!settingsService.automaticRebalanceSuggestions) {
-          debugPrint(
-              'Background task skipped: User has disabled automatic budget reallocation.');
-          return Future.value(true);
-        }
-      } else {
-        debugPrint('Background task skipped: No user is logged in.');
+      // For auto budget task
+      if (task == autoReallocationTask && !settingsService.autoBudget) {
+        debugPrint(
+            'Background task skipped: User has disabled automatic budget features.');
+        return Future.value(true);
+      }
+
+      // For data sync task
+      if (task == dataSyncTask && !settingsService.syncEnabled) {
+        debugPrint(
+            'Background sync task skipped: User has disabled sync feature.');
         return Future.value(true);
       }
 
@@ -36,9 +38,27 @@ void callbackDispatcher() {
 
       switch (task) {
         case autoReallocationTask:
-          // Placeholder for future implementation
-          debugPrint(
-              'Auto budget reallocation functionality will be implemented in the future.');
+          // Execute auto budget reallocation
+          try {
+            final reallocationService = di.sl<BudgetReallocationService>();
+            final now = DateTime.now();
+            final monthId =
+                '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+            debugPrint(
+                '🔄 Background: Starting auto budget reallocation for $monthId');
+            await reallocationService.reallocateBudget(monthId);
+            debugPrint(
+                '✅ Background: Auto budget reallocation completed successfully');
+          } catch (e) {
+            debugPrint('❌ Background: Auto budget reallocation failed: $e');
+          }
+          break;
+        case dataSyncTask:
+          // Execute data sync
+          final syncService = di.sl<SyncService>();
+          await syncService.syncData(fullSync: true);
+          debugPrint('Background data sync completed.');
           break;
       }
       return Future.value(true);
@@ -72,5 +92,32 @@ class BackgroundTaskService {
   Future<void> cancelAutoReallocationTask() async {
     await Workmanager().cancelByUniqueName('1');
     debugPrint('Auto budget reallocation task canceled.');
+  }
+
+  Future<void> scheduleDataSyncTask() async {
+    await Workmanager().registerPeriodicTask(
+      '2',
+      dataSyncTask,
+      frequency: const Duration(hours: 6), // Sync every 6 hours
+      constraints: Constraints(
+        networkType: NetworkType.connected,
+      ),
+      existingWorkPolicy: ExistingWorkPolicy.replace,
+    );
+    debugPrint('Data sync task scheduled.');
+  }
+
+  Future<void> cancelDataSyncTask() async {
+    await Workmanager().cancelByUniqueName('2');
+    debugPrint('Data sync task canceled.');
+  }
+
+  // Update sync task based on settings
+  Future<void> updateSyncTask(bool enabled) async {
+    if (enabled) {
+      await scheduleDataSyncTask();
+    } else {
+      await cancelDataSyncTask();
+    }
   }
 }

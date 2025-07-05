@@ -159,7 +159,7 @@ class NavigationHelper {
 
   /// Navigate to profile with scale transition
   static Future<void> navigateToProfile(BuildContext context) async {
-    await navigateWithScale(context, Routes.profile);
+    await navigateWithScale(context, Routes.goals);
   }
 
   /// Navigate to analytics with fade transition

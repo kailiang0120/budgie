@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
 
 class CustomDropdownField<T> extends StatelessWidget {
   final T value;
@@ -42,7 +43,9 @@ class CustomDropdownField<T> extends StatelessWidget {
       value: value,
       decoration: InputDecoration(
         labelText: isRequired ? '$labelText *' : labelText,
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 20.sp) : null,
+        prefixIcon: prefixIcon != null
+            ? Icon(prefixIcon, size: AppConstants.iconSizeMedium.sp)
+            : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(borderRadius.r),
         ),
@@ -50,11 +53,12 @@ class CustomDropdownField<T> extends StatelessWidget {
         fillColor: Theme.of(context).cardColor,
         labelStyle: TextStyle(
           color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
-          fontSize: 14.sp,
+          fontSize: AppConstants.textSizeMedium.sp,
+          fontFamily: AppTheme.fontFamily,
         ),
         contentPadding: EdgeInsets.symmetric(
-          horizontal: 16.w,
-          vertical: 16.h,
+          horizontal: AppConstants.spacingLarge.w,
+          vertical: AppConstants.spacingMedium.h,
         ),
       ),
       items: items.map((T item) {
@@ -64,7 +68,7 @@ class CustomDropdownField<T> extends StatelessWidget {
             itemLabelBuilder(item),
             style: TextStyle(
               fontFamily: AppTheme.fontFamily,
-              fontSize: 16.sp,
+              fontSize: AppConstants.textSizeMedium.sp,
               color: Theme.of(context).textTheme.bodyMedium?.color,
             ),
           ),
@@ -74,14 +78,16 @@ class CustomDropdownField<T> extends StatelessWidget {
       validator: validator,
       style: TextStyle(
         fontFamily: AppTheme.fontFamily,
-        fontSize: 16.sp,
+        fontSize: AppConstants.textSizeMedium.sp,
         color: Theme.of(context).textTheme.bodyMedium?.color,
       ),
       icon: Icon(
         Icons.arrow_drop_down,
-        size: 24.sp,
+        size: AppConstants.iconSizeLarge.sp,
         color: isDarkMode ? Colors.grey[300] : Colors.grey[700],
       ),
+      dropdownColor: Theme.of(context).cardColor,
+      borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium.r),
     );
   }
 }

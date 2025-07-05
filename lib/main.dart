@@ -1,21 +1,21 @@
+import 'package:budgie/presentation/screens/goals_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
 import 'package:flutter_background/flutter_background.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'dart:async';
 
 import 'data/infrastructure/config/firebase_options.dart';
 import 'core/constants/routes.dart';
 import 'core/router/app_router.dart';
-import 'domain/repositories/auth_repository.dart';
 import 'data/infrastructure/services/settings_service.dart';
 import 'data/infrastructure/services/sync_service.dart';
 import 'domain/usecase/expense/process_recurring_expenses_usecase.dart';
 import 'presentation/viewmodels/expenses_viewmodel.dart';
-import 'presentation/viewmodels/auth_viewmodel.dart';
 import 'presentation/viewmodels/budget_viewmodel.dart';
 import 'presentation/viewmodels/theme_viewmodel.dart';
 import 'presentation/utils/app_theme.dart';
@@ -24,377 +24,231 @@ import 'di/performance_tracker.dart';
 import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/analytic_screen.dart';
 import 'presentation/screens/setting_screen.dart';
-import 'presentation/screens/profile_screen.dart';
+
 import 'presentation/widgets/animated_float_button.dart';
 import 'data/infrastructure/services/background_task_service.dart';
-import 'data/infrastructure/services/offline_notification_service.dart';
+import 'data/infrastructure/services/notification_service.dart';
 
+// Global keys for app-wide access
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+/// Main entry point for the Budgie app
 Future<void> main() async {
-  // Ensure we can call async code before runApp()
+  // Initialize Flutter binding
   WidgetsFlutterBinding.ensureInitialized();
 
   // Start performance tracking
   PerformanceTracker.startAppTracking();
 
   try {
-    // Stage 1: Critical initialization (blocking) - only what's absolutely necessary
-    await PerformanceTracker.benchmark(
-        'Critical Path', _initializeCriticalPath);
+    // Initialize core services (blocking)
+    await _initializeCoreServices();
 
-    // Stage 2: Start the app with minimal providers
-    runApp(const BudgieAppBootstrap());
+    // Launch the app
+    runApp(const BudgieApp());
 
-    // Stage 3: Initialize background services (non-blocking)
-    _initializeBackgroundServices();
+    // Initialize remaining services (non-blocking)
+    _initializeRemainingServices();
 
-    // Stage 4: Initialize optional services (non-blocking, delayed)
-    _initializeOptionalServices();
-
-    // Print performance report after 5 seconds
+    // Print performance report after app is fully loaded
     Future.delayed(const Duration(seconds: 5), () {
       PerformanceTracker.printPerformanceReport();
     });
   } catch (e, stackTrace) {
-    debugPrint('Error during app initialization: $e');
+    debugPrint('❌ App initialization failed: $e');
     debugPrint(stackTrace.toString());
-    // Show error UI
-    runApp(_buildErrorApp(e));
+
+    // Run app with error state - let existing splash screen handle this
+    runApp(const BudgieApp());
   }
 }
 
-/// Stage 1: Initialize only critical services needed for app startup
-Future<void> _initializeCriticalPath() async {
-  final stopwatch = Stopwatch()..start();
-  debugPrint('🚀 Stage 1: Critical path initialization...');
+/// Initialize core services required before UI rendering
+Future<void> _initializeCoreServices() async {
+  debugPrint('🚀 Initializing core services...');
 
-  try {
-    // Initialize Firebase with proper error handling
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-    debugPrint('✅ Firebase initialized (${stopwatch.elapsedMilliseconds}ms)');
+  // Initialize Firebase with proper error handling
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  debugPrint('✅ Firebase initialized');
 
-    // Check Firebase Auth status
-    final auth = FirebaseAuth.instance;
-    final currentUser = auth.currentUser;
-    debugPrint(
-        '👤 Current Firebase user: ${currentUser?.uid ?? 'Not signed in'}');
-
-    // Set up persistence for Auth
-    try {
-      await auth.setPersistence(Persistence.LOCAL);
-      debugPrint('✅ Firebase Auth persistence set');
-    } catch (e) {
-      debugPrint('⚠️ Failed to set persistence: $e');
-    }
-
-    // Initialize dependency injection - Critical and Essential services only
-    await di.init();
-    debugPrint(
-        '✅ Critical services initialized (${stopwatch.elapsedMilliseconds}ms)');
-  } catch (e) {
-    debugPrint('❌ Critical path initialization failed: $e');
-    rethrow;
-  }
+  // Initialize dependency injection - Critical and Essential services only
+  await di.init();
+  debugPrint('✅ Core services initialized');
 }
 
-/// Stage 3: Initialize background services after app is running
-void _initializeBackgroundServices() {
+/// Initialize remaining services after UI is rendered
+void _initializeRemainingServices() {
+  // Schedule service initialization with appropriate delays
+
+  // Stage 1: Essential background services (500ms delay)
   Future.delayed(const Duration(milliseconds: 500), () async {
-    final stopwatch = Stopwatch()..start();
-    debugPrint('🔄 Stage 3: Background services initialization...');
+    debugPrint('🔄 Initializing essential services...');
 
     try {
-      final auth = FirebaseAuth.instance;
-      final currentUser = auth.currentUser;
-
-      // Initialize background services in parallel where possible
+      // Initialize services in parallel where possible
       await Future.wait([
         _initializeSyncService(),
-        _initializeUserSpecificServices(currentUser),
+        _initializeNotificationServices(),
         di.sl<BackgroundTaskService>().initialize(),
-        // _initializeNotificationServices(), // This is now handled on-demand by NotificationPermissionService
       ]);
 
-      debugPrint(
-          '✅ Background services initialized (${stopwatch.elapsedMilliseconds}ms)');
+      debugPrint('✅ Essential services initialized');
     } catch (e) {
-      debugPrint('⚠️ Background services initialization error: $e');
-      // Don't crash the app for background service failures
+      debugPrint('⚠️ Essential services initialization error: $e');
     }
   });
-}
 
-/// Stage 4: Initialize optional services with additional delay
-void _initializeOptionalServices() {
+  // Stage 2: Optional services (2s delay)
   Future.delayed(const Duration(seconds: 2), () async {
-    final stopwatch = Stopwatch()..start();
-    debugPrint('🎯 Stage 4: Optional services initialization...');
+    debugPrint('🎯 Initializing optional services...');
 
     try {
-      // Initialize optional services
-      await di.initializeOptionalServices();
-
       // Start recurring expense service
       _startRecurringExpenseService();
 
-      // Initialize background service permissions (optional)
-      _initializeBackgroundServicePermissions();
+      // Initialize background service permissions if needed
+      if (Platform.isAndroid) {
+        _initializeBackgroundServicePermissions();
+      }
 
-      debugPrint(
-          '✅ Optional services initialized (${stopwatch.elapsedMilliseconds}ms)');
+      debugPrint('✅ Optional services initialized');
     } catch (e) {
       debugPrint('⚠️ Optional services initialization error: $e');
-      // Non-critical, don't affect app functionality
     }
   });
+
+  // Stage 3: Check welcome screen status (3s delay)
+  Future.delayed(const Duration(seconds: 3), () async {
+    _checkWelcomeStatus();
+  });
+}
+
+/// Initialize notification-related services
+Future<void> _initializeNotificationServices() async {
+  try {
+    // Initialize notification services if permissions are granted
+    final notificationService = di.sl<NotificationService>();
+    await notificationService.initialize();
+    debugPrint('✅ Main: NotificationService initialized successfully');
+  } catch (e) {
+    debugPrint('❌ Main: Failed to initialize notification services: $e');
+  }
 }
 
 /// Initialize sync service
 Future<void> _initializeSyncService() async {
   try {
     final syncService = di.sl<SyncService>();
-    await syncService.initialize(startPeriodicSync: true);
-    debugPrint('✅ SyncService initialized with automatic periodic sync');
-
-    // Perform initial sync after initialization
-    Future.delayed(const Duration(seconds: 3), () {
-      if (FirebaseAuth.instance.currentUser != null) {
-        syncService.forceFullSync();
-      }
-    });
-  } catch (e) {
-    debugPrint('⚠️ SyncService initialization failed: $e');
-  }
-}
-
-/// Initialize user-specific services if user is logged in
-Future<void> _initializeUserSpecificServices(User? currentUser) async {
-  if (currentUser == null) return;
-
-  try {
-    debugPrint('👤 User logged in, initializing user-specific services...');
-
-    // Initialize SettingsService for the current user (only loads currency from Firebase)
     final settingsService = di.sl<SettingsService>();
-    await settingsService.initializeForUser(currentUser.uid);
-    debugPrint('✅ SettingsService initialized for user');
+
+    // Initialize sync service
+    await syncService.initialize(startPeriodicSync: false);
+    debugPrint('✅ SyncService initialized');
+
+    // Enable periodic sync if enabled in settings
+    if (settingsService.syncEnabled) {
+      syncService.initialize(startPeriodicSync: true);
+      debugPrint('✅ SyncService periodic sync enabled');
+
+      // Schedule background sync task
+      final backgroundTaskService = di.sl<BackgroundTaskService>();
+      await backgroundTaskService.updateSyncTask(true);
+
+      // Perform initial sync with a delay
+      Future.delayed(const Duration(seconds: 3), () {
+        syncService.forceFullSync();
+        debugPrint('🔄 Initial sync started');
+      });
+    }
   } catch (e) {
-    debugPrint('⚠️ User-specific services initialization failed: $e');
+    debugPrint('⚠️ Sync service initialization error: $e');
   }
 }
 
-/// Start recurring expense processing
+/// Start recurring expense processing service
 void _startRecurringExpenseService() {
   try {
-    // Create a timer to process recurring expenses periodically
-    Timer.periodic(const Duration(hours: 1), (timer) {
-      try {
-        di.sl<ProcessRecurringExpensesUseCase>().execute();
-      } catch (e) {
-        debugPrint('⚠️ Recurring expense processing failed: $e');
-      }
+    // Process recurring expenses periodically
+    Timer.periodic(const Duration(hours: 1), (_) {
+      di.sl<ProcessRecurringExpensesUseCase>().execute();
     });
 
-    // Also process immediately when app starts (with delay)
+    // Also process immediately after startup (with delay)
     Future.delayed(const Duration(seconds: 10), () {
-      try {
-        di.sl<ProcessRecurringExpensesUseCase>().execute();
-      } catch (e) {
-        debugPrint('⚠️ Initial recurring expense processing failed: $e');
-      }
+      di.sl<ProcessRecurringExpensesUseCase>().execute();
+      debugPrint('✅ Initial recurring expense processing completed');
     });
 
-    debugPrint('✅ RecurringExpenseService started');
+    debugPrint('✅ Recurring expense service started');
   } catch (e) {
-    debugPrint('⚠️ RecurringExpenseService start failed: $e');
+    debugPrint('⚠️ Recurring expense service error: $e');
   }
 }
 
-/// Initialize background service permissions (optional, non-blocking)
+/// Initialize background service permissions (Android only)
 void _initializeBackgroundServicePermissions() {
-  // Only initialize if Android and we haven't asked for permissions yet
-  if (!Platform.isAndroid) return;
-
-  Future.delayed(const Duration(seconds: 5), () async {
+  Future.delayed(const Duration(seconds: 3), () async {
     try {
-      // Check if we already have permissions to avoid showing dialog repeatedly
       final hasPermissions = await FlutterBackground.hasPermissions;
 
       if (hasPermissions) {
-        // We have permissions, initialize silently
+        // Initialize silently if we already have permissions
         await _setupFlutterBackground();
       } else {
-        // We don't have permissions - initialize in background after app is fully loaded
-        // This prevents the permission dialog from blocking app startup
+        // Delay permission request to avoid disrupting startup
         Future.delayed(const Duration(seconds: 10), () async {
-          try {
-            await _setupFlutterBackground();
-          } catch (e) {
-            debugPrint('⚠️ Background service setup failed (non-critical): $e');
-          }
+          await _setupFlutterBackground();
         });
       }
     } catch (e) {
-      debugPrint('⚠️ Background service check failed (non-critical): $e');
+      debugPrint('⚠️ Background service permissions error: $e');
     }
   });
 }
 
-/// Setup Flutter Background with proper configuration
+/// Configure and initialize Flutter Background service
 Future<void> _setupFlutterBackground() async {
   try {
     const androidConfig = FlutterBackgroundAndroidConfig(
       notificationTitle: 'Budgie',
       notificationText: 'Tracking expenses in background',
       notificationImportance: AndroidNotificationImportance.normal,
-      notificationIcon: AndroidResource(
-        name: 'ic_launcher',
-        defType: 'mipmap',
-      ),
+      notificationIcon: AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
     );
 
     final initialized =
         await FlutterBackground.initialize(androidConfig: androidConfig);
+    debugPrint(initialized
+        ? '✅ Background service initialized'
+        : '⚠️ Background service initialization failed');
+  } catch (e) {
+    debugPrint('⚠️ Background service setup error: $e');
+  }
+}
 
-    if (initialized) {
-      debugPrint('✅ Flutter background service initialized');
+/// Check welcome screen status and handle accordingly
+Future<void> _checkWelcomeStatus() async {
+  try {
+    debugPrint('🔑 Checking welcome screen status...');
+
+    final prefs = await SharedPreferences.getInstance();
+    final welcomeCompleted = prefs.getBool('welcome_completed') ?? false;
+
+    // If welcome screen was completed, user has already handled permissions
+    // If not completed, welcome screen will handle permissions on last page
+    if (welcomeCompleted) {
+      debugPrint('✅ Welcome completed - permissions already handled');
     } else {
-      debugPrint(
-          '⚠️ Flutter background service not initialized (permissions may be needed)');
+      debugPrint('📱 Welcome screen will handle permissions on last page');
     }
   } catch (e) {
-    debugPrint('⚠️ Flutter background setup error: $e');
+    debugPrint('⚠️ Welcome status check error: $e');
   }
 }
 
-/// Build error UI when initialization fails
-Widget _buildErrorApp(dynamic error) {
-  return MaterialApp(
-    home: Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 48.0),
-              const SizedBox(height: 16.0),
-              const Text(
-                'Initialization Error',
-                style: TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8.0),
-              Text(
-                'Failed to initialize app: $error',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16.0),
-              ),
-              const SizedBox(height: 24.0),
-              ElevatedButton(
-                onPressed: () => main(),
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-/// Bootstrap app widget that shows while background services initialize
-class BudgieAppBootstrap extends StatefulWidget {
-  const BudgieAppBootstrap({Key? key}) : super(key: key);
-
-  @override
-  State<BudgieAppBootstrap> createState() => _BudgieAppBootstrapState();
-}
-
-class _BudgieAppBootstrapState extends State<BudgieAppBootstrap> {
-  bool _providersReady = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkProvidersReady();
-  }
-
-  void _checkProvidersReady() {
-    // Check if critical ViewModels are available
-    Future.delayed(const Duration(milliseconds: 100), () {
-      try {
-        // Test if critical services are ready
-        di.sl<ThemeViewModel>();
-        di.sl<AuthRepository>();
-
-        debugPrint('✅ Critical providers ready');
-        if (mounted) {
-          setState(() {
-            _providersReady = true;
-          });
-        }
-      } catch (e) {
-        debugPrint('⚠️ Providers not ready yet, retrying...');
-        // Retry after a short delay
-        Future.delayed(const Duration(milliseconds: 200), _checkProvidersReady);
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_providersReady) {
-      return MaterialApp(
-        home: Scaffold(
-          backgroundColor: Colors.white,
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(
-                  'assets/icons/budgie_icon.png',
-                  width: 80,
-                  height: 80,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Icon(
-                      Icons.account_balance_wallet,
-                      size: 80,
-                      color: Colors.blue,
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Budgie',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const CircularProgressIndicator(),
-                const SizedBox(height: 16),
-                const Text(
-                  'Initializing...',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return const BudgieApp();
-  }
-}
-
-/// Main app widget with providers
+/// Main app widget with providers and UI configuration
 class BudgieApp extends StatefulWidget {
   const BudgieApp({Key? key}) : super(key: key);
 
@@ -402,18 +256,11 @@ class BudgieApp extends StatefulWidget {
   State<BudgieApp> createState() => _BudgieAppState();
 }
 
-// Global scaffold messenger key for offline notifications
-final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
-    GlobalKey<ScaffoldMessengerState>();
-
 class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-
-    // Set up the scaffold messenger key for offline notifications
-    OfflineNotificationService.setScaffoldMessengerKey(scaffoldMessengerKey);
   }
 
   @override
@@ -425,83 +272,98 @@ class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // App is resumed from background, check for sync
-      try {
-        if (di.sl.isRegistered<SyncService>()) {
-          final syncService = di.sl<SyncService>();
-          final auth = FirebaseAuth.instance;
-          if (auth.currentUser != null) {
-            // App is resumed and user is logged in, trigger sync
-            debugPrint('📱 App resumed - checking for pending syncs');
-            Future.delayed(const Duration(seconds: 1), () {
-              syncService.syncData(fullSync: false);
-            });
-          }
-        }
-      } catch (e) {
-        debugPrint('⚠️ Resume sync failed: $e');
-      }
+      // App is resumed from background, trigger sync
+      _handleAppResume();
     } else if (state == AppLifecycleState.detached) {
       // App is being killed, clean up resources
-      try {
-        if (di.sl.isRegistered<SyncService>()) {
-          di.sl<SyncService>().dispose();
-          debugPrint('🧹 App detached: disposed SyncService');
-        }
-      } catch (e) {
-        debugPrint('⚠️ Cleanup failed: $e');
+      _handleAppDetached();
+    }
+  }
+
+  /// Handle app resume lifecycle event
+  void _handleAppResume() {
+    try {
+      if (di.sl.isRegistered<SyncService>()) {
+        final syncService = di.sl<SyncService>();
+        debugPrint('📱 App resumed - checking for pending syncs');
+        Future.delayed(const Duration(seconds: 1), () {
+          syncService.syncData(fullSync: false);
+        });
       }
+    } catch (e) {
+      debugPrint('⚠️ Resume sync failed: $e');
+    }
+  }
+
+  /// Handle app detached lifecycle event
+  void _handleAppDetached() {
+    try {
+      if (di.sl.isRegistered<SyncService>()) {
+        di.sl<SyncService>().dispose();
+        debugPrint('🧹 App detached: disposed SyncService');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Cleanup failed: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => di.sl<ThemeViewModel>()),
-        ChangeNotifierProvider(create: (_) => di.sl<AuthViewModel>()),
-        ChangeNotifierProvider(create: (_) => di.sl<ExpensesViewModel>()),
-        ChangeNotifierProvider(create: (_) => di.sl<BudgetViewModel>()),
-      ],
+      providers: _buildProviders(),
       child: ScreenUtilInit(
         designSize: const Size(430, 952),
         minTextAdapt: true,
         splitScreenMode: true,
-        builder: (context, child) {
-          return Consumer<ThemeViewModel>(
-            builder: (context, themeViewModel, child) {
-              // Use responsive themes that adapt to screen size
-              // Now that ScreenUtil is initialized, we can safely use responsive values
-              final responsiveTheme = themeViewModel.isDarkMode
-                  ? AppTheme.getDarkTheme(context)
-                  : AppTheme.getLightTheme(context);
-
-              return MaterialApp(
-                title: 'Budgie',
-                theme: responsiveTheme,
-                debugShowCheckedModeBanner: false,
-                scaffoldMessengerKey: scaffoldMessengerKey,
-                navigatorKey: navigatorKey,
-                navigatorObservers: [fabRouteObserver],
-                routes: {
-                  Routes.home: (context) => MultiProvider(
-                        providers: [
-                          ChangeNotifierProvider(
-                              create: (_) => di.sl<SettingsService>()),
-                        ],
-                        child: const HomeScreen(),
-                      ),
-                  Routes.analytic: (context) => const AnalyticScreen(),
-                  Routes.settings: (context) => const SettingScreen(),
-                  Routes.profile: (context) => const ProfileScreen(),
-                },
-                onGenerateRoute: AppRouter.generateRoute,
-                initialRoute: Routes.splash,
-              );
-            },
-          );
-        },
+        builder: (context, _) => _buildMaterialApp(context),
       ),
     );
+  }
+
+  /// Build the list of providers
+  List<SingleChildWidget> _buildProviders() {
+    return [
+      ChangeNotifierProvider(create: (_) => di.sl<ThemeViewModel>()),
+      ChangeNotifierProvider(create: (_) => di.sl<ExpensesViewModel>()),
+      ChangeNotifierProvider(create: (_) => di.sl<BudgetViewModel>()),
+    ];
+  }
+
+  /// Build the MaterialApp
+  Widget _buildMaterialApp(BuildContext context) {
+    return Consumer<ThemeViewModel>(
+      builder: (context, themeViewModel, _) {
+        final responsiveTheme = themeViewModel.isDarkMode
+            ? AppTheme.getDarkTheme(context)
+            : AppTheme.getLightTheme(context);
+
+        return MaterialApp(
+          title: 'Budgie',
+          theme: responsiveTheme,
+          debugShowCheckedModeBanner: false,
+          scaffoldMessengerKey: scaffoldMessengerKey,
+          navigatorKey: navigatorKey,
+          navigatorObservers: [fabRouteObserver],
+          routes: _buildAppRoutes(),
+          onGenerateRoute: AppRouter.generateRoute,
+          initialRoute: Routes.splash,
+        );
+      },
+    );
+  }
+
+  /// Build app routes
+  Map<String, WidgetBuilder> _buildAppRoutes() {
+    return {
+      Routes.home: (context) => MultiProvider(
+            providers: [
+              ChangeNotifierProvider(create: (_) => di.sl<SettingsService>()),
+            ],
+            child: const HomeScreen(),
+          ),
+      Routes.analytic: (context) => const AnalyticScreen(),
+      Routes.settings: (context) => const SettingScreen(),
+      Routes.goals: (context) => const GoalsScreen(),
+    };
   }
 }

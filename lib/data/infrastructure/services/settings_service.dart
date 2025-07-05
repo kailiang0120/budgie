@@ -1,38 +1,55 @@
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'permission_handler_service.dart';
+
+/// Service responsible for managing all app settings and preferences
+/// Acts as the single source of truth for user settings
 class SettingsService extends ChangeNotifier {
   static SettingsService? _instance;
 
-  // Default values in constructor - all set to false by default
-  String _currency = 'MYR';
+  // Keys for shared preferences
+  final String _themeKey = 'app_theme';
+  final String _allowNotificationKey = 'allow_notification';
+  final String _autoBudgetKey = 'auto_budget';
+  final String _improveAccuracyKey = 'improve_accuracy';
+  final String _syncEnabledKey = 'sync_enabled';
+  final String _currencyKey = 'user_currency';
+  final String _locationEnabledKey = 'location_enabled';
+  final String _cameraEnabledKey = 'camera_enabled';
+  final String _storageEnabledKey = 'storage_enabled';
+  final String _biometricEnabledKey = 'biometric_enabled';
+
+  // Settings values
   String _theme = 'light';
   bool _allowNotification = false;
   bool _autoBudget = false;
   bool _improveAccuracy = false;
-  bool _automaticRebalanceSuggestions = false;
+  bool _syncEnabled = false;
+  String _currency = 'MYR';
+  bool _locationEnabled = false;
+  bool _cameraEnabled = false;
+  bool _storageEnabled = false;
+  bool _biometricEnabled = false;
 
-  // Keys for shared preferences
-  static const String _themeKey = 'app_theme';
-  static const String _allowNotificationKey = 'allow_notification';
-  static const String _autoBudgetKey = 'auto_budget';
-  static const String _improveAccuracyKey = 'improve_accuracy';
-  static const String _automaticRebalanceSuggestionsKey = 'auto_rebalance';
+  // Services
+  PermissionHandlerService? _permissionHandler;
 
-  // Firebase instance for updating currency
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  String get currency => _currency;
+  // Getters
   String get theme => _theme;
   bool get allowNotification => _allowNotification;
   bool get autoBudget => _autoBudget;
   bool get improveAccuracy => _improveAccuracy;
-  bool get automaticRebalanceSuggestions => _automaticRebalanceSuggestions;
+  bool get syncEnabled => _syncEnabled;
+  String get currency => _currency;
+  bool get locationEnabled => _locationEnabled;
+  bool get cameraEnabled => _cameraEnabled;
+  bool get storageEnabled => _storageEnabled;
+  bool get biometricEnabled => _biometricEnabled;
 
   SettingsService() {
     _instance = this;
+    _loadSettings();
   }
 
   // Static getter to access the current instance
@@ -46,34 +63,42 @@ class SettingsService extends ChangeNotifier {
           'allowNotification': _allowNotification,
           'autoBudget': _autoBudget,
           'improveAccuracy': _improveAccuracy,
-          'automaticRebalanceSuggestions': _automaticRebalanceSuggestions,
+          'syncEnabled': _syncEnabled,
+          'locationEnabled': _locationEnabled,
+          'cameraEnabled': _cameraEnabled,
+          'storageEnabled': _storageEnabled,
+          'biometricEnabled': _biometricEnabled,
         },
       };
 
-  // Initialize settings for a specific user
-  Future<void> initializeForUser(String userId) async {
+  /// Initialize settings service with dependencies
+  Future<void> initialize({PermissionHandlerService? permissionHandler}) async {
     try {
-      debugPrint('🔧 SettingsService: Initializing settings for user: $userId');
+      debugPrint('🔧 SettingsService: Initializing settings');
 
-      // Load device-wide settings from shared preferences
-      await _loadDeviceSettings();
+      // Set permission handler if provided
+      if (permissionHandler != null) {
+        _permissionHandler = permissionHandler;
+        await permissionHandler.initialize(this);
+      }
 
-      // Load user-specific currency from Firebase
-      await _loadUserCurrency(userId);
+      // Load settings from shared preferences
+      await _loadSettings();
+
+      // Verify permission settings match actual permissions
+      await _verifyPermissionSettings();
 
       notifyListeners();
-      debugPrint(
-          '🔧 SettingsService: Initialization completed for user: $userId');
+      debugPrint('🔧 SettingsService: Initialization completed');
     } catch (e) {
-      debugPrint(
-          '🔧 SettingsService: Error initializing settings for user $userId: $e');
+      debugPrint('🔧 SettingsService: Error initializing settings: $e');
       // Use default settings if everything fails
       notifyListeners();
     }
   }
 
-  // Load device-wide settings from SharedPreferences
-  Future<void> _loadDeviceSettings() async {
+  // Load settings from SharedPreferences
+  Future<void> _loadSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
 
@@ -82,36 +107,72 @@ class SettingsService extends ChangeNotifier {
       _allowNotification = prefs.getBool(_allowNotificationKey) ?? false;
       _autoBudget = prefs.getBool(_autoBudgetKey) ?? false;
       _improveAccuracy = prefs.getBool(_improveAccuracyKey) ?? false;
-      _automaticRebalanceSuggestions =
-          prefs.getBool(_automaticRebalanceSuggestionsKey) ?? false;
+      _syncEnabled = prefs.getBool(_syncEnabledKey) ?? false;
+      _currency = prefs.getString(_currencyKey) ?? 'MYR';
+      _locationEnabled = prefs.getBool(_locationEnabledKey) ?? false;
+      _cameraEnabled = prefs.getBool(_cameraEnabledKey) ?? false;
+      _storageEnabled = prefs.getBool(_storageEnabledKey) ?? false;
+      _biometricEnabled = prefs.getBool(_biometricEnabledKey) ?? false;
 
       debugPrint(
-          '🔧 SettingsService: Loaded device settings - theme=$_theme, allowNotification=$_allowNotification, autoBudget=$_autoBudget, improveAccuracy=$_improveAccuracy, automaticRebalanceSuggestions=$_automaticRebalanceSuggestions');
+          '🔧 SettingsService: Loaded settings - theme=$_theme, currency=$_currency, '
+          'allowNotification=$_allowNotification, autoBudget=$_autoBudget, '
+          'improveAccuracy=$_improveAccuracy, syncEnabled=$_syncEnabled, '
+          'locationEnabled=$_locationEnabled, cameraEnabled=$_cameraEnabled, '
+          'storageEnabled=$_storageEnabled, biometricEnabled=$_biometricEnabled');
     } catch (e) {
-      debugPrint('🔧 SettingsService: Error loading device settings: $e');
+      debugPrint('🔧 SettingsService: Error loading settings: $e');
       // Keep default values if loading fails
     }
   }
 
-  // Load user-specific currency from Firebase
-  Future<void> _loadUserCurrency(String userId) async {
-    try {
-      // Get user document from Firebase
-      final userDoc = await _firestore.collection('users').doc(userId).get();
+  /// Verify that permission settings match actual device permissions
+  Future<void> _verifyPermissionSettings() async {
+    if (_permissionHandler == null) return;
 
-      if (userDoc.exists && userDoc.data() != null) {
-        final userData = userDoc.data()!;
-        _currency = userData['currency'] ?? 'MYR';
-        debugPrint(
-            '🔧 SettingsService: Loaded user currency from Firebase: $_currency');
-      } else {
-        _currency = 'MYR'; // Default currency
-        debugPrint(
-            '🔧 SettingsService: No user document found, using default currency: $_currency');
+    try {
+      // Check notification permissions
+      if (_allowNotification) {
+        final hasPermissions = await _permissionHandler!
+            .hasPermissionsForFeature(PermissionFeature.notifications);
+        if (!hasPermissions) {
+          debugPrint(
+              '🔧 SettingsService: Notification permission mismatch, updating setting');
+          await updateNotificationSetting(false);
+        }
+      }
+
+      // Check location permissions
+      if (_locationEnabled) {
+        final hasPermission = await _permissionHandler!.hasLocationPermission();
+        if (!hasPermission) {
+          debugPrint(
+              '🔧 SettingsService: Location permission mismatch, updating setting');
+          await updateLocationSetting(false);
+        }
+      }
+
+      // Check camera permissions
+      if (_cameraEnabled) {
+        final hasPermission = await _permissionHandler!.hasCameraPermission();
+        if (!hasPermission) {
+          debugPrint(
+              '🔧 SettingsService: Camera permission mismatch, updating setting');
+          await updateCameraSetting(false);
+        }
+      }
+
+      // Check storage permissions
+      if (_storageEnabled) {
+        final hasPermission = await _permissionHandler!.hasStoragePermission();
+        if (!hasPermission) {
+          debugPrint(
+              '🔧 SettingsService: Storage permission mismatch, updating setting');
+          await updateStorageSetting(false);
+        }
       }
     } catch (e) {
-      debugPrint('🔧 SettingsService: Error loading user currency: $e');
-      _currency = 'MYR'; // Default to MYR on error
+      debugPrint('🔧 SettingsService: Error verifying permission settings: $e');
     }
   }
 
@@ -119,26 +180,40 @@ class SettingsService extends ChangeNotifier {
   Future<void> resetToDefaults() async {
     try {
       const defaultTheme = 'light';
+      const defaultCurrency = 'MYR';
       const defaultAllowNotification = false;
       const defaultAutoBudget = false;
       const defaultImproveAccuracy = false;
-      const defaultAutomaticRebalanceSuggestions = false;
+      const defaultSyncEnabled = false;
+      const defaultLocationEnabled = false;
+      const defaultCameraEnabled = false;
+      const defaultStorageEnabled = false;
+      const defaultBiometricEnabled = false;
 
       // Update local state
       _theme = defaultTheme;
+      _currency = defaultCurrency;
       _allowNotification = defaultAllowNotification;
       _autoBudget = defaultAutoBudget;
       _improveAccuracy = defaultImproveAccuracy;
-      _automaticRebalanceSuggestions = defaultAutomaticRebalanceSuggestions;
+      _syncEnabled = defaultSyncEnabled;
+      _locationEnabled = defaultLocationEnabled;
+      _cameraEnabled = defaultCameraEnabled;
+      _storageEnabled = defaultStorageEnabled;
+      _biometricEnabled = defaultBiometricEnabled;
 
       // Save to shared preferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_themeKey, defaultTheme);
+      await prefs.setString(_currencyKey, defaultCurrency);
       await prefs.setBool(_allowNotificationKey, defaultAllowNotification);
       await prefs.setBool(_autoBudgetKey, defaultAutoBudget);
       await prefs.setBool(_improveAccuracyKey, defaultImproveAccuracy);
-      await prefs.setBool(_automaticRebalanceSuggestionsKey,
-          defaultAutomaticRebalanceSuggestions);
+      await prefs.setBool(_syncEnabledKey, defaultSyncEnabled);
+      await prefs.setBool(_locationEnabledKey, defaultLocationEnabled);
+      await prefs.setBool(_cameraEnabledKey, defaultCameraEnabled);
+      await prefs.setBool(_storageEnabledKey, defaultStorageEnabled);
+      await prefs.setBool(_biometricEnabledKey, defaultBiometricEnabled);
 
       notifyListeners();
       debugPrint('🔧 SettingsService: Settings reset to defaults');
@@ -150,38 +225,20 @@ class SettingsService extends ChangeNotifier {
   // Update currency setting
   Future<void> updateCurrency(String newCurrency) async {
     try {
-      // Get current user
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        throw Exception('No user signed in');
-      }
-
       final oldCurrency = _currency;
       _currency = newCurrency;
 
-      // Update currency in Firebase
-      await _firestore.collection('users').doc(user.uid).update({
-        'currency': newCurrency,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // Save to shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_currencyKey, newCurrency);
 
       debugPrint(
-          '🔧 SettingsService: Currency updated in Firebase to: $newCurrency');
+          '🔧 SettingsService: Currency updated from $oldCurrency to $newCurrency');
       notifyListeners();
-
-      // Notify listeners about currency change - this will allow other components
-      // such as BudgetViewModel to update their data
-      if (oldCurrency != newCurrency) {
-        // We need to delay this call to ensure settings are fully updated
-        // before other components try to access them
-        Future.microtask(() {
-          debugPrint(
-              'Broadcasting currency change: $oldCurrency -> $newCurrency');
-          notifyListeners();
-        });
-      }
     } catch (e) {
-      debugPrint('Error updating currency: $e');
+      debugPrint('🔧 SettingsService: Error updating currency: $e');
+      // Revert to old value on error
+      _currency = 'MYR';
     }
   }
 
@@ -195,77 +252,202 @@ class SettingsService extends ChangeNotifier {
       await prefs.setString(_themeKey, newTheme);
 
       notifyListeners();
-      debugPrint('Theme updated to: $newTheme');
+      debugPrint('🔧 SettingsService: Theme updated to: $newTheme');
     } catch (e) {
-      debugPrint('Error updating theme: $e');
+      debugPrint('🔧 SettingsService: Error updating theme: $e');
     }
   }
 
-  // Update notification setting
-  Future<void> updateNotificationSetting(bool allowNotification) async {
+  /// Update notification setting with permission check
+  Future<bool> updateNotificationSetting(bool enabled) async {
     try {
-      _allowNotification = allowNotification;
+      // If trying to enable, make sure we have permissions
+      if (enabled && _permissionHandler != null) {
+        // We don't request permissions here - that should be done in the UI layer
+        // We just check if they're already granted
+        final hasPermissions = await _permissionHandler!
+            .hasPermissionsForFeature(PermissionFeature.notifications);
+
+        if (!hasPermissions) {
+          debugPrint(
+              '🔧 SettingsService: Cannot enable notifications without permissions');
+          return false;
+        }
+      }
+
+      _allowNotification = enabled;
 
       // Save to shared preferences
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_allowNotificationKey, allowNotification);
+      await prefs.setBool(_allowNotificationKey, enabled);
 
       notifyListeners();
-      debugPrint('Notification setting updated to: $allowNotification');
+      debugPrint(
+          '🔧 SettingsService: Notification setting updated to: $enabled');
+      return true;
     } catch (e) {
-      debugPrint('Error updating notification setting: $e');
+      debugPrint('🔧 SettingsService: Error updating notification setting: $e');
+      return false;
     }
   }
 
   // Update auto budget setting
-  Future<void> updateAutoBudgetSetting(bool autoBudget) async {
+  Future<void> updateAutoBudgetSetting(bool enabled) async {
     try {
-      // Update both settings to keep them synchronized
-      _autoBudget = autoBudget;
-      _automaticRebalanceSuggestions = autoBudget; // Keep in sync
+      _autoBudget = enabled;
 
       // Save to shared preferences
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_autoBudgetKey, autoBudget);
-      await prefs.setBool(_automaticRebalanceSuggestionsKey, autoBudget);
+      await prefs.setBool(_autoBudgetKey, enabled);
 
       notifyListeners();
-      debugPrint('Auto budget setting updated to: $autoBudget');
+      debugPrint(
+          '🔧 SettingsService: Auto budget setting updated to: $enabled');
     } catch (e) {
-      debugPrint('Error updating auto budget setting: $e');
+      debugPrint('🔧 SettingsService: Error updating auto budget setting: $e');
     }
   }
 
   // Update improve accuracy setting
-  Future<void> updateImproveAccuracySetting(bool improveAccuracy) async {
+  Future<void> updateImproveAccuracySetting(bool enabled) async {
     try {
-      _improveAccuracy = improveAccuracy;
+      _improveAccuracy = enabled;
 
       // Save to shared preferences
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_improveAccuracyKey, improveAccuracy);
+      await prefs.setBool(_improveAccuracyKey, enabled);
 
       notifyListeners();
-      debugPrint('Improve accuracy setting updated to: $improveAccuracy');
+      debugPrint(
+          '🔧 SettingsService: Improve accuracy setting updated to: $enabled');
     } catch (e) {
-      debugPrint('Error updating improve accuracy setting: $e');
+      debugPrint(
+          '🔧 SettingsService: Error updating improve accuracy setting: $e');
     }
   }
 
-  // Update automatic budget reallocation setting
-  Future<void> updateAutomaticRebalanceSuggestions(bool enabled) async {
+  // Update sync setting
+  Future<void> updateSyncSetting(bool enabled) async {
     try {
-      // Update the setting value
-      _automaticRebalanceSuggestions = enabled;
+      _syncEnabled = enabled;
 
       // Save to shared preferences
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_automaticRebalanceSuggestionsKey, enabled);
+      await prefs.setBool(_syncEnabledKey, enabled);
 
       notifyListeners();
-      debugPrint('Auto budget reallocation setting updated to: $enabled');
+      debugPrint('🔧 SettingsService: Sync setting updated to: $enabled');
     } catch (e) {
-      debugPrint('Error updating auto budget reallocation setting: $e');
+      debugPrint('🔧 SettingsService: Error updating sync setting: $e');
+    }
+  }
+
+  /// Update location setting with permission check
+  Future<bool> updateLocationSetting(bool enabled) async {
+    try {
+      // If trying to enable, make sure we have permissions
+      if (enabled && _permissionHandler != null) {
+        // We don't request permissions here - that should be done in the UI layer
+        // We just check if they're already granted
+        final hasPermission = await _permissionHandler!.hasLocationPermission();
+
+        if (!hasPermission) {
+          debugPrint(
+              '🔧 SettingsService: Cannot enable location without permission');
+          return false;
+        }
+      }
+
+      _locationEnabled = enabled;
+
+      // Save to shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_locationEnabledKey, enabled);
+
+      notifyListeners();
+      debugPrint('🔧 SettingsService: Location setting updated to: $enabled');
+      return true;
+    } catch (e) {
+      debugPrint('🔧 SettingsService: Error updating location setting: $e');
+      return false;
+    }
+  }
+
+  /// Update camera setting with permission check
+  Future<bool> updateCameraSetting(bool enabled) async {
+    try {
+      // If trying to enable, make sure we have permissions
+      if (enabled && _permissionHandler != null) {
+        // We don't request permissions here - that should be done in the UI layer
+        // We just check if they're already granted
+        final hasPermission = await _permissionHandler!.hasCameraPermission();
+
+        if (!hasPermission) {
+          debugPrint(
+              '🔧 SettingsService: Cannot enable camera without permission');
+          return false;
+        }
+      }
+
+      _cameraEnabled = enabled;
+
+      // Save to shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_cameraEnabledKey, enabled);
+
+      notifyListeners();
+      debugPrint('🔧 SettingsService: Camera setting updated to: $enabled');
+      return true;
+    } catch (e) {
+      debugPrint('🔧 SettingsService: Error updating camera setting: $e');
+      return false;
+    }
+  }
+
+  /// Update storage setting with permission check
+  Future<bool> updateStorageSetting(bool enabled) async {
+    try {
+      // If trying to enable, make sure we have permissions
+      if (enabled && _permissionHandler != null) {
+        // We don't request permissions here - that should be done in the UI layer
+        // We just check if they're already granted
+        final hasPermission = await _permissionHandler!.hasStoragePermission();
+
+        if (!hasPermission) {
+          debugPrint(
+              '🔧 SettingsService: Cannot enable storage without permission');
+          return false;
+        }
+      }
+
+      _storageEnabled = enabled;
+
+      // Save to shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_storageEnabledKey, enabled);
+
+      notifyListeners();
+      debugPrint('🔧 SettingsService: Storage setting updated to: $enabled');
+      return true;
+    } catch (e) {
+      debugPrint('🔧 SettingsService: Error updating storage setting: $e');
+      return false;
+    }
+  }
+
+  /// Update biometric setting
+  Future<void> updateBiometricSetting(bool enabled) async {
+    try {
+      _biometricEnabled = enabled;
+
+      // Save to shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_biometricEnabledKey, enabled);
+
+      notifyListeners();
+      debugPrint('🔧 SettingsService: Biometric setting updated to: $enabled');
+    } catch (e) {
+      debugPrint('🔧 SettingsService: Error updating biometric setting: $e');
     }
   }
 }

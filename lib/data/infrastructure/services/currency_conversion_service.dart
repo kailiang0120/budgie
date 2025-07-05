@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../network/connectivity_service.dart';
-import 'offline_notification_service.dart';
+import 'package:flutter/material.dart';
 
 /// Service for handling currency conversion with exchange rates from Bank Negara Malaysia (BNM)
 class CurrencyConversionService {
@@ -15,8 +15,6 @@ class CurrencyConversionService {
 
   // Dependencies
   ConnectivityService? _connectivityService;
-  final OfflineNotificationService _notificationService =
-      OfflineNotificationService();
 
   // Set dependencies (called from injection container)
   void setConnectivityService(ConnectivityService connectivityService) {
@@ -101,12 +99,8 @@ class CurrencyConversionService {
         // Notify user they're using cached data if offline
         if (!isConnected) {
           final lastUpdate = await getLastUpdateTime();
-          _notificationService.showUsingCachedDataNotification(
-            lastUpdateTime: lastUpdate,
-            onRefresh: () async {
-              await refreshRates();
-            },
-          );
+          // UI should handle offline notification
+          return {};
         }
 
         return cachedRates;
@@ -115,11 +109,7 @@ class CurrencyConversionService {
       // 5. If all else fails and we're offline, notify user
       if (!isConnected) {
         debugPrint('No cached data available and device is offline');
-        _notificationService.showOfflineNotification(
-          onRetry: () async {
-            await refreshRates();
-          },
-        );
+        // UI should handle offline notification
         return {};
       }
 
@@ -275,45 +265,51 @@ class CurrencyConversionService {
   /// Get exchange rate between two currencies
   Future<double?> getExchangeRate(
       String fromCurrency, String toCurrency) async {
-    debugPrint('Getting exchange rate: $fromCurrency -> $toCurrency');
+    debugPrint('💱 Getting exchange rate: $fromCurrency -> $toCurrency');
 
     if (fromCurrency == toCurrency) return 1.0;
 
     try {
       final rates = await getExchangeRates();
-      debugPrint('Available exchange rates: $rates');
+      debugPrint('💱 Available exchange rates: $rates');
 
       if (fromCurrency == 'MYR') {
         // Converting from MYR to other currency
         final rate = rates[toCurrency];
-        debugPrint('MYR to $toCurrency rate: $rate');
+        debugPrint('💱 MYR to $toCurrency rate: $rate');
         return rate;
       } else if (toCurrency == 'MYR') {
         // Converting from other currency to MYR
         final rate = rates[fromCurrency];
-        final myrRate = rate != null ? 1.0 / rate : null;
-        debugPrint('$fromCurrency to MYR rate: $myrRate (inverse of $rate)');
-        return myrRate;
+        if (rate != null && rate > 0) {
+          final myrRate = 1.0 / rate;
+          debugPrint(
+              '💱 $fromCurrency to MYR rate: $myrRate (inverse of $rate)');
+          return myrRate;
+        } else {
+          debugPrint('💱 Invalid rate for $fromCurrency: $rate');
+          return null;
+        }
       } else {
         // Converting between two non-MYR currencies
         final fromRate = rates[fromCurrency];
         final toRate = rates[toCurrency];
         debugPrint(
-            'Cross conversion: $fromCurrency rate: $fromRate, $toCurrency rate: $toRate');
+            '💱 Cross conversion: $fromCurrency rate: $fromRate, $toCurrency rate: $toRate');
 
-        if (fromRate != null && toRate != null) {
+        if (fromRate != null && toRate != null && fromRate > 0) {
           // Convert via MYR: fromCurrency -> MYR -> toCurrency
           final crossRate = toRate / fromRate;
-          debugPrint('Cross rate calculated: $crossRate');
+          debugPrint('💱 Cross rate calculated: $crossRate');
           return crossRate;
         }
       }
 
-      debugPrint('No exchange rate found for $fromCurrency -> $toCurrency');
+      debugPrint('💱 No exchange rate found for $fromCurrency -> $toCurrency');
       return null;
     } catch (e) {
       debugPrint(
-          'Error getting exchange rate from $fromCurrency to $toCurrency: $e');
+          '💱 Error getting exchange rate from $fromCurrency to $toCurrency: $e');
       return null;
     }
   }
@@ -321,21 +317,21 @@ class CurrencyConversionService {
   /// Convert amount from one currency to another
   Future<double> convertCurrency(
       double amount, String fromCurrency, String toCurrency) async {
-    debugPrint('Converting $amount from $fromCurrency to $toCurrency');
+    debugPrint('💱 Converting $amount from $fromCurrency to $toCurrency');
 
     if (fromCurrency == toCurrency) {
-      debugPrint('Same currency, returning original amount: $amount');
+      debugPrint('💱 Same currency, returning original amount: $amount');
       return _formatAmount(amount);
     }
 
     try {
       final rate = await getExchangeRate(fromCurrency, toCurrency);
-      debugPrint('Exchange rate from $fromCurrency to $toCurrency: $rate');
+      debugPrint('💱 Exchange rate from $fromCurrency to $toCurrency: $rate');
 
-      if (rate != null) {
+      if (rate != null && rate > 0) {
         final convertedAmount = _formatAmount(amount * rate);
         debugPrint(
-            'Converted $amount $fromCurrency to $convertedAmount $toCurrency (rate: $rate)');
+            '💱 Converted $amount $fromCurrency to $convertedAmount $toCurrency (rate: $rate)');
         return convertedAmount;
       }
 
@@ -344,12 +340,12 @@ class CurrencyConversionService {
 
       if (fromCurrency == 'MYR' && _defaultRates.containsKey(toCurrency)) {
         fallbackRate = _defaultRates[toCurrency]!;
-        debugPrint('Using fallback rate MYR to $toCurrency: $fallbackRate');
+        debugPrint('💱 Using fallback rate MYR to $toCurrency: $fallbackRate');
       } else if (toCurrency == 'MYR' &&
           _defaultRates.containsKey(fromCurrency)) {
         fallbackRate = 1.0 / _defaultRates[fromCurrency]!;
         debugPrint(
-            'Using fallback rate $fromCurrency to MYR: $fallbackRate (inverse of ${_defaultRates[fromCurrency]})');
+            '💱 Using fallback rate $fromCurrency to MYR: $fallbackRate (inverse of ${_defaultRates[fromCurrency]})');
       } else if (_defaultRates.containsKey(fromCurrency) &&
           _defaultRates.containsKey(toCurrency)) {
         // Cross conversion using MYR as intermediate
@@ -357,22 +353,22 @@ class CurrencyConversionService {
         final myrToToRate = _defaultRates[toCurrency]!;
         fallbackRate = fromToMyrRate * myrToToRate;
         debugPrint(
-            'Using fallback cross rate $fromCurrency to $toCurrency: $fallbackRate');
+            '💱 Using fallback cross rate $fromCurrency to $toCurrency: $fallbackRate');
       }
 
-      if (fallbackRate != null) {
+      if (fallbackRate != null && fallbackRate > 0) {
         final convertedAmount = _formatAmount(amount * fallbackRate);
         debugPrint(
-            'Converted using fallback: $amount $fromCurrency to $convertedAmount $toCurrency');
+            '💱 Converted using fallback: $amount $fromCurrency to $convertedAmount $toCurrency');
         return convertedAmount;
       }
 
       // If no rate available, return original amount
       debugPrint(
-          'No conversion rate available from $fromCurrency to $toCurrency, returning original amount');
+          '💱 No conversion rate available from $fromCurrency to $toCurrency, returning original amount');
       return _formatAmount(amount);
     } catch (e) {
-      debugPrint('Error converting currency: $e');
+      debugPrint('💱 Error converting currency: $e');
       return _formatAmount(amount);
     }
   }
@@ -383,30 +379,42 @@ class CurrencyConversionService {
   }
 
   /// Force refresh exchange rates from API
-  Future<bool> refreshRates() async {
+  /// Accepts an optional BuildContext and callbacks for UI feedback
+  Future<bool> refreshRates({
+    BuildContext? context,
+    void Function(String message,
+            {bool isError, bool isLoading, bool isSuccess})?
+        onStatus,
+  }) async {
     try {
       final isConnected = await _isNetworkConnected();
-
       if (!isConnected) {
-        _notificationService.showOfflineNotification(
-          customMessage: 'Cannot refresh rates while offline',
-        );
+        if (onStatus != null) {
+          onStatus('Cannot refresh rates while offline', isError: true);
+        }
         return false;
       }
-
-      _notificationService.showLoadingNotification();
-
+      if (onStatus != null) {
+        onStatus('Updating exchange rates...', isLoading: true);
+      }
       final apiRates = await _fetchFromBnmApi();
       if (apiRates != null && apiRates.isNotEmpty) {
         await _cacheRates(apiRates);
         _updateMemoryCache(apiRates);
-        _notificationService.showBackOnlineNotification();
+        if (onStatus != null) {
+          onStatus('Back online! Exchange rates updated', isSuccess: true);
+        }
         return true;
       }
-
+      if (onStatus != null) {
+        onStatus('Failed to refresh exchange rates', isError: true);
+      }
       return false;
     } catch (e) {
       debugPrint('Error refreshing rates: $e');
+      if (onStatus != null) {
+        onStatus('Error refreshing rates: $e', isError: true);
+      }
       return false;
     }
   }

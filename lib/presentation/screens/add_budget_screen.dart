@@ -309,6 +309,11 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         throw Exception('Please enter a total budget amount');
       }
 
+      debugPrint(
+          '💰 AddBudgetScreen: Saving budget for month: $_currentMonthId');
+      debugPrint(
+          '💰 AddBudgetScreen: Total budget amount: $totalBudget $_currency');
+
       final Map<String, CategoryBudget> cats = {};
 
       for (final catId in _budgetCategoryIds) {
@@ -319,6 +324,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
           final val = text.isNotEmpty ? (double.tryParse(text) ?? 0.0) : 0.0;
           // Initially set budget left = budget
           cats[catId] = CategoryBudget(budget: val, left: val);
+          debugPrint('💰 AddBudgetScreen: Category $catId budget: $val');
         }
       }
 
@@ -332,6 +338,19 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         setState(() {
           _currency = settingsService.currency;
         });
+      }
+
+      // Ensure month ID is properly formatted
+      if (!_currentMonthId.contains('-') ||
+          _currentMonthId.split('-').length != 2) {
+        debugPrint(
+            '💰 AddBudgetScreen: Invalid month ID format: $_currentMonthId');
+
+        // Fix the month ID format if needed
+        final now = DateTime.now();
+        _currentMonthId = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+        debugPrint(
+            '💰 AddBudgetScreen: Using corrected month ID: $_currentMonthId');
       }
 
       // Get year and month from month ID and calculate remaining budget
@@ -364,12 +383,18 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
 
             // Then calculate the budget with expenses factored in
             await budgetVM.calculateBudgetRemaining(expenses, _currentMonthId);
-            debugPrint(
-                'Budget saved with expenses factored in, currency: $_currency');
+
+            // Verify the budget was saved
+            await Future.delayed(const Duration(milliseconds: 300));
+            await budgetVM.loadBudget(_currentMonthId);
+
+            // Force a refresh of the budget
+            await budgetVM.refreshBudget(_currentMonthId);
           }
         }
       } catch (e) {
-        debugPrint('Error calculating budget during save: $e');
+        debugPrint(
+            '💰 AddBudgetScreen: Error calculating budget during save: $e');
         rethrow; // Re-throw to show error message
       }
 
@@ -387,7 +412,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       // This ensures user sees latest data when returning to analytics page
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) {
-          Navigator.pop(context);
+          Navigator.pop(
+              context, true); // Return true to indicate budget was saved
         }
       });
     } catch (e) {
@@ -505,20 +531,22 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          // Only show delete button if budget exists
+          if (budgetVM.budget != null)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              color: Colors.red,
+              onPressed: () => _showDeleteConfirmation(context),
+              tooltip: 'Delete Budget',
+            ),
+        ],
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: EdgeInsets.all(16.w),
+          padding: EdgeInsets.all(AppConstants.spacingLarge.w),
           children: [
-            // //Date picker button for selecting budget month
-            // DatePickerButton(
-            //   prefix: 'Budget for',
-            //   date: _selectedDate,
-            //   onDateChanged: _onDateChanged,
-            //   themeColor: AppTheme.primaryColor,
-            // ),
-            // const SizedBox(height: 16),
             // Total budget card
             CustomCard.withTitle(
               title: 'Total Budget',
@@ -539,9 +567,9 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                       );
                     },
                   ),
-                  SizedBox(height: 20.h),
+                  SizedBox(height: AppConstants.spacingXLarge.h),
 
-                  // 预算分配进度
+                  // Budget allocation progress
                   ValueListenableBuilder<double?>(
                     valueListenable: _totalBudgetNotifier,
                     builder: (context, totalBudget, _) {
@@ -564,7 +592,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                     'Allocated: $currencySymbol${totalAllocated.toStringAsFixed(2)}',
                                     style: TextStyle(
                                       fontFamily: AppTheme.fontFamily,
-                                      fontSize: 14,
+                                      fontSize: AppConstants.textSizeMedium.sp,
                                       color: Theme.of(context)
                                           .textTheme
                                           .bodyMedium
@@ -574,15 +602,15 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                   ),
                                   Text(
                                     '${percentage.toStringAsFixed(1)}%',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontFamily: AppTheme.fontFamily,
-                                      fontSize: 14,
+                                      fontSize: AppConstants.textSizeMedium.sp,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              SizedBox(height: AppConstants.spacingSmall.h),
                               LinearProgressIndicator(
                                 value: total > 0 ? totalAllocated / total : 0,
                                 backgroundColor: Colors.grey.shade200,
@@ -592,11 +620,12 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                       : AppTheme.primaryColor,
                                 ),
                                 minHeight: 8,
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius: BorderRadius.circular(
+                                    AppConstants.borderRadiusSmall.r),
                               ),
 
                               // Show total percentage allocated
-                              const SizedBox(height: 16),
+                              SizedBox(height: AppConstants.spacingLarge.h),
 
                               Row(
                                 mainAxisAlignment:
@@ -606,7 +635,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                     'Total Allocation:',
                                     style: TextStyle(
                                       fontFamily: AppTheme.fontFamily,
-                                      fontSize: 14,
+                                      fontSize: AppConstants.textSizeMedium.sp,
                                       fontWeight: FontWeight.w500,
                                       color: Theme.of(context)
                                           .textTheme
@@ -628,7 +657,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                       '${totalPercentage.toStringAsFixed(1)}%',
                                       style: TextStyle(
                                         fontFamily: AppTheme.fontFamily,
-                                        fontSize: 14,
+                                        fontSize:
+                                            AppConstants.textSizeMedium.sp,
                                         fontWeight: FontWeight.bold,
                                         color: textColor,
                                       ),
@@ -636,7 +666,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                   }),
                                 ],
                               ),
-                              const SizedBox(height: 4),
+                              SizedBox(height: AppConstants.spacingXXSmall.h),
                               Builder(builder: (context) {
                                 final totalPercentage =
                                     _getTotalAllocatedPercentage();
@@ -653,7 +683,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                   valueColor: AlwaysStoppedAnimation<Color>(
                                       progressColor),
                                   minHeight: 8,
-                                  borderRadius: BorderRadius.circular(4),
+                                  borderRadius: BorderRadius.circular(
+                                      AppConstants.borderRadiusSmall.r),
                                 );
                               }),
                             ],
@@ -666,7 +697,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
               ),
             ),
 
-            const SizedBox(height: 16),
+            SizedBox(height: AppConstants.spacingLarge.h),
 
             // savings card
             ValueListenableBuilder<double>(
@@ -677,7 +708,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                   icon: Icons.savings,
                   iconColor: AppTheme.primaryColor,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: EdgeInsets.symmetric(
+                        vertical: AppConstants.spacingLarge.h),
                     alignment: Alignment.center,
                     child: Column(
                       children: [
@@ -685,21 +717,21 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                           '$currencySymbol${savings.toStringAsFixed(2)}',
                           style: TextStyle(
                             fontFamily: AppTheme.fontFamily,
-                            fontSize: 24,
+                            fontSize: AppConstants.textSizeHuge.sp,
                             fontWeight: FontWeight.bold,
                             color: savings > 0
                                 ? AppTheme.successColor
                                 : Colors.grey,
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: AppConstants.spacingSmall.h),
                         Text(
                           savings > 0
                               ? 'Available for savings'
                               : 'No savings available',
                           style: TextStyle(
                             fontFamily: AppTheme.fontFamily,
-                            fontSize: 14,
+                            fontSize: AppConstants.textSizeMedium.sp,
                             color: savings > 0
                                 ? AppTheme.successColor
                                 : Colors.grey,
@@ -712,7 +744,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
               },
             ),
 
-            const SizedBox(height: 16),
+            SizedBox(height: AppConstants.spacingLarge.h),
 
             // category budgets card
             CustomCard.withTitle(
@@ -756,7 +788,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
+                        padding: EdgeInsets.only(
+                            bottom: AppConstants.spacingMedium.h),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
@@ -766,7 +799,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                               decoration: BoxDecoration(
                                 color: categoryColor
                                     .withAlpha((255 * 0.1).toInt()),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(
+                                    AppConstants.borderRadiusMedium.r),
                               ),
                               child: Icon(
                                 categoryIcon,
@@ -774,7 +808,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                 size: 20,
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            SizedBox(width: AppConstants.spacingMedium.w),
                             Expanded(
                               child: CustomTextField.currency(
                                 controller: _categoryControllers[catId],
@@ -790,7 +824,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
 
                       // Add percentage slider for budget allocation
                       Padding(
-                        padding: EdgeInsets.only(left: 52.w, bottom: 8.h),
+                        padding: EdgeInsets.only(
+                            left: 52.w, bottom: AppConstants.spacingSmall.h),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -801,7 +836,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                 Text(
                                   'Allocation:',
                                   style: TextStyle(
-                                    fontSize: 12.sp,
+                                    fontSize: AppConstants.textSizeSmall.sp,
                                     color: Colors.grey[600],
                                   ),
                                 ),
@@ -814,7 +849,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                       return Text(
                                         'Set total budget first',
                                         style: TextStyle(
-                                          fontSize: 12.sp,
+                                          fontSize:
+                                              AppConstants.textSizeSmall.sp,
                                           fontStyle: FontStyle.italic,
                                           color: Colors.grey,
                                         ),
@@ -824,7 +860,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                     return Text(
                                       '${_categoryPercentages[catId]?.toStringAsFixed(1) ?? '0.0'}%',
                                       style: TextStyle(
-                                        fontSize: 12.sp,
+                                        fontSize: AppConstants.textSizeSmall.sp,
                                         fontWeight: FontWeight.w600,
                                         color: categoryColor,
                                       ),
@@ -905,7 +941,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                       // 类别预算剩余信息
                       if (hasExistingBudget) ...[
                         Padding(
-                          padding: EdgeInsets.only(left: 52.w, bottom: 16.h),
+                          padding: EdgeInsets.only(
+                              left: 52.w, bottom: AppConstants.spacingLarge.h),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -916,21 +953,21 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                                   Text(
                                     'Remaining:',
                                     style: TextStyle(
-                                      fontSize: 12.sp,
+                                      fontSize: AppConstants.textSizeSmall.sp,
                                       color: Colors.grey[600],
                                     ),
                                   ),
                                   Text(
                                     '$currencySymbol${remainingBudget.toStringAsFixed(2)}',
                                     style: TextStyle(
-                                      fontSize: 12.sp,
+                                      fontSize: AppConstants.textSizeSmall.sp,
                                       fontWeight: FontWeight.w600,
                                       color: statusColor,
                                     ),
                                   ),
                                 ],
                               ),
-                              SizedBox(height: 4.h),
+                              SizedBox(height: AppConstants.spacingXXSmall.h),
                               Stack(
                                 children: [
                                   Container(
@@ -966,8 +1003,8 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         ),
       ),
       bottomNavigationBar: Container(
-        padding: EdgeInsets.all(16.w),
-        margin: EdgeInsets.only(bottom: 16.h),
+        padding: EdgeInsets.all(AppConstants.spacingLarge.w),
+        margin: EdgeInsets.only(bottom: AppConstants.spacingLarge.h),
         decoration: BoxDecoration(
           color: Theme.of(context).cardColor,
           boxShadow: [
@@ -986,5 +1023,77 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         ),
       ),
     );
+  }
+
+  /// Show confirmation dialog before deleting budget
+  Future<void> _showDeleteConfirmation(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Budget'),
+        content: const Text(
+            'Are you sure you want to delete this budget? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      await _deleteBudget();
+    }
+  }
+
+  /// Delete the current budget
+  Future<void> _deleteBudget() async {
+    try {
+      setState(() {
+        _isSubmitting = true;
+      });
+
+      final budgetVM = Provider.of<BudgetViewModel>(context, listen: false);
+
+      // Delete the budget
+      await budgetVM.deleteBudget(_currentMonthId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Budget deleted successfully'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // Return to previous screen
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
   }
 }

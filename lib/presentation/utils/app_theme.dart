@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../domain/entities/category.dart';
 import 'category_manager.dart';
+import 'app_constants.dart';
 
-/// Application theme management class
+/// Application theme management class - focused on color management
 class AppTheme {
   /// Light theme colors
   static const Color primaryColor = Color(0xFFF57C00);
@@ -11,7 +12,7 @@ class AppTheme {
   static const Color errorColor = Color(0xFFE91E63);
   static const Color successColor = Color(0xFF4CAF50);
   static const Color warningColor = Color(0xFFFFC107);
-  static const Color backgroundLight = Color(0xFFF7FCFC);
+  static const Color backgroundLight = Color(0xFFF5F5F5);
   static const Color darkBackgroundLight = Color(0xFF333333);
   static const Color cardBackgroundLight = Color(0xfffafafa);
   static const Color lightTextLight = Color(0xFFFBFCF8);
@@ -19,7 +20,7 @@ class AppTheme {
   static const Color greyTextLight = Color(0xFF607D8B);
   static const Color dividerLight = Color(0xFFE0E0E0);
   static const Color profileBackgroundLight = Color(0xff1A1A19);
-  static const Color appBarBackgroundLight = Color(0xFFF5F5F5);
+  static const Color appBarBackgroundLight = Color.fromARGB(255, 255, 249, 249);
   static const Color appBarForegroundLight = Color(0xFF333333);
 
   /// Dark theme colors
@@ -40,11 +41,6 @@ class AppTheme {
 
   /// Font family
   static const String fontFamily = 'Lexend';
-
-  /// Border radius values
-  static const double borderRadius = 15.0;
-  static const double smallBorderRadius = 8.0;
-  static const double largeBorderRadius = 25.0;
 
   /// Get category color
   static Color getCategoryColor(Category category) {
@@ -78,7 +74,7 @@ class AppTheme {
         iconTheme: const IconThemeData(color: appBarForegroundLight),
         actionsIconTheme: const IconThemeData(color: appBarForegroundLight),
         titleTextStyle: TextStyle(
-          fontSize: 20.sp,
+          fontSize: AppConstants.textSizeXXLarge.sp,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -88,25 +84,29 @@ class AppTheme {
           backgroundColor: primaryColor,
           foregroundColor: lightTextLight,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(borderRadius),
+            borderRadius:
+                BorderRadius.circular(AppConstants.borderRadiusLarge.r),
           ),
-          padding: EdgeInsets.symmetric(vertical: 16.h),
+          padding: EdgeInsets.symmetric(vertical: AppConstants.spacingLarge.h),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(borderRadius),
+          borderRadius:
+              BorderRadius.circular(AppConstants.borderRadiusMedium.r),
         ),
         filled: true,
         fillColor: Colors.white,
-        labelStyle: const TextStyle(color: greyTextLight),
-        hintStyle:
-            TextStyle(color: greyTextLight.withAlpha((255 * 0.7).toInt())),
+        labelStyle: TextStyle(
+            color: greyTextLight, fontSize: AppConstants.textSizeMedium.sp),
+        hintStyle: TextStyle(
+            color: greyTextLight.withAlpha((255 * 0.7).toInt()),
+            fontSize: AppConstants.textSizeSmall.sp),
       ),
       cardTheme: CardTheme(
         color: cardBackgroundLight,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(borderRadius),
+          borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge.r),
         ),
         elevation: 2,
       ),
@@ -122,8 +122,10 @@ class AppTheme {
           return Colors.grey.shade300;
         }),
       ),
-      iconTheme: const IconThemeData(color: greyTextLight),
-      primaryIconTheme: const IconThemeData(color: primaryColor),
+      iconTheme: IconThemeData(
+          color: greyTextLight, size: AppConstants.iconSizeMedium.sp),
+      primaryIconTheme: IconThemeData(
+          color: primaryColor, size: AppConstants.iconSizeMedium.sp),
     );
   }
 
@@ -149,12 +151,12 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         backgroundColor: appBarBackgroundDark,
         foregroundColor: appBarForegroundDark,
-        elevation: 0,
+        elevation: 1,
         shadowColor: Colors.black.withAlpha((255 * 0.07).toInt()),
         iconTheme: const IconThemeData(color: appBarForegroundDark),
         actionsIconTheme: const IconThemeData(color: appBarForegroundDark),
         titleTextStyle: TextStyle(
-          fontSize: 20.sp,
+          fontSize: AppConstants.textSizeXXLarge.sp,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -163,25 +165,29 @@ class AppTheme {
           backgroundColor: primaryColorDark,
           foregroundColor: lightTextDark,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(borderRadius),
+            borderRadius:
+                BorderRadius.circular(AppConstants.borderRadiusLarge.r),
           ),
-          padding: EdgeInsets.symmetric(vertical: 16.h),
+          padding: EdgeInsets.symmetric(vertical: AppConstants.spacingLarge.h),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(borderRadius),
+          borderRadius:
+              BorderRadius.circular(AppConstants.borderRadiusMedium.r),
         ),
         filled: true,
         fillColor: cardBackgroundDark,
-        labelStyle: const TextStyle(color: greyTextDark),
-        hintStyle:
-            TextStyle(color: greyTextDark.withAlpha((255 * 0.7).toInt())),
+        labelStyle: TextStyle(
+            color: greyTextDark, fontSize: AppConstants.textSizeMedium.sp),
+        hintStyle: TextStyle(
+            color: greyTextDark.withAlpha((255 * 0.7).toInt()),
+            fontSize: AppConstants.textSizeSmall.sp),
       ),
       cardTheme: CardTheme(
         color: cardBackgroundDark,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(borderRadius),
+          borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge.r),
         ),
         elevation: 2,
       ),
@@ -197,8 +203,10 @@ class AppTheme {
           return Colors.grey.shade700;
         }),
       ),
-      iconTheme: const IconThemeData(color: greyTextDark),
-      primaryIconTheme: const IconThemeData(color: primaryColorDark),
+      iconTheme: IconThemeData(
+          color: greyTextDark, size: AppConstants.iconSizeMedium.sp),
+      primaryIconTheme: IconThemeData(
+          color: primaryColorDark, size: AppConstants.iconSizeMedium.sp),
     );
   }
 
@@ -261,14 +269,14 @@ class AppTheme {
           backgroundColor: primaryColor,
           foregroundColor: lightTextLight,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(borderRadius),
+            borderRadius: BorderRadius.circular(15.0),
           ),
           padding: const EdgeInsets.symmetric(vertical: 16),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(borderRadius),
+          borderRadius: BorderRadius.circular(15.0),
         ),
         filled: true,
         fillColor: Colors.white,
@@ -279,7 +287,7 @@ class AppTheme {
       cardTheme: CardTheme(
         color: cardBackgroundLight,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(borderRadius),
+          borderRadius: BorderRadius.circular(15.0),
         ),
         elevation: 2,
       ),
@@ -354,14 +362,14 @@ class AppTheme {
           backgroundColor: primaryColorDark,
           foregroundColor: lightTextDark,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(borderRadius),
+            borderRadius: BorderRadius.circular(15.0),
           ),
           padding: const EdgeInsets.symmetric(vertical: 16),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(borderRadius),
+          borderRadius: BorderRadius.circular(15.0),
         ),
         filled: true,
         fillColor: cardBackgroundDark,
@@ -372,7 +380,7 @@ class AppTheme {
       cardTheme: CardTheme(
         color: cardBackgroundDark,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(borderRadius),
+          borderRadius: BorderRadius.circular(15.0),
         ),
         elevation: 2,
       ),

@@ -17,7 +17,7 @@ abstract class AppError implements Exception {
   String toString() =>
       'AppError: $message${code != null ? ' (code: $code)' : ''}';
 
-  /// 将异常转换为 AppError
+  /// convert error to AppError
   static AppError from(dynamic error, [StackTrace? stackTrace]) {
     if (error is AppError) {
       return error;
@@ -31,7 +31,7 @@ abstract class AppError implements Exception {
       );
     }
 
-    // 对于其他未知错误，也返回DataError
+    // for other unknown errors, return DataError
     return DataError(
       error?.toString() ?? 'Unknown error',
       originalError: error,
@@ -39,7 +39,7 @@ abstract class AppError implements Exception {
     );
   }
 
-  /// 打印错误日志
+  /// print error log
   void log() {
     debugPrint('[$code] $message');
     if (kDebugMode && stackTrace != null) {
@@ -48,7 +48,7 @@ abstract class AppError implements Exception {
   }
 }
 
-/// 网络错误
+/// network error
 class NetworkError extends AppError {
   NetworkError(
     String message, {
@@ -75,7 +75,7 @@ class NetworkError extends AppError {
   factory NetworkError.timeout() => NetworkError('Connection timed out');
 }
 
-/// 认证错误
+/// authentication error
 class AuthError extends AppError {
   AuthError(
     String message, {
@@ -98,7 +98,7 @@ class AuthError extends AppError {
   }
 }
 
-/// 数据错误
+/// data error
 class DataError extends AppError {
   DataError(
     String message, {

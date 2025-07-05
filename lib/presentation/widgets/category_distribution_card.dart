@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../viewmodels/expenses_viewmodel.dart';
 import '../utils/category_manager.dart';
+import '../utils/app_constants.dart';
+import '../utils/app_theme.dart';
 import 'custom_card.dart';
 
 class CategoryDistributionCard extends StatelessWidget {
@@ -19,7 +21,7 @@ class CategoryDistributionCard extends StatelessWidget {
     final expensesViewModel = Provider.of<ExpensesViewModel>(context);
 
     return CustomCard(
-      padding: EdgeInsets.all(16.w),
+      padding: AppConstants.containerPaddingLarge,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -29,14 +31,15 @@ class CategoryDistributionCard extends StatelessWidget {
               Icon(
                 Icons.pie_chart,
                 color: Theme.of(context).colorScheme.primary,
-                size: 20.sp,
+                size: AppConstants.iconSizeMedium.sp,
               ),
-              SizedBox(width: 8.w),
+              SizedBox(width: AppConstants.spacingSmall.w),
               Expanded(
                 child: Text(
-                  'Category Distribution',
+                  AppConstants.categoryDistributionTitle,
                   style: TextStyle(
-                    fontSize: 18.sp,
+                    fontFamily: AppTheme.fontFamily,
+                    fontSize: AppConstants.textSizeXLarge.sp,
                     fontWeight: FontWeight.w500,
                     color: Theme.of(context).brightness == Brightness.dark
                         ? Colors.white
@@ -47,13 +50,14 @@ class CategoryDistributionCard extends StatelessWidget {
               Text(
                 '${selectedDate.year}-${selectedDate.month}',
                 style: TextStyle(
-                  fontSize: 12.sp,
+                  fontFamily: AppTheme.fontFamily,
+                  fontSize: AppConstants.textSizeSmall.sp,
                   color: Colors.grey[600],
                 ),
               ),
             ],
           ),
-          SizedBox(height: 16.h),
+          SizedBox(height: AppConstants.spacingLarge.h),
           // Content
           FutureBuilder<Map<String, double>>(
             future: expensesViewModel.getCategoryTotals(),
@@ -69,8 +73,13 @@ class CategoryDistributionCard extends StatelessWidget {
                 return SizedBox(
                   height: 400.h,
                   child: Center(
-                    child:
-                        Text('Error loading category data: ${snapshot.error}'),
+                    child: Text(
+                      'Error loading category data: ${snapshot.error}',
+                      style: const TextStyle(
+                        fontFamily: AppTheme.fontFamily,
+                        color: Colors.red,
+                      ),
+                    ),
                   ),
                 );
               }
@@ -95,7 +104,7 @@ class CategoryDistributionCard extends StatelessWidget {
                     alignment: Alignment.center,
                     child: _buildCustomPieChart(categoryTotals),
                   ),
-                  SizedBox(height: 24.h),
+                  SizedBox(height: AppConstants.spacingXXLarge.h),
 
                   // Total amount - now using currency-converted values
                   Center(
@@ -105,18 +114,20 @@ class CategoryDistributionCard extends StatelessWidget {
                           TextSpan(
                             text: 'Total Spent : ',
                             style: TextStyle(
+                              fontFamily: AppTheme.fontFamily,
                               color:
                                   Theme.of(context).textTheme.bodyLarge?.color,
-                              fontSize: 16.sp,
+                              fontSize: AppConstants.textSizeLarge.sp,
                             ),
                           ),
                           TextSpan(
                             text:
                                 '${expensesViewModel.currentCurrency} ${totalAmount.toStringAsFixed(2)}',
                             style: TextStyle(
+                              fontFamily: AppTheme.fontFamily,
                               color: Theme.of(context).colorScheme.primary,
                               fontWeight: FontWeight.w600,
-                              fontSize: 18.sp,
+                              fontSize: AppConstants.textSizeXLarge.sp,
                             ),
                           ),
                         ],
@@ -124,21 +135,22 @@ class CategoryDistributionCard extends StatelessWidget {
                     ),
                   ),
 
-                  SizedBox(height: 24.h),
+                  SizedBox(height: AppConstants.spacingXXLarge.h),
 
                   // Category legend with better wrapping
                   SizedBox(
                     width: double.infinity,
                     child: Wrap(
-                      spacing: 16.w,
-                      runSpacing: 12.h,
+                      spacing: AppConstants.spacingLarge.w,
+                      runSpacing: AppConstants.spacingMedium.h,
                       alignment: WrapAlignment.center,
                       children: categoryTotals.entries.map((entry) {
                         final categoryId = entry.key;
                         final percentage = (entry.value / totalAmount * 100)
                             .toStringAsFixed(1);
                         return Container(
-                          margin: EdgeInsets.only(bottom: 4.h),
+                          margin: EdgeInsets.only(
+                              bottom: AppConstants.spacingXSmall.h),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -151,10 +163,13 @@ class CategoryDistributionCard extends StatelessWidget {
                                   shape: BoxShape.circle,
                                 ),
                               ),
-                              SizedBox(width: 4.w),
+                              SizedBox(width: AppConstants.spacingXSmall.w),
                               Text(
                                 '${CategoryManager.getNameFromId(categoryId)} ($percentage%)',
-                                style: TextStyle(fontSize: 12.sp),
+                                style: TextStyle(
+                                  fontFamily: AppTheme.fontFamily,
+                                  fontSize: AppConstants.textSizeSmall.sp,
+                                ),
                               ),
                             ],
                           ),
@@ -181,18 +196,22 @@ class CategoryDistributionCard extends StatelessWidget {
             size: 48.sp,
             color: Colors.grey[400],
           ),
-          SizedBox(height: 16.h),
+          SizedBox(height: AppConstants.spacingLarge.h),
           Text(
             'No expense data for this period',
-            style: TextStyle(color: Colors.grey[600]),
+            style: TextStyle(
+              fontFamily: AppTheme.fontFamily,
+              color: Colors.grey[600],
+            ),
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: 8.h),
+          SizedBox(height: AppConstants.spacingSmall.h),
           Text(
             'Try selecting a different month or adding expenses',
             style: TextStyle(
+              fontFamily: AppTheme.fontFamily,
               color: Colors.grey[500],
-              fontSize: 12.sp,
+              fontSize: AppConstants.textSizeSmall.sp,
             ),
             textAlign: TextAlign.center,
           ),
@@ -201,50 +220,87 @@ class CategoryDistributionCard extends StatelessWidget {
     );
   }
 
-  // Custom pie chart builder that works with string category IDs
-  Widget _buildCustomPieChart(Map<String, double> data) {
-    if (data.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.pie_chart_outline,
-              size: 48.sp,
-              color: Colors.grey[400],
-            ),
-            SizedBox(height: 8.h),
-            Text(
-              'No data available',
-              style: TextStyle(color: Colors.grey[600]),
-            ),
-          ],
+  Widget _buildCustomPieChart(Map<String, double> categoryTotals) {
+    final sections = <PieChartSectionData>[];
+    final totalAmount =
+        categoryTotals.values.fold<double>(0, (sum, value) => sum + value);
+
+    for (final entry in categoryTotals.entries) {
+      final categoryId = entry.key;
+      final amount = entry.value;
+      final percentage = amount / totalAmount;
+
+      sections.add(
+        PieChartSectionData(
+          color: CategoryManager.getColorFromId(categoryId),
+          value: amount,
+          title: '${(percentage * 100).toStringAsFixed(0)}%',
+          radius: 100.r,
+          titleStyle: TextStyle(
+            fontFamily: AppTheme.fontFamily,
+            fontSize: AppConstants.textSizeSmall.sp,
+            fontWeight: FontWeight.bold,
+            color:
+                Colors.white.withAlpha((255 * AppConstants.opacityLow).toInt()),
+          ),
+          badgeWidget: _Badge(
+            CategoryManager.getIconFromId(categoryId),
+            size: AppConstants.iconSizeMedium.sp,
+            borderColor: CategoryManager.getColorFromId(categoryId),
+          ),
+          badgePositionPercentageOffset: 0.9,
+          showTitle:
+              percentage > 0.05, // Only show percentage for sections > 5%
         ),
       );
     }
 
     return PieChart(
       PieChartData(
-        sections: data.entries.map((entry) {
-          final categoryId = entry.key;
-          final value = entry.value;
-
-          return PieChartSectionData(
-            value: value,
-            title: '',
-            color: CategoryManager.getColorFromId(categoryId),
-            radius: 120.r,
-            titleStyle: TextStyle(
-              fontSize: 14.sp,
-              fontWeight: FontWeight.w500,
-              color: Colors.white,
-            ),
-          );
-        }).toList(),
-        sectionsSpace: 1.r,
-        centerSpaceRadius: 0.r,
-        startDegreeOffset: 180.r,
+        sections: sections,
+        centerSpaceRadius: 0,
+        sectionsSpace: 2,
+        pieTouchData: PieTouchData(
+          touchCallback: (FlTouchEvent event, pieTouchResponse) {},
+        ),
       ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final Color borderColor;
+
+  const _Badge(
+    this.icon, {
+    required this.size,
+    required this.borderColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedContainer(
+      duration: AppConstants.animationDurationShort,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color:
+              Colors.black.withAlpha((255 * AppConstants.opacityLow).toInt()),
+          width: 2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(AppConstants.opacityLow),
+            blurRadius: AppConstants.elevationSmall * 2,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      padding: EdgeInsets.all(AppConstants.spacingXXSmall.w),
+      child: Icon(icon, size: size, color: borderColor),
     );
   }
 }

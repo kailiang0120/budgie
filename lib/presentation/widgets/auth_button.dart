@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import '../utils/app_constants.dart';
+import '../utils/app_theme.dart';
 
 class AuthButton extends StatelessWidget {
   final String label;
@@ -24,23 +26,27 @@ class AuthButton extends StatelessWidget {
       style: ElevatedButton.styleFrom(
         backgroundColor: backgroundColor,
         foregroundColor: textColor,
-        padding: EdgeInsets.symmetric(vertical: 12.h),
+        padding: EdgeInsets.symmetric(vertical: AppConstants.spacingMedium.h),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(45.r),
+          borderRadius:
+              BorderRadius.circular(AppConstants.borderRadiusCircular.r),
         ),
-        disabledBackgroundColor: backgroundColor.withAlpha((255 * 0.6).toInt()),
-        disabledForegroundColor: textColor.withAlpha((255 * 0.6).toInt()),
+        disabledBackgroundColor: backgroundColor
+            .withAlpha((255 * AppConstants.opacityDisabled).toInt()),
+        disabledForegroundColor:
+            textColor.withAlpha((255 * AppConstants.opacityDisabled).toInt()),
+        elevation: AppConstants.elevationStandard,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           leadingIcon,
-          SizedBox(width: 12.w),
+          SizedBox(width: AppConstants.spacingMedium.w),
           Text(
             label,
             style: TextStyle(
-              fontFamily: 'Lexend',
-              fontSize: 16.sp,
+              fontFamily: AppTheme.fontFamily,
+              fontSize: AppConstants.textSizeLarge.sp,
               fontWeight: FontWeight.w500,
             ),
           ),

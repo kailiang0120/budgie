@@ -269,7 +269,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
       });
 
       final viewModel = Provider.of<ExpensesViewModel>(context, listen: false);
-      await viewModel.deleteExpense(widget.expense.id);
+      await viewModel.deleteExpense(widget.expense.id, widget.expense.date);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -318,13 +318,16 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
           onPressed: () => Navigator.pop(
               context, false), // Return false when no action taken
         ),
-        title: const Text('Edit Expense'),
+        title: Text(
+          'Edit Expense',
+          style:
+              TextStyle(color: Theme.of(context).textTheme.titleLarge?.color),
+        ),
         centerTitle: true,
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(1.h),
           child: Divider(
-            height: 1.h,
-            thickness: 1.h,
+            height: 0.5.h,
             color: Theme.of(context).dividerColor,
           ),
         ),
@@ -337,8 +340,9 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
             : Form(
                 key: _formKey,
                 child: SingleChildScrollView(
-                  padding:
-                      EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
+                  padding: EdgeInsets.symmetric(
+                      horizontal: AppConstants.spacingLarge.w,
+                      vertical: AppConstants.spacingXXLarge.h),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -355,13 +359,14 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                           },
                         ),
                       ),
-                      SizedBox(height: 24.h),
+                      SizedBox(height: AppConstants.spacingXXLarge.h),
 
                       Row(
                         children: [
                           Container(
                             width: 100.w,
-                            margin: EdgeInsets.only(right: 8.w),
+                            margin: EdgeInsets.only(
+                                right: AppConstants.spacingSmall.w),
                             child: ValueListenableBuilder<String>(
                               valueListenable: _currency,
                               builder: (context, currency, _) {
@@ -397,7 +402,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                           ),
                         ],
                       ),
-                      SizedBox(height: 16.h),
+                      SizedBox(height: AppConstants.spacingLarge.h),
 
                       CustomTextField(
                         controller: _remarkController,
@@ -405,7 +410,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                         isRequired: true,
                         prefixIcon: Icons.note,
                       ),
-                      SizedBox(height: 16.h),
+                      SizedBox(height: AppConstants.spacingLarge.h),
 
                       ValueListenableBuilder<DateTime>(
                         valueListenable: _selectedDateTime,
@@ -422,7 +427,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                           );
                         },
                       ),
-                      SizedBox(height: 16.h),
+                      SizedBox(height: AppConstants.spacingLarge.h),
 
                       ValueListenableBuilder<String>(
                         valueListenable: _selectedPaymentMethod,
@@ -441,7 +446,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                           );
                         },
                       ),
-                      SizedBox(height: 16.h),
+                      SizedBox(height: AppConstants.spacingLarge.h),
 
                       // Recurring expense toggle and configuration
                       ValueListenableBuilder<bool>(
@@ -453,14 +458,14 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                                 title: Text(
                                   'Recurring Expense',
                                   style: TextStyle(
-                                    fontSize: 16.sp,
+                                    fontSize: AppConstants.textSizeLarge.sp,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
                                 subtitle: Text(
                                   'Set up automatic recurring payments',
                                   style: TextStyle(
-                                    fontSize: 11.sp,
+                                    fontSize: AppConstants.textSizeSmall.sp,
                                     fontWeight: FontWeight.w300,
                                   ),
                                 ),
@@ -470,7 +475,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                                 },
                               ),
                               if (isRecurring) ...[
-                                SizedBox(height: 16.h),
+                                SizedBox(height: AppConstants.spacingLarge.h),
                                 RecurringExpenseConfig(
                                   initialFrequency: _recurringFrequency.value,
                                   initialDayOfMonth: _recurringDayOfMonth.value,
@@ -494,7 +499,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                           );
                         },
                       ),
-                      SizedBox(height: 24.h),
+                      SizedBox(height: AppConstants.spacingXXLarge.h),
 
                       // Update and Delete buttons
                       Column(
@@ -507,7 +512,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
                                 : _handleUpdate,
                             icon: Icons.update,
                           ),
-                          SizedBox(height: 16.h),
+                          SizedBox(height: AppConstants.spacingLarge.h),
                           SubmitButton(
                             text: 'Delete',
                             isLoading: _isDeleting,

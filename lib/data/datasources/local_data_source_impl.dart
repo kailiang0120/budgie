@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -7,7 +6,6 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import '../../domain/entities/budget.dart' as domain;
 import '../../domain/entities/expense.dart' as domain;
 import '../../domain/entities/recurring_expense.dart' as domain;
-import '../../domain/entities/user.dart' as domain;
 import '../../domain/entities/category.dart';
 
 import '../local/database/app_database.dart';
@@ -17,128 +15,168 @@ import 'local_data_source.dart';
 class LocalDataSourceImpl implements LocalDataSource {
   final AppDatabase _database;
   final Uuid _uuid = const Uuid();
-  final firebase_auth.FirebaseAuth _auth;
 
-  LocalDataSourceImpl(this._database, {firebase_auth.FirebaseAuth? auth})
-      : _auth = auth ?? firebase_auth.FirebaseAuth.instance;
+  LocalDataSourceImpl(this._database);
 
-  // User operations
+  // App Settings operations
   @override
-  Future<domain.User?> getUser(String userId) async {
-    final userRow = await (_database.select(_database.users)
-          ..where((tbl) => tbl.id.equals(userId)))
-        .getSingleOrNull();
-
-    if (userRow == null) {
-      return null;
-    }
-
-    return domain.User(
-      id: userRow.id,
-      email: userRow.email,
-      displayName: userRow.displayName,
-      photoUrl: userRow.photoUrl,
-      currency: userRow.currency,
-      theme: userRow.theme,
-    );
-  }
-
-  @override
-  Future<void> saveUser(domain.User user) async {
-    await _database.into(_database.users).insertOnConflictUpdate(
-          UsersCompanion.insert(
-            id: user.id,
-            email: Value(user.email),
-            displayName: Value(user.displayName),
-            photoUrl: Value(user.photoUrl),
-            currency: Value(user.currency),
-            theme: Value(user.theme),
-            lastModified: DateTime.now(),
-            isSynced: const Value(false),
-          ),
-        );
-
-    await addToSyncQueue('user', user.id, user.id, 'update');
-  }
-
-  // User Settings operations
-  @override
-  Future<Map<String, dynamic>?> getUserSettings(String userId) async {
-    final userRow = await (_database.select(_database.users)
-          ..where((tbl) => tbl.id.equals(userId)))
-        .getSingleOrNull();
-
-    if (userRow == null) {
-      return null;
-    }
-
-    return {
-      'currency': userRow.currency,
-      'theme': userRow.theme,
-      'settings': {
-        'allowNotification': userRow.allowNotification,
-        'autoBudget': userRow.autoBudget,
-        'improveAccuracy': userRow.improveAccuracy,
-      },
-    };
-  }
-
-  @override
-  Future<void> saveUserSettings(
-      String userId, Map<String, dynamic> settings) async {
+  Future<Map<String, dynamic>> getAppSettings() async {
     try {
-      debugPrint('💾 LocalDataSource: Saving user settings for user: $userId');
-      debugPrint('💾 LocalDataSource: Settings data: $settings');
+      final settingsRow = await (_database.select(_database.appSettings)
+            ..where((tbl) => tbl.id.equals(1)))
+          .getSingleOrNull();
 
-      final settingsMap = settings['settings'] as Map<String, dynamic>? ?? {};
+      if (settingsRow == null) {
+        // Create default settings if none exist using raw SQL
+        await _database.customStatement('''
+          INSERT INTO app_settings (
+            theme, 
+            currency,
+            allow_notification, 
+            auto_budget, 
+            improve_accuracy, 
+            updated_at
+          ) VALUES (
+            'light',
+            'MYR',
+            0, 
+            0, 
+            0, 
+            ${DateTime.now().millisecondsSinceEpoch}
+          )
+        ''');
 
-      final companion = UsersCompanion(
-        id: Value(userId),
-        currency: Value(settings['currency'] as String? ?? 'MYR'),
-        theme: Value(settings['theme'] as String? ?? 'light'),
-        // Handle both nested and root-level format
-        allowNotification: Value(settingsMap['allowNotification'] as bool? ??
-            settings['allowNotification'] as bool? ??
-            false),
-        autoBudget: Value(settingsMap['autoBudget'] as bool? ??
-            settings['autoBudget'] as bool? ??
-            false),
-        improveAccuracy: Value(settingsMap['improveAccuracy'] as bool? ??
-            settings['improveAccuracy'] as bool? ??
-            false),
-        automaticRebalanceSuggestions: Value(
-            settingsMap['automaticRebalanceSuggestions'] as bool? ??
-                settings['automaticRebalanceSuggestions'] as bool? ??
-                false),
-        lastModified: Value(DateTime.now()),
-        isSynced: const Value(
-            true), // Always mark as synced since we're not syncing with Firebase
-      );
+        // Return default settings as map
+        return {
+          'theme': 'light',
+          'currency': 'MYR',
+          'allow_notification': false,
+          'auto_budget': false,
+          'improve_accuracy': false,
+        };
+      }
 
-      debugPrint('💾 LocalDataSource: Created companion object with values:');
-      debugPrint('  - currency: ${companion.currency.value}');
-      debugPrint('  - theme: ${companion.theme.value}');
-      debugPrint('  - allowNotification: ${companion.allowNotification.value}');
-      debugPrint('  - autoBudget: ${companion.autoBudget.value}');
-      debugPrint('  - improveAccuracy: ${companion.improveAccuracy.value}');
-      debugPrint(
-          '  - automaticRebalanceSuggestions: ${companion.automaticRebalanceSuggestions.value}');
-
-      await _database.into(_database.users).insertOnConflictUpdate(companion);
-      debugPrint('💾 LocalDataSource: User settings saved to database');
-
-      // No longer adding to sync queue since we're keeping settings local only
-    } catch (e, stackTrace) {
-      debugPrint('❌ LocalDataSource: Error saving user settings: $e');
-      debugPrint('❌ LocalDataSource: Stack trace: $stackTrace');
-      rethrow;
+      // Convert row to map
+      return {
+        'id': settingsRow.id,
+        'theme': settingsRow.theme,
+        'currency': settingsRow.currency,
+        'allow_notification': settingsRow.allowNotification,
+        'auto_budget': settingsRow.autoBudget,
+        'improve_accuracy': settingsRow.improveAccuracy,
+        'updated_at': settingsRow.updatedAt.millisecondsSinceEpoch,
+      };
+    } catch (e) {
+      debugPrint('Error getting app settings: $e');
+      // Return default settings if any error occurs
+      return {
+        'theme': 'light',
+        'currency': 'MYR',
+        'allow_notification': false,
+        'auto_budget': false,
+        'improve_accuracy': false,
+      };
     }
   }
 
   @override
-  Future<void> markUserSettingsAsSynced(String userId) async {
-    // No-op since we're not syncing settings with Firebase
-    return;
+  Future<void> saveAppSettings(Map<String, dynamic> settings) async {
+    final existingSettings = await (_database.select(_database.appSettings)
+          ..where((tbl) => tbl.id.equals(1)))
+        .getSingleOrNull();
+
+    final companion = AppSettingsCompanion(
+      id: Value(existingSettings?.id ?? 1),
+      theme: Value(settings['theme'] as String? ?? 'light'),
+      currency: Value(settings['currency'] as String? ?? 'MYR'),
+      allowNotification:
+          Value(settings['allow_notification'] as bool? ?? false),
+      autoBudget: Value(settings['auto_budget'] as bool? ?? false),
+      improveAccuracy: Value(settings['improve_accuracy'] as bool? ?? false),
+      updatedAt: Value(DateTime.now()),
+    );
+
+    await _database
+        .into(_database.appSettings)
+        .insertOnConflictUpdate(companion);
+  }
+
+  @override
+  Future<String> getAppTheme() async {
+    final settings = await getAppSettings();
+    return settings['theme'] as String? ?? 'light';
+  }
+
+  @override
+  Future<void> updateAppTheme(String theme) async {
+    final settings = await getAppSettings();
+    settings['theme'] = theme;
+    await saveAppSettings(settings);
+  }
+
+  @override
+  Future<String> getAppCurrency() async {
+    final settings = await getAppSettings();
+    return settings['currency'] as String? ?? 'MYR';
+  }
+
+  @override
+  Future<void> updateAppCurrency(String currency) async {
+    final settings = await getAppSettings();
+    settings['currency'] = currency;
+    await saveAppSettings(settings);
+  }
+
+  @override
+  Future<bool> getNotificationsEnabled() async {
+    final settings = await getAppSettings();
+    return settings['allow_notification'] as bool? ?? false;
+  }
+
+  @override
+  Future<void> updateNotificationsEnabled(bool enabled) async {
+    final settings = await getAppSettings();
+    settings['allow_notification'] = enabled;
+    await saveAppSettings(settings);
+  }
+
+  @override
+  Future<bool> getAutoBudgetEnabled() async {
+    final settings = await getAppSettings();
+    return settings['auto_budget'] as bool? ?? false;
+  }
+
+  @override
+  Future<void> updateAutoBudgetEnabled(bool enabled) async {
+    final settings = await getAppSettings();
+    settings['auto_budget'] = enabled;
+    await saveAppSettings(settings);
+  }
+
+  @override
+  Future<bool> getImproveAccuracyEnabled() async {
+    final settings = await getAppSettings();
+    return settings['improve_accuracy'] as bool? ?? false;
+  }
+
+  @override
+  Future<void> updateImproveAccuracyEnabled(bool enabled) async {
+    final settings = await getAppSettings();
+    settings['improve_accuracy'] = enabled;
+    await saveAppSettings(settings);
+  }
+
+  @override
+  Future<bool> getSyncEnabled() async {
+    final settings = await getAppSettings();
+    return settings['sync_enabled'] as bool? ?? false;
+  }
+
+  @override
+  Future<void> updateSyncEnabled(bool enabled) async {
+    final settings = await getAppSettings();
+    settings['sync_enabled'] = enabled;
+    await saveAppSettings(settings);
   }
 
   // Expenses operations
@@ -159,8 +197,7 @@ class LocalDataSourceImpl implements LocalDataSource {
 
       // Parse embedded recurring details from JSON
       domain.RecurringDetails? recurringDetails;
-      if (row.recurringDetailsJson != null &&
-          row.recurringDetailsJson!.isNotEmpty) {
+      if (row.recurringDetailsJson?.isNotEmpty ?? false) {
         try {
           final jsonData =
               jsonDecode(row.recurringDetailsJson!) as Map<String, dynamic>;
@@ -187,10 +224,6 @@ class LocalDataSourceImpl implements LocalDataSource {
   @override
   Future<void> saveExpense(domain.Expense expense) async {
     final newId = expense.id.isEmpty ? _uuid.v4() : expense.id;
-    final userId = await _getCurrentUserId();
-
-    // Check if this is an offline expense (needs syncing)
-    final needsSync = expense.id.isEmpty || expense.id.startsWith('offline_');
 
     // Serialize recurring details to JSON
     String? recurringDetailsJson;
@@ -201,7 +234,6 @@ class LocalDataSourceImpl implements LocalDataSource {
     await _database.into(_database.expenses).insertOnConflictUpdate(
           ExpensesCompanion.insert(
             id: newId,
-            userId: userId,
             remark: expense.remark,
             amount: expense.amount,
             date: expense.date,
@@ -210,51 +242,13 @@ class LocalDataSourceImpl implements LocalDataSource {
             description: Value(expense.description),
             currency: Value(expense.currency),
             recurringDetailsJson: Value(recurringDetailsJson),
-            isSynced: Value(
-                !needsSync), // Mark as synced if it has a proper Firebase ID
-            lastModified: DateTime.now(),
-          ),
-        );
-
-    // Only add to sync queue if it needs syncing
-    if (needsSync) {
-      await addToSyncQueue('expense', newId, userId, 'add');
-    }
-  }
-
-  /// Save expense that is already synced from Firebase
-  @override
-  Future<void> saveSyncedExpense(domain.Expense expense) async {
-    final userId = await _getCurrentUserId();
-
-    // Serialize recurring details to JSON
-    String? recurringDetailsJson;
-    if (expense.recurringDetails != null) {
-      recurringDetailsJson = jsonEncode(expense.recurringDetails!.toJson());
-    }
-
-    await _database.into(_database.expenses).insertOnConflictUpdate(
-          ExpensesCompanion.insert(
-            id: expense.id,
-            userId: userId,
-            remark: expense.remark,
-            amount: expense.amount,
-            date: expense.date,
-            category: expense.category.id,
-            method: expense.method.toString().split('.').last,
-            description: Value(expense.description),
-            currency: Value(expense.currency),
-            recurringDetailsJson: Value(recurringDetailsJson),
-            isSynced: const Value(true), // Already synced from Firebase
-            lastModified: DateTime.now(),
+            updatedAt: DateTime.now(),
           ),
         );
   }
 
   @override
   Future<void> updateExpense(domain.Expense expense) async {
-    final userId = await _getCurrentUserId();
-
     // Serialize recurring details to JSON
     String? recurringDetailsJson;
     if (expense.recurringDetails != null) {
@@ -264,7 +258,6 @@ class LocalDataSourceImpl implements LocalDataSource {
     await _database.update(_database.expenses).replace(
           ExpensesCompanion(
             id: Value(expense.id),
-            userId: Value(userId),
             remark: Value(expense.remark),
             amount: Value(expense.amount),
             date: Value(expense.date),
@@ -273,293 +266,139 @@ class LocalDataSourceImpl implements LocalDataSource {
             description: Value(expense.description),
             currency: Value(expense.currency),
             recurringDetailsJson: Value(recurringDetailsJson),
-            isSynced: const Value(false),
-            lastModified: Value(DateTime.now()),
+            updatedAt: Value(DateTime.now()),
           ),
         );
-
-    await addToSyncQueue('expense', expense.id, userId, 'update');
   }
 
   @override
   Future<void> deleteExpense(String id) async {
-    final userId = await _getCurrentUserId();
-
     await (_database.delete(_database.expenses)
           ..where((tbl) => tbl.id.equals(id)))
         .go();
-
-    await addToSyncQueue('expense', id, userId, 'delete');
-  }
-
-  @override
-  Future<List<domain.Expense>> getUnsyncedExpenses() async {
-    final expenses = await (_database.select(_database.expenses)
-          ..where((tbl) => tbl.isSynced.equals(false)))
-        .get();
-
-    return expenses.map((row) {
-      final category =
-          CategoryExtension.fromId(row.category) ?? Category.others;
-      final methodString = row.method;
-      final paymentMethod = domain.PaymentMethod.values.firstWhere(
-        (e) => e.toString() == 'PaymentMethod.$methodString',
-        orElse: () => domain.PaymentMethod.cash,
-      );
-
-      // Parse embedded recurring details from JSON
-      domain.RecurringDetails? recurringDetails;
-      if (row.recurringDetailsJson != null &&
-          row.recurringDetailsJson!.isNotEmpty) {
-        try {
-          final jsonData =
-              jsonDecode(row.recurringDetailsJson!) as Map<String, dynamic>;
-          recurringDetails = domain.RecurringDetails.fromJson(jsonData);
-        } catch (e) {
-          debugPrint('Error parsing recurring details JSON: $e');
-        }
-      }
-
-      return domain.Expense(
-        id: row.id,
-        remark: row.remark,
-        amount: row.amount,
-        date: row.date,
-        category: category,
-        method: paymentMethod,
-        description: row.description,
-        currency: row.currency,
-        recurringDetails: recurringDetails,
-      );
-    }).toList();
-  }
-
-  @override
-  Future<void> markExpenseAsSynced(String id) async {
-    await (_database.update(_database.expenses)
-          ..where((tbl) => tbl.id.equals(id)))
-        .write(const ExpensesCompanion(isSynced: Value(true)));
   }
 
   // Budget operations
   @override
-  Future<domain.Budget?> getBudget(String monthId, String userId) async {
-    final budgetRow = await (_database.select(_database.budgets)
-          ..where(
-              (tbl) => tbl.monthId.equals(monthId) & tbl.userId.equals(userId)))
-        .getSingleOrNull();
+  Future<domain.Budget?> getBudget(String monthId) async {
+    try {
+      debugPrint('📊 LocalDataSource: Getting budget for month: $monthId');
 
-    if (budgetRow == null) {
-      return null;
-    }
-
-    final Map<String, dynamic> categoriesMap =
-        jsonDecode(budgetRow.categoriesJson);
-    final Map<String, domain.CategoryBudget> categories = {};
-
-    categoriesMap.forEach((key, value) {
-      categories[key] =
-          domain.CategoryBudget.fromMap(Map<String, dynamic>.from(value));
-    });
-
-    // Calculate total allocated to categories
-    final totalAllocated = categories.values
-        .fold(0.0, (sum, categoryBudget) => sum + categoryBudget.budget);
-
-    // Calculate expected saving
-    final expectedSaving = budgetRow.total - totalAllocated;
-
-    // Check if saving field needs to be updated (for backward compatibility)
-    bool needsUpdate = false;
-    double actualSaving = budgetRow.saving;
-
-    // If saving is 0 but we expect it to be different, or if it doesn't match calculation
-    if ((budgetRow.saving == 0.0 && expectedSaving != 0.0) ||
-        (budgetRow.saving != expectedSaving && expectedSaving >= 0)) {
-      actualSaving = expectedSaving;
-      needsUpdate = true;
-    }
-
-    // If we need to update the saving field in the database
-    if (needsUpdate) {
-      try {
-        await (_database.update(_database.budgets)
-              ..where((tbl) =>
-                  tbl.monthId.equals(monthId) & tbl.userId.equals(userId)))
-            .write(BudgetsCompanion(saving: Value(actualSaving)));
-        print('Updated saving field for budget $monthId: $actualSaving');
-      } catch (e) {
-        print('Error updating saving field: $e');
-        // Continue with calculated value even if database update fails
+      // Add null check for monthId
+      if (monthId.isEmpty) {
+        debugPrint('📊 LocalDataSource: Month ID is empty');
+        return null;
       }
-    }
 
-    return domain.Budget(
-      total: budgetRow.total,
-      left: budgetRow.left,
-      categories: categories,
-      saving: actualSaving,
-    );
-  }
+      final budgetRow = await (_database.select(_database.budgets)
+            ..where((tbl) => tbl.monthId.equals(monthId)))
+          .getSingleOrNull();
 
-  @override
-  Future<void> saveBudget(String monthId, domain.Budget budget, String userId,
-      {bool isSynced = false}) async {
-    final categoriesJson = jsonEncode(budget.toMap()['categories']);
-
-    await _database.into(_database.budgets).insertOnConflictUpdate(
-          BudgetsCompanion.insert(
-            monthId: monthId,
-            userId: userId,
-            total: budget.total,
-            left: budget.left,
-            categoriesJson: categoriesJson,
-            saving: Value(budget.saving),
-            lastModified: DateTime.now(),
-            isSynced: Value(isSynced),
-          ),
-        );
-
-    // Only add to sync queue if not marked as synced
-    if (!isSynced) {
-      // Check if there's already a pending sync operation for this budget
-      final operations = await (_database.select(_database.syncQueue)
-            ..where((tbl) =>
-                tbl.entityType.equals('budget') &
-                tbl.entityId.equals(monthId) &
-                tbl.userId.equals(userId)))
-          .get();
-
-      // Only add to queue if no pending operation exists
-      if (operations.isEmpty) {
-        await addToSyncQueue('budget', monthId, userId, 'update');
+      if (budgetRow == null) {
+        debugPrint('📊 LocalDataSource: No budget found for month: $monthId');
+        return null;
       }
-    }
-  }
 
-  @override
-  Future<List<String>> getUnsyncedBudgetIds(String userId) async {
-    final budgets = await (_database.select(_database.budgets)
-          ..where(
-              (tbl) => tbl.userId.equals(userId) & tbl.isSynced.equals(false)))
-        .get();
+      // Add null check for categoriesJson
+      final Map<String, dynamic> categoriesMap =
+          budgetRow.categoriesJson.isNotEmpty
+              ? jsonDecode(budgetRow.categoriesJson) as Map<String, dynamic>
+              : {};
 
-    return budgets.map((b) => b.monthId).toList();
-  }
+      final Map<String, domain.CategoryBudget> categories = {};
 
-  @override
-  Future<void> markBudgetAsSynced(String monthId, String userId) async {
-    await (_database.update(_database.budgets)
-          ..where(
-              (tbl) => tbl.monthId.equals(monthId) & tbl.userId.equals(userId)))
-        .write(const BudgetsCompanion(isSynced: Value(true)));
-  }
+      categoriesMap.forEach((key, value) {
+        if (value != null) {
+          try {
+            categories[key] =
+                domain.CategoryBudget.fromMap(Map<String, dynamic>.from(value));
+          } catch (e) {
+            debugPrint('📊 LocalDataSource: Error parsing category budget: $e');
+          }
+        }
+      });
 
-  // Sync operations
-  @override
-  Future<void> addToSyncQueue(String entityType, String entityId, String userId,
-      String operation) async {
-    await _database.into(_database.syncQueue).insert(
-          SyncQueueCompanion.insert(
-            entityType: entityType,
-            entityId: entityId,
-            userId: userId,
-            operation: operation,
-            timestamp: DateTime.now(),
-          ),
-        );
-  }
-
-  @override
-  Future<void> removeSyncOperation(int id) async {
-    await (_database.delete(_database.syncQueue)
-          ..where((tbl) => tbl.id.equals(id)))
-        .go();
-  }
-
-  @override
-  Future<void> clearAllSyncOperations() async {
-    await _database.delete(_database.syncQueue).go();
-  }
-
-  /// Helper method to get current user ID
-  Future<String> _getCurrentUserId() async {
-    // First try to get user from local database
-    final users = await _database.select(_database.users).get();
-    if (users.isNotEmpty) {
-      return users.first.id;
-    }
-
-    // If no user in local database, try Firebase
-    final firebaseUser = _auth.currentUser;
-    if (firebaseUser != null) {
-      // Save Firebase user to local database
-      final user = domain.User(
-        id: firebaseUser.uid,
-        email: firebaseUser.email,
-        displayName: firebaseUser.displayName,
-        photoUrl: firebaseUser.photoURL,
-        // Use default values
-        currency: 'MYR',
-        theme: 'light',
+      final budget = domain.Budget(
+        total: budgetRow.total,
+        left: budgetRow.left,
+        categories: categories,
+        saving: budgetRow.saving,
+        currency: budgetRow.currency,
       );
 
-      // Save user to local database (don't wait for completion)
-      saveUser(user);
-
-      return firebaseUser.uid;
-    }
-
-    // If no user found in either location, throw exception
-    throw Exception('No user found in local database or Firebase');
-  }
-
-  /// Clear all budget sync operations for a specific user
-  @override
-  Future<void> clearAllBudgetSyncOperations(String userId) async {
-    try {
-      // Get all sync operations
-      final operations = await (_database.select(_database.syncQueue)).get();
-
-      // Filter for budget operations for this user
-      final budgetOps = operations
-          .where((op) => op.entityType == 'budget' && op.userId == userId);
-
-      // Delete each operation
-      for (final op in budgetOps) {
-        await (_database.delete(_database.syncQueue)
-              ..where((tbl) => tbl.id.equals(op.id)))
-            .go();
-      }
-
-      // Mark all budgets as synced
-      await (_database.update(_database.budgets)
-            ..where((tbl) => tbl.userId.equals(userId)))
-          .write(const BudgetsCompanion(isSynced: Value(true)));
-
-      debugPrint('Cleared all budget sync operations for user $userId');
+      debugPrint(
+          '📊 LocalDataSource: Budget found with total: ${budget.total}, left: ${budget.left}, currency: ${budget.currency}');
+      return budget;
     } catch (e) {
-      debugPrint('Error clearing budget sync operations: $e');
+      debugPrint('📊 LocalDataSource: Error getting budget: $e');
+      return null;
     }
   }
 
-  // Clean up resources
-  void dispose() {
-    // Close the database connection
-    _database.close();
+  @override
+  Future<void> saveBudget(String monthId, domain.Budget budget) async {
+    try {
+      debugPrint('📊 LocalDataSource: Saving budget for month: $monthId');
+      debugPrint(
+          '📊 LocalDataSource: Budget total: ${budget.total}, left: ${budget.left}, currency: ${budget.currency}');
+
+      final categoriesJson = jsonEncode(budget.toMap()['categories']);
+
+      await _database.into(_database.budgets).insertOnConflictUpdate(
+            BudgetsCompanion.insert(
+              monthId: monthId,
+              total: budget.total,
+              left: budget.left,
+              categoriesJson: categoriesJson,
+              saving: Value(budget.saving),
+              currency: Value(budget.currency),
+              updatedAt: DateTime.now(),
+            ),
+          );
+
+      debugPrint('📊 LocalDataSource: Budget saved successfully');
+
+      // Verify the save worked by reading it back
+      final savedRow = await (_database.select(_database.budgets)
+            ..where((tbl) => tbl.monthId.equals(monthId)))
+          .getSingleOrNull();
+
+      debugPrint(
+          '📊 LocalDataSource: Verified budget row exists: ${savedRow != null}');
+      if (savedRow != null) {
+        debugPrint(
+            '📊 LocalDataSource: Saved budget total: ${savedRow.total}, left: ${savedRow.left}, currency: ${savedRow.currency}');
+      }
+    } catch (e) {
+      debugPrint('📊 LocalDataSource: Error saving budget: $e');
+      throw Exception('Failed to save budget: $e');
+    }
   }
 
-  // Budget reallocation settings are handled via user settings
+  @override
+  Future<void> deleteBudget(String monthId) async {
+    try {
+      debugPrint('📊 LocalDataSource: Deleting budget for month: $monthId');
+
+      // Delete the budget from the database using a delete query
+      await (_database.delete(_database.budgets)
+            ..where((tbl) => tbl.monthId.equals(monthId)))
+          .go();
+
+      debugPrint('📊 LocalDataSource: Budget deleted successfully');
+    } catch (e) {
+      debugPrint('📊 LocalDataSource: Error deleting budget: $e');
+      throw Exception('Failed to delete budget: $e');
+    }
+  }
 
   // Exchange rates operations
   @override
-  Future<Map<String, double>?> getExchangeRates(
-      String baseCurrency, String userId) async {
+  Future<Map<String, double>?> getExchangeRates(String baseCurrency) async {
     try {
       // Get the exchange rates from the database
       final query = _database.select(_database.exchangeRates)
-        ..where((tbl) =>
-            tbl.baseCurrency.equals(baseCurrency) & tbl.userId.equals(userId));
+        ..where((tbl) => tbl.baseCurrency.equals(baseCurrency));
 
       final ratesRow = await query.getSingleOrNull();
 
@@ -584,8 +423,8 @@ class LocalDataSourceImpl implements LocalDataSource {
   }
 
   @override
-  Future<void> saveExchangeRates(String baseCurrency, String userId,
-      Map<String, double> rates, DateTime timestamp) async {
+  Future<void> saveExchangeRates(String baseCurrency, Map<String, double> rates,
+      DateTime timestamp) async {
     try {
       // Convert rates map to JSON string
       final ratesJson = jsonEncode(rates);
@@ -594,73 +433,22 @@ class LocalDataSourceImpl implements LocalDataSource {
       await _database.into(_database.exchangeRates).insertOnConflictUpdate(
             ExchangeRatesCompanion.insert(
               baseCurrency: baseCurrency,
-              userId: userId,
               ratesJson: ratesJson,
               timestamp: timestamp,
-              lastModified: DateTime.now(),
+              updatedAt: DateTime.now(),
             ),
           );
-
-      debugPrint('Exchange rates saved for $baseCurrency');
     } catch (e) {
       debugPrint('Error saving exchange rates to local database: $e');
     }
   }
 
   @override
-  Future<DateTime?> getExchangeRatesTimestamp(
-      String baseCurrency, String userId) async {
+  Future<DateTime?> getExchangeRatesTimestamp(String baseCurrency) async {
     final ratesRow = await (_database.select(_database.exchangeRates)
-          ..where((tbl) =>
-              tbl.baseCurrency.equals(baseCurrency) &
-              tbl.userId.equals(userId)))
+          ..where((tbl) => tbl.baseCurrency.equals(baseCurrency)))
         .getSingleOrNull();
 
     return ratesRow?.timestamp;
-  }
-
-  // Sync queue operations
-  @override
-  Future<List<Map<String, dynamic>>> getSyncQueue() async {
-    final operations = await (_database.select(_database.syncQueue)
-          ..orderBy([(t) => OrderingTerm.asc(t.timestamp)]))
-        .get();
-
-    return operations
-        .map((op) => {
-              'id': op.id,
-              'entityType': op.entityType,
-              'entityId': op.entityId,
-              'userId': op.userId,
-              'operation': op.operation,
-              'timestamp': op.timestamp,
-            })
-        .toList();
-  }
-
-  Future<void> removeSyncQueueItem(int id) async {
-    await (_database.delete(_database.syncQueue)
-          ..where((tbl) => tbl.id.equals(id)))
-        .go();
-  }
-
-  Future<void> clearSyncQueue() async {
-    await _database.delete(_database.syncQueue).go();
-  }
-
-  @override
-  Future<List<domain.User>> getUsers() async {
-    final userRows = await _database.select(_database.users).get();
-
-    return userRows
-        .map((userRow) => domain.User(
-              id: userRow.id,
-              email: userRow.email,
-              displayName: userRow.displayName,
-              photoUrl: userRow.photoUrl,
-              currency: userRow.currency,
-              theme: userRow.theme,
-            ))
-        .toList();
   }
 }

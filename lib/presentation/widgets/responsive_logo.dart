@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import '../utils/app_constants.dart';
+import '../utils/app_theme.dart';
 
 /// A responsive logo widget that adapts to different screen sizes and provides hero animation support
 class ResponsiveLogo extends StatelessWidget {
@@ -30,18 +32,20 @@ class ResponsiveLogo extends StatelessWidget {
       constraints: _getConstraints(),
       decoration: showShadow
           ? BoxDecoration(
-              borderRadius: BorderRadius.circular(12.r),
+              borderRadius:
+                  BorderRadius.circular(AppConstants.borderRadiusLarge.r),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(_getShadowOpacity()),
-                  blurRadius: _getShadowBlur(),
-                  offset: Offset(0, _getShadowOffset()),
+                  color: Colors.black
+                      .withAlpha((255 * AppConstants.opacityLow).toInt()),
+                  blurRadius: AppConstants.elevationLarge * 2,
+                  offset: Offset(0, AppConstants.elevationSmall),
                 ),
               ],
             )
           : null,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge.r),
         child: Image.asset(
           'assets/images/budgie_logo.png',
           fit: BoxFit.contain,
@@ -49,8 +53,9 @@ class ResponsiveLogo extends StatelessWidget {
             // Fallback icon if image fails to load
             return Container(
               decoration: BoxDecoration(
-                color: Colors.blue.shade700,
-                borderRadius: BorderRadius.circular(12.r),
+                color: AppTheme.primaryColor,
+                borderRadius:
+                    BorderRadius.circular(AppConstants.borderRadiusLarge.r),
               ),
               child: Icon(
                 Icons.account_balance_wallet,
@@ -131,7 +136,9 @@ class ResponsiveLogo extends StatelessWidget {
     const aspectRatio = 120 / 160; // width / height from original
 
     // Calculate available space
-    final availableWidth = screenSize.width - safePadding.horizontal - 32.w;
+    final availableWidth = screenSize.width -
+        safePadding.horizontal -
+        AppConstants.spacingXLarge.w * 2;
 
     // Determine base width based on logo size
     double baseWidth;
@@ -206,56 +213,14 @@ class ResponsiveLogo extends StatelessWidget {
         );
     }
   }
-
-  /// Get shadow opacity based on logo size
-  double _getShadowOpacity() {
-    switch (logoSize) {
-      case LogoSize.small:
-        return 0.15;
-      case LogoSize.medium:
-        return 0.2;
-      case LogoSize.large:
-        return 0.25;
-      case LogoSize.extraLarge:
-        return 0.3;
-    }
-  }
-
-  /// Get shadow blur radius
-  double _getShadowBlur() {
-    switch (logoSize) {
-      case LogoSize.small:
-        return 10.r;
-      case LogoSize.medium:
-        return 15.r;
-      case LogoSize.large:
-        return 20.r;
-      case LogoSize.extraLarge:
-        return 25.r;
-    }
-  }
-
-  /// Get shadow offset
-  double _getShadowOffset() {
-    switch (logoSize) {
-      case LogoSize.small:
-        return 5.h;
-      case LogoSize.medium:
-        return 8.h;
-      case LogoSize.large:
-        return 10.h;
-      case LogoSize.extraLarge:
-        return 12.h;
-    }
-  }
 }
 
-/// Logo size options for different use cases
+/// Logo size options for different UI contexts
 enum LogoSize {
-  small, // For compact spaces (cards, headers)
-  medium, // For login screens, standard usage
-  large, // For splash screens, prominent display
-  extraLarge, // For very large screens or special emphasis
+  small,
+  medium,
+  large,
+  extraLarge,
 }
 
 /// Extension to get size descriptions

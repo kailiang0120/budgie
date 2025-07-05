@@ -1,4 +1,6 @@
 // ignore_for_file: use_build_context_synchronously
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +11,7 @@ import '../widgets/expense_card.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/date_picker_button.dart';
 import '../widgets/animated_float_button.dart';
+import '../widgets/home_budget_card.dart';
 import '../utils/currency_formatter.dart';
 import '../utils/app_constants.dart';
 // Using theme from MaterialApp
@@ -19,6 +22,8 @@ import 'add_budget_screen.dart';
 import '../../core/constants/routes.dart';
 import '../../core/router/page_transition.dart';
 import '../../domain/entities/budget.dart';
+import '../../data/infrastructure/services/notification_service.dart';
+import '../../di/injection_container.dart' as di;
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,8 +34,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late DateTime _selectedDate;
-  bool _filterByDay = false;
-  bool _showDetailedBudget = false;
+  DateFilterMode _filterMode = DateFilterMode.month;
+  StreamSubscription<NotificationNavigationAction>? _navigationSubscription;
   // Add animation controller and animation duration
   static const _animationDuration = Duration(milliseconds: 300);
   static const _animationCurve = Curves.easeInOut;
@@ -42,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     // Initialize with current date as default
     _selectedDate = DateTime.now();
+    _setupNavigationListener();
 
     // Initialize filters in post-frame callback to avoid build phase issues
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -50,6 +56,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
         // Auto refresh both expenses and budget when the home screen loads
         _refreshData();
+
+        // Force budget refresh to ensure it's loaded
+        final monthId = _getBudgetMonthId();
+        debugPrint('🏠 HomeScreen: Initial budget refresh for month: $monthId');
+        Provider.of<BudgetViewModel>(context, listen: false)
+            .refreshBudget(monthId);
       }
     });
   }
@@ -66,16 +78,36 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
       // Use the screen-specific filter settings
       _selectedDate = vm.getScreenFilterDate('home');
-      _filterByDay = vm.isDayFilteringForScreen('home');
+      _filterMode = vm.getFilterMode('home');
 
-      // Apply the filter
-      vm.setSelectedMonth(_selectedDate,
-          filterByDay: _filterByDay, screenKey: 'home');
+      debugPrint(
+          '🏠 HomeScreen: Initializing filters - selectedDate: $_selectedDate, filterMode: $_filterMode');
+
+      // Apply the filter using the new filter mode system
+      vm.setFilterMode(_filterMode, _selectedDate, screenKey: 'home');
 
       setState(() {});
     } catch (e) {
-      debugPrint('Error initializing date filter: $e');
+      debugPrint('🏠 HomeScreen: Error initializing date filter: $e');
       _selectedDate = DateTime.now();
+      _filterMode = DateFilterMode.month;
+    }
+  }
+
+  void _setupNavigationListener() {
+    try {
+      final notificationService = di.sl<NotificationService>();
+      _navigationSubscription =
+          notificationService.navigationStream.listen((action) {
+        if (mounted && ModalRoute.of(context)?.isCurrent == true) {
+          debugPrint(
+              '💡 HomeScreen: Received navigation action to ${action.route}');
+          Navigator.pushNamed(context, action.route,
+              arguments: action.arguments);
+        }
+      });
+    } catch (e) {
+      debugPrint('Error setting up navigation listener: $e');
     }
   }
 
@@ -93,11 +125,28 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _navigationSubscription?.cancel();
     super.dispose();
   }
 
   String _getMonthIdFromDate(DateTime date) {
+    // Format with leading zero for month to ensure consistent format
     return '${date.year}-${date.month.toString().padLeft(2, '0')}';
+  }
+
+  /// Get budget month ID based on current filter mode and selected date
+  String _getBudgetMonthId() {
+    switch (_filterMode) {
+      case DateFilterMode.day:
+      case DateFilterMode.month:
+        // For day and month filters, use the month containing the selected date
+        return _getMonthIdFromDate(_selectedDate);
+      case DateFilterMode.year:
+        // For year filter, use current month of the selected year
+        final now = DateTime.now();
+        final yearDate = DateTime(_selectedDate.year, now.month, 1);
+        return _getMonthIdFromDate(yearDate);
+    }
   }
 
   void _onDateChanged(DateTime newDate) {
@@ -107,28 +156,34 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     try {
       final vm = Provider.of<ExpensesViewModel>(context, listen: false);
-      vm.setSelectedMonth(_selectedDate,
-          filterByDay: _filterByDay, screenKey: 'home');
 
-      // Also update budget for the selected month
+      // First clear any cached data
+      vm.refreshData();
+
+      // Then apply the new filter using the filter mode system
+      vm.setFilterMode(_filterMode, _selectedDate, screenKey: 'home');
+
+      // Also update budget for the selected month using smart filtering
       final budgetVM = Provider.of<BudgetViewModel>(context, listen: false);
-      budgetVM.loadBudget(_getMonthIdFromDate(_selectedDate));
+      final monthId = _getBudgetMonthId();
+
+      // Use refreshBudget to ensure we get fresh data
+      budgetVM.refreshBudget(monthId);
     } catch (e) {
       debugPrint('Error changing selected month: $e');
     }
   }
 
-  void _toggleFilterMode() {
+  void _onFilterModeChanged(DateFilterMode newMode) {
     setState(() {
-      _filterByDay = !_filterByDay;
+      _filterMode = newMode;
     });
 
     try {
       final vm = Provider.of<ExpensesViewModel>(context, listen: false);
-      vm.setSelectedMonth(_selectedDate,
-          filterByDay: _filterByDay, screenKey: 'home');
+      vm.setFilterMode(_filterMode, _selectedDate, screenKey: 'home');
     } catch (e) {
-      debugPrint('Error toggling filter mode: $e');
+      debugPrint('Error changing filter mode: $e');
     }
   }
 
@@ -137,15 +192,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       context,
       PageTransition(
         child: AddBudgetScreen(
-          monthId: _getMonthIdFromDate(_selectedDate),
+          monthId: _getBudgetMonthId(),
         ),
         type: TransitionType.slideRight,
       ),
-    ).then((_) {
+    ).then((result) {
       // Refresh budget data when returning from budget screen
       if (mounted) {
+        final monthId = _getBudgetMonthId();
+        debugPrint(
+            '🏠 HomeScreen: Returned from budget screen with result: $result');
+
+        // Use refreshBudget instead of loadBudget to ensure we get fresh data
         Provider.of<BudgetViewModel>(context, listen: false)
-            .loadBudget(_getMonthIdFromDate(_selectedDate));
+            .refreshBudget(monthId);
+
+        // Also refresh expenses to ensure proper calculations
+        Provider.of<ExpensesViewModel>(context, listen: false).refreshData();
+
+        // Force a complete refresh of both expenses and budget
+        _refreshData();
       }
     });
   }
@@ -153,426 +219,108 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Widget _buildBudgetCard() {
     return Consumer<BudgetViewModel>(
       builder: (context, budgetVM, _) {
-        final budget = budgetVM.budget;
-        final themeColor = Theme.of(context).colorScheme.primary;
-
-        if (budget == null) {
-          // Show empty budget card with call to action
-          return Card(
-            elevation: 4.r,
-            shadowColor: Colors.black.withAlpha((255 * 0.3).toInt()),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.r)),
-            child: InkWell(
-              onTap: _navigateToBudgetScreen,
-              borderRadius: BorderRadius.circular(16.r),
-              child: Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(20.w),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.account_balance_wallet_outlined,
-                      size: 40.sp,
-                      color: themeColor.withAlpha((255 * 0.5).toInt()),
-                    ),
-                    SizedBox(height: 12.h),
-                    Text(
-                      'Set Budget',
-                      style: TextStyle(
-                        fontSize: 20.sp,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    SizedBox(height: 8.h),
-                    Text(
-                      'Tap here to set your monthly budget',
-                      style: TextStyle(
-                        fontSize: 16.sp,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }
-
-        // Budget exists - show either compact or detailed view
-        final remaining = budget.left;
-        final percentage = budget.total > 0 ? (remaining / budget.total) : 0;
-        final isLow = percentage < 0.3 && percentage > 0;
-        final isNegative = remaining <= 0;
-        final currencySymbol =
-            CurrencyFormatter.getCurrencySymbol(budget.currency);
-
-        final statusColor = isNegative
-            ? Colors.red
-            : isLow
-                ? Colors.orange
-                : Colors.green.shade700;
-
-        return Card(
-          elevation: 8.r,
-          shadowColor: Colors.black.withAlpha((255 * 0.3).toInt()),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
-          child: InkWell(
-            onTap: _showDetailedBudget
-                ? null // Disable tap when already expanded
-                : () {
-                    setState(() {
-                      _showDetailedBudget = true;
-                    });
-                  },
-            borderRadius: BorderRadius.circular(16.r),
-            child: AnimatedContainer(
-              duration: _animationDuration,
-              curve: _animationCurve,
-              width: double.infinity,
-              padding: EdgeInsets.all(20.w),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.all(10.w),
-                        decoration: BoxDecoration(
-                          color: themeColor.withAlpha((255 * 0.1).toInt()),
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        child: Icon(
-                          Icons.account_balance_wallet,
-                          size: 28.sp,
-                          color: themeColor,
-                        ),
-                      ),
-                      SizedBox(width: 16.w),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Total Budget',
-                            style: TextStyle(
-                              fontSize: 20.sp,
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          SizedBox(height: 4.h),
-                          Text(
-                            '$currencySymbol${budget.total.toStringAsFixed(0)}',
-                            style: TextStyle(
-                              fontSize: 16.sp,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 20.h),
-                  Text(
-                    'Amount left for this month',
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  SizedBox(height: 8.h),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '$currencySymbol${remaining.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 16.sp,
-                            color: statusColor,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: EdgeInsets.symmetric(
-                            horizontal: 10.w, vertical: 6.h),
-                        decoration: BoxDecoration(
-                          color: statusColor.withAlpha((255 * 0.1).toInt()),
-                          borderRadius: BorderRadius.circular(12.r),
-                        ),
-                        child: Text(
-                          isNegative
-                              ? 'Overspent'
-                              : isLow
-                                  ? 'Low Budget'
-                                  : 'Budget Healthy',
-                          style: TextStyle(
-                            fontSize: 12.sp,
-                            color: statusColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 12.h),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8.r),
-                    child: LinearProgressIndicator(
-                      value: percentage.clamp(0, 1).toDouble(),
-                      minHeight: 8.h,
-                      backgroundColor: Colors.grey.shade200,
-                      valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                    ),
-                  ),
-                  SizedBox(height: 8.h),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      'Used ${((1 - percentage) * 100).toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                  ),
-                  if (!_showDetailedBudget) ...[
-                    SizedBox(height: 12.h),
-                    Align(
-                      alignment: Alignment.center,
-                      child: TextButton.icon(
-                        onPressed: () {
-                          setState(() {
-                            _showDetailedBudget = true;
-                          });
-                        },
-                        icon: Icon(Icons.expand_more, size: 20.sp),
-                        label: const Text('Show more'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: themeColor,
-                        ),
-                      ),
-                    ),
-                  ],
-
-                  // Detailed budget view (category breakdown)
-                  // Use AnimatedCrossFade for a smoother transition between expanded/collapsed states
-                  AnimatedCrossFade(
-                    firstChild: const SizedBox.shrink(),
-                    secondChild: budget.categories.isNotEmpty
-                        ? Column(
-                            children: [
-                              SizedBox(height: 16.h),
-                              const Divider(),
-                              SizedBox(height: 16.h),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Categories',
-                                    style: TextStyle(
-                                      fontSize: 16.sp,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  TextButton(
-                                    onPressed: _navigateToBudgetScreen,
-                                    child: Text(
-                                      'Edit Budget',
-                                      style: TextStyle(
-                                        fontSize: 14.sp,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: 8.h),
-                              ..._buildCategoryList(budget),
-
-                              // Show less button
-                              SizedBox(height: 8.h),
-                              Align(
-                                alignment: Alignment.center,
-                                child: TextButton.icon(
-                                  onPressed: () {
-                                    setState(() {
-                                      _showDetailedBudget = false;
-                                    });
-                                  },
-                                  icon: Icon(Icons.expand_less, size: 20.sp),
-                                  label: const Text('Show less'),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: themeColor,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
-                        : const SizedBox.shrink(),
-                    crossFadeState: _showDetailedBudget
-                        ? CrossFadeState.showSecond
-                        : CrossFadeState.showFirst,
-                    duration: _animationDuration,
-                    sizeCurve: _animationCurve,
-                  ),
-                ],
-              ),
-            ),
-          ),
+        return HomeBudgetCard(
+          budget: budgetVM.budget,
+          selectedDate: _selectedDate,
+          filterMode: _filterMode,
+          onTap: _navigateToBudgetScreen,
+          isLoading: budgetVM.isLoading,
         );
       },
     );
   }
 
-  List<Widget> _buildCategoryList(budget) {
-    final categories = budget.categories.entries.toList();
-    final currencySymbol = CurrencyFormatter.getCurrencySymbol(budget.currency);
-
-    // Sort categories by remaining budget percentage (from low to high)
-    categories.sort((MapEntry<String, CategoryBudget> a,
-        MapEntry<String, CategoryBudget> b) {
-      final percentA = a.value.budget > 0 ? a.value.left / a.value.budget : 0;
-      final percentB = b.value.budget > 0 ? b.value.left / b.value.budget : 0;
-      return percentA.compareTo(percentB);
-    });
-
-    return categories.map<Widget>((entry) {
-      final catId = entry.key;
-      final catBudget = entry.value;
-
-      // Get category information
-      final category = CategoryManager.getCategoryFromId(catId);
-      final categoryIcon =
-          category != null ? CategoryManager.getIcon(category) : Icons.category;
-      final categoryColor =
-          category != null ? CategoryManager.getColor(category) : Colors.grey;
-      final categoryName =
-          category != null ? CategoryManager.getName(category) : catId;
-
-      // Calculate percentage
-      final percentage = catBudget.budget > 0
-          ? (catBudget.left / catBudget.budget).clamp(0.0, 1.0)
-          : 0.0;
-
-      // Status color
-      final statusColor = catBudget.left <= 0
-          ? Colors.red
-          : percentage < 0.3
-              ? Colors.orange
-              : Colors.green.shade700;
-
-      return Container(
-        margin: EdgeInsets.only(bottom: 12.h),
-        child: Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(8.w),
-              decoration: BoxDecoration(
-                color: categoryColor.withAlpha((255 * 0.1).toInt()),
-                borderRadius: BorderRadius.circular(10.r),
-              ),
-              child: Icon(
-                categoryIcon,
-                size: 18.sp,
-                color: categoryColor,
-              ),
-            ),
-            SizedBox(width: 12.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        categoryName,
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        '$currencySymbol${catBudget.left.toStringAsFixed(0)}',
-                        style: TextStyle(
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w500,
-                          color: statusColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 6.h),
-                  Stack(
-                    children: [
-                      Container(
-                        height: 6.h,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(3.r),
-                        ),
-                      ),
-                      FractionallySizedBox(
-                        widthFactor: percentage,
-                        child: Container(
-                          height: 6.h,
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            borderRadius: BorderRadius.circular(3.r),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }).toList();
+  Widget _buildFilterSection() {
+    return DatePickerButton(
+      date: _selectedDate,
+      themeColor: Theme.of(context).colorScheme.primary,
+      prefix: 'Filter by',
+      onDateChanged: _onDateChanged,
+      filterMode: _filterMode,
+      onFilterModeChanged: _onFilterModeChanged,
+      showFilterModeSelector: true,
+    );
   }
 
   // Method to refresh both expenses and budget data
   Future<void> _refreshData() async {
-    if (!mounted) return;
+    if (!mounted) {
+      debugPrint(
+          '🏠 HomeScreen: _refreshData called but widget is not mounted');
+      return;
+    }
 
-    debugPrint('Home: Manual refresh triggered');
+    debugPrint('🏠 HomeScreen: Manual refresh triggered');
 
     try {
+      setState(() {
+        // Show loading indicator if needed
+      });
+
       final expensesVM = Provider.of<ExpensesViewModel>(context, listen: false);
       final budgetVM = Provider.of<BudgetViewModel>(context, listen: false);
+      final monthId = _getBudgetMonthId();
 
-      // Clear any cached data and refresh from source
-      debugPrint('Home: Refreshing expenses data...');
+      // Step 1: Clear any cached data and refresh expenses from source
+      debugPrint('🏠 HomeScreen: Refreshing expenses data...');
       await expensesVM.refreshData();
 
-      // Reapply current filter settings for home screen
-      debugPrint('Home: Reapplying filter for home screen...');
-      expensesVM.setSelectedMonth(_selectedDate,
-          filterByDay: _filterByDay, persist: true, screenKey: 'home');
+      // Step 2: Reapply current filter settings for home screen
+      debugPrint('🏠 HomeScreen: Reapplying filter for home screen...');
+      expensesVM.setFilterMode(_filterMode, _selectedDate, screenKey: 'home');
 
-      // Add a small delay before refreshing budget to ensure expenses are updated
-      await Future.delayed(const Duration(milliseconds: 300));
+      // Step 3: Get the filtered expenses for the current month/day
+      final currentExpenses = _filterMode == DateFilterMode.day
+          ? expensesVM
+              .filteredExpenses // Use filtered expenses when filtering by day
+          : expensesVM.getExpensesForMonth(
+              _selectedDate.year, _selectedDate.month);
 
-      // Refresh budget data for the selected month
+      debugPrint(
+          '🏠 HomeScreen: Found ${currentExpenses.length} expenses for the selected period');
+
+      // Step 4: Refresh budget data for the selected month
       if (mounted) {
-        final monthId = _getMonthIdFromDate(_selectedDate);
-        debugPrint('Home: Refreshing budget for month: $monthId');
+        debugPrint('🏠 HomeScreen: Refreshing budget for month: $monthId');
 
+        // First load the current budget
+        await budgetVM.loadBudget(monthId);
+        debugPrint(
+            '🏠 HomeScreen: Current budget exists: ${budgetVM.budget != null}');
+
+        // Then refresh the budget to recalculate with expenses
         await budgetVM.refreshBudget(monthId);
+        debugPrint(
+            '🏠 HomeScreen: Budget after refresh exists: ${budgetVM.budget != null}');
 
         // Also recalculate budget with current expenses to ensure real-time updates
-        final currentExpenses = expensesVM.getExpensesForMonth(
-            _selectedDate.year, _selectedDate.month);
         await budgetVM.calculateBudgetRemaining(currentExpenses, monthId);
+        debugPrint(
+            '🏠 HomeScreen: Budget after recalculation exists: ${budgetVM.budget != null}');
 
-        debugPrint('Home: Refresh completed successfully');
+        debugPrint(
+            '🏠 HomeScreen: Refresh completed successfully - expenses count: ${expensesVM.expenses.length}');
+
+        // Force UI update
+        if (mounted) {
+          setState(() {
+            // Update UI with fresh data
+          });
+        }
       }
     } catch (e) {
-      debugPrint('Home: Error during refresh: $e');
+      debugPrint('🏠 HomeScreen: Error during refresh: $e');
+
+      // Show error to user if needed
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error refreshing data: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -582,10 +330,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final expenses = vm.expenses;
     final isLoading = vm.isLoading;
 
-    // Load budget for the selected month
-    final monthId = _getMonthIdFromDate(_selectedDate);
+    debugPrint(
+        '🏠 HomeScreen: Building UI with ${expenses.length} expenses, loading: $isLoading');
+
+    // Use post-frame callback to load budget to avoid calling setState during build
     if (mounted) {
-      Provider.of<BudgetViewModel>(context, listen: false).loadBudget(monthId);
+      // Use a post-frame callback to avoid calling setState during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          final monthId = _getBudgetMonthId();
+          debugPrint(
+              '🏠 HomeScreen: Post-frame callback refreshing budget for month: $monthId');
+          Provider.of<BudgetViewModel>(context, listen: false)
+              .refreshBudget(monthId);
+        }
+      });
     }
 
     return Scaffold(
@@ -628,78 +387,24 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
                   ),
 
-                  // Month/day selector row (moved to top)
+                  // Filter Section with improved UX design
                   SliverPadding(
                     padding:
                         EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
                     sliver: SliverToBoxAdapter(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            child: DatePickerButton(
-                              date: _selectedDate,
-                              themeColor: Theme.of(context).colorScheme.primary,
-                              prefix: 'Filter by',
-                              onDateChanged: _onDateChanged,
-                              showDaySelection: _filterByDay,
-                            ),
-                          ),
-                          SizedBox(width: 8.w),
-                          // Filter toggle button
-                          Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: _toggleFilterMode,
-                              borderRadius: BorderRadius.circular(12.r),
-                              child: Container(
-                                constraints: BoxConstraints(
-                                    minHeight: 45.h, minWidth: 45.w),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withAlpha((255 * 0.1).toInt()),
-                                  borderRadius: BorderRadius.circular(12.r),
-                                  border: Border.all(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary
-                                        .withAlpha((255 * 0.3).toInt()),
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Icon(
-                                    _filterByDay
-                                        ? Icons.calendar_today
-                                        : Icons.calendar_month,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                    size: 24.sp,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                      child: _buildFilterSection(),
                     ),
                   ),
 
                   // Budget Card
-                  SliverPadding(
-                    padding:
-                        EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-                    sliver: SliverToBoxAdapter(
-                      child: _buildBudgetCard(),
-                    ),
+                  SliverToBoxAdapter(
+                    child: _buildBudgetCard(),
                   ),
 
                   // Expense list
                   expenses.isEmpty
                       ? SliverPadding(
-                          padding: EdgeInsets.all(32.w),
+                          padding: EdgeInsets.all(AppConstants.spacingHuge.w),
                           sliver: const SliverToBoxAdapter(
                             child: Center(
                               child: Text(
@@ -713,14 +418,18 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       : SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
-                              return ExpenseCard(
-                                key: ValueKey(
-                                    expenses[index].id), // Add unique key
-                                expense: expenses[index],
-                                onExpenseUpdated: () {
-                                  // Use unified refresh method for complete data reload
-                                  _refreshData();
-                                },
+                              return Padding(
+                                padding: EdgeInsets.symmetric(
+                                    horizontal: AppConstants.spacingLarge.w),
+                                child: ExpenseCard(
+                                  key: ValueKey(
+                                      expenses[index].id), // Add unique key
+                                  expense: expenses[index],
+                                  onExpenseUpdated: () {
+                                    // Use unified refresh method for complete data reload
+                                    _refreshData();
+                                  },
+                                ),
                               );
                             },
                             childCount: expenses.length,
@@ -729,8 +438,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                   // Padding at bottom so FAB + NavBar don't cover last card
                   SliverPadding(
-                    padding: EdgeInsets.only(bottom: 90.h),
-                    sliver: SliverToBoxAdapter(child: SizedBox.shrink()),
+                    padding: EdgeInsets.only(
+                        bottom: AppConstants.spacingHuge.h * 2.3),
+                    sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
                   ),
                 ],
               ),
@@ -748,8 +458,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ).then((result) {
             // Only refresh data if an expense was actually added (result == true)
-            if (!mounted || result != true) return;
+            debugPrint(
+                '🏠 HomeScreen: Returned from AddExpenseScreen with result: $result');
+            if (!mounted || result != true) {
+              debugPrint(
+                  '🏠 HomeScreen: Not refreshing - mounted: $mounted, result: $result');
+              return;
+            }
 
+            debugPrint(
+                '🏠 HomeScreen: Expense added successfully, triggering refresh');
             // Use unified refresh method for complete data reload
             _refreshData();
           });
@@ -778,7 +496,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 navigator.pushReplacementNamed(Routes.settings);
                 break;
               case 3:
-                navigator.pushReplacementNamed(Routes.profile);
+                navigator.pushReplacementNamed(Routes.goals);
                 break;
             }
           }

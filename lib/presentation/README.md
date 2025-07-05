@@ -14,34 +14,37 @@ lib/
 └── 📱 main.dart               # Application entry point
 ```
 
-## ✅ **REFACTORING COMPLETED (v2.0)**
+## ✅ **FASTAPI INTEGRATION COMPLETED (v3.0)**
 
-### **1. Duplicate Services Removed** ✅
-- **Removed**: `ai_prediction_service.dart` (duplicate of GoogleAIExpensePredictionService)
-- **Removed**: `expense_prediction_service.dart` (duplicate functionality)
-- **Removed**: `notification_service.dart` (replaced by NotificationSenderService)
-- **Kept**: `GoogleAIExpensePredictionService` as the single AI prediction service
+### **1. Google AI Package Removed** ✅
+- **Removed**: Direct `google_generative_ai` package dependency
+- **Replaced**: Direct AI calls with FastAPI backend integration
+- **Security**: No API keys exposed in mobile application
+- **Scalability**: Centralized AI processing through backend services
 
-### **2. Fallback Detection Removed** ✅
-- **Updated**: `ExpenseDetectorService` - removed pattern-based fallback detection
-- **API-Only Detection**: All expense detection now uses AI/ML API exclusively
-- **Simplified Logic**: Cleaner, more reliable detection flow
+### **2. Backend Integration** ✅
+- **HTTP Client**: Robust FastAPI backend communication
+- **Error Handling**: Comprehensive network and API error management
+- **Health Monitoring**: Service health checking capabilities
+- **Environment Config**: Development/production URL configuration
 
-### **3. Merchant Detection Removed** ✅
-- **Amount-Only Extraction**: Only extracts amount from notifications
-- **Simplified Models**: Removed `extractedMerchant` from API models
-- **Firebase Optimization**: Only necessary data is stored
+### **3. Service Modernization** ✅
+- **Expense Extraction**: FastAPI backend for notification processing
+- **Spending Analysis**: Backend-powered behavioral insights
+- **Budget Optimization**: Server-side budget reallocation analysis
+- **TFLite Removal**: Replaced local ML models with backend AI
 
-### **4. Model Consolidation** ✅
-- **Removed**: `ai_expense_models.dart` (duplicated)
-- **Removed**: `expense_prediction_models.dart` (duplicated)
-- **Removed**: `notification_models.dart` (unused)
-- **Kept**: `ai_response_models.dart` and `api_response_models.dart` for clean separation
+### **4. Deprecated Services Cleaned** ✅
+- **Removed**: `AIExpensePredictionService` (deprecated)
+- **Updated**: All AI services to use FastAPI endpoints
+- **Simplified**: Dependency injection configuration
+- **Maintained**: Clean architecture principles
 
-### **5. Service Alignment** ✅
-- **Notification Flow**: NotificationManagerService → ExpenseDetector → API Service
-- **No Fallbacks**: Clean failure handling without pattern matching
-- **Enterprise Standards**: Proper error handling and logging
+### **5. Architecture Benefits** ✅
+- **Security**: API keys secured on backend
+- **Performance**: Reduced mobile app size (no local ML models)
+- **Maintainability**: Centralized AI logic updates
+- **Scalability**: Backend can serve multiple clients
 
 ## 🏗️ **LAYER BREAKDOWN**
 
@@ -61,9 +64,10 @@ domain/
 │   ├── expenses_repository.dart
 │   └── recurring_expenses_repository.dart
 ├── services/            # Domain business logic services
-│   ├── budget_calculation_service.dart     # Business rules for budget calculations
-│   ├── expense_detection_service.dart      # Core expense detection logic
-│   └── google_ai_expense_prediction_service.dart # AI prediction business logic
+│   ├── budget_calculation_service.dart              # Business rules for budget calculations
+│   ├── budget_reallocation_service.dart             # Budget optimization logic
+│   ├── expense_extraction_service.dart              # Expense detection interface
+│   └── spending_behavior_analysis_service.dart      # Spending pattern analysis
 └── usecase/            # Single-responsibility use cases
     ├── auth/           # Authentication use cases
     ├── budget/         # Budget management use cases
@@ -86,11 +90,13 @@ data/
 │   ├── network/        # Network services
 │   │   └── connectivity_service.dart
 │   └── services/       # Infrastructure services
+│       ├── background_task_service.dart        # Background processing
 │       ├── currency_conversion_service.dart    # External currency API
 │       ├── data_collection_service.dart        # Analytics & telemetry
-│       ├── expense_detector_service.dart       # ML/AI API integration
-│       ├── notification_manager_service.dart   # Notification orchestration
-│       ├── notification_sender_service.dart    # Platform notifications
+│       ├── expense_extraction_service_impl.dart # FastAPI expense extraction
+│       ├── gemini_api_client.dart              # FastAPI backend client
+│       ├── notification_listener_service.dart  # Platform notification listener
+│       ├── notification_service.dart           # Notification management
 │       ├── permission_handler_service.dart     # Platform permissions
 │       ├── settings_service.dart               # User preferences
 │       └── sync_service.dart                   # Data synchronization
@@ -99,10 +105,10 @@ data/
 │       ├── app_database.dart
 │       └── app_database.g.dart
 ├── models/             # Data transfer objects
-│   ├── ai_response_models.dart    # AI/ML API models
-│   ├── api_models.dart            # General API models  
-│   ├── api_response_models.dart   # API response models
-│   └── exceptions.dart            # Data layer exceptions
+│   ├── budget_reallocation_models.dart  # Budget optimization models
+│   ├── exceptions.dart                  # Data layer exceptions
+│   ├── expense_detection_models.dart    # Expense detection models
+│   └── spending_behavior_models.dart    # Spending analysis models
 └── repositories/       # Repository implementations
     ├── auth_repository_impl.dart
     ├── budget_repository_impl.dart

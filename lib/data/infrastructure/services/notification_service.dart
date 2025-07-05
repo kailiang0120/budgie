@@ -1,0 +1,703 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz_data;
+import 'dart:io';
+import 'dart:convert';
+import 'dart:async';
+
+import '../../../core/router/app_router.dart';
+import '../../../core/constants/routes.dart';
+import '../../models/expense_detection_models.dart';
+import '../../../domain/usecase/notification/record_notification_detection_usecase.dart';
+import '../../../di/injection_container.dart' as di;
+
+/// Data class for navigation events triggered by notifications
+class NotificationNavigationAction {
+  final String route;
+  final dynamic arguments;
+
+  NotificationNavigationAction({required this.route, this.arguments});
+}
+
+/// Temporary storage for extracted expense data from notifications
+class _TempExpenseData {
+  final String detectionId;
+  final ExpenseExtractionResult extractionResult;
+  final DateTime timestamp;
+
+  _TempExpenseData({
+    required this.detectionId,
+    required this.extractionResult,
+    required this.timestamp,
+  });
+}
+
+/// Unified notification service for sending local notifications
+/// Provides a clean interface for all notification sending functionality
+class NotificationService {
+  static final NotificationService _instance = NotificationService._internal();
+  factory NotificationService() => _instance;
+  NotificationService._internal();
+
+  // Stream for handling navigation from notifications
+  final StreamController<NotificationNavigationAction>
+      _navigationStreamController =
+      StreamController<NotificationNavigationAction>.broadcast();
+
+  Stream<NotificationNavigationAction> get navigationStream =>
+      _navigationStreamController.stream;
+
+  // Temporary storage for extracted expense data
+  final Map<String, _TempExpenseData> _tempExpenseStorage = {};
+  static const Duration _tempStorageTimeout = Duration(hours: 1);
+
+  // Plugin instance
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
+
+  // Service state
+  bool _isInitialized = false;
+  bool _isTimeZoneInitialized = false;
+
+  // Notification channels
+  static const String _generalChannelId = 'general_notifications';
+  static const String _expenseChannelId = 'expense_notifications';
+  static const String _reminderChannelId = 'reminder_notifications';
+
+  /// Initialize the notification service
+  Future<void> initialize() async {
+    if (_isInitialized) return;
+
+    try {
+      debugPrint('📤 NotificationService: Initializing...');
+
+      // Initialize timezone data for scheduled notifications
+      if (!_isTimeZoneInitialized) {
+        tz_data.initializeTimeZones();
+        _isTimeZoneInitialized = true;
+      }
+
+      // Platform-specific initialization settings
+      final initializationSettings = _createInitializationSettings();
+
+      // Initialize the plugin
+      await _plugin.initialize(
+        initializationSettings,
+        onDidReceiveNotificationResponse: _onNotificationResponse,
+        onDidReceiveBackgroundNotificationResponse:
+            _onBackgroundNotificationResponse,
+      );
+
+      // Create notification channels for Android
+      if (Platform.isAndroid) {
+        await _createNotificationChannels();
+      }
+
+      _isInitialized = true;
+      debugPrint('✅ NotificationService: Initialization completed');
+    } catch (e, stackTrace) {
+      debugPrint('❌ NotificationService: Initialization failed: $e');
+      debugPrint('📍 Stack trace: $stackTrace');
+      // Don't throw - app should continue working even if notifications fail
+    }
+  }
+
+  /// Send a general notification
+  Future<bool> sendNotification({
+    required String title,
+    required String content,
+    String? payload,
+    NotificationPriority priority = NotificationPriority.normal,
+    String? channelId,
+  }) async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+
+    try {
+      final notificationId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final effectiveChannelId = channelId ?? _generalChannelId;
+      final details = _getNotificationDetails(effectiveChannelId, priority);
+
+      await _plugin.show(
+        notificationId,
+        title,
+        content,
+        details,
+        payload: payload,
+      );
+
+      debugPrint('📤 NotificationService: Sent notification - $title');
+      return true;
+    } catch (e) {
+      debugPrint('❌ NotificationService: Failed to send notification: $e');
+      return false;
+    }
+  }
+
+  /// Send an expense detected notification with actions to record or dismiss
+  Future<bool> sendExpenseDetectedNotification({
+    required String detectionId,
+    required ExpenseExtractionResult extractionResult,
+  }) async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+
+    try {
+      // Store the extracted data temporarily
+      _tempExpenseStorage[detectionId] = _TempExpenseData(
+        detectionId: detectionId,
+        extractionResult: extractionResult,
+        timestamp: DateTime.now(),
+      );
+
+      // Clean up old entries
+      _cleanupTempStorage();
+
+      final payload = jsonEncode({
+        'type': 'expense_detected',
+        'detectionId': detectionId,
+      });
+
+      final androidActions = <AndroidNotificationAction>[
+        const AndroidNotificationAction(
+          'record_expense',
+          'Record',
+          showsUserInterface: true,
+        ),
+        const AndroidNotificationAction(
+          'dismiss',
+          'Dismiss',
+          cancelNotification: true,
+        ),
+      ];
+
+      final details = _getNotificationDetails(
+        _expenseChannelId,
+        NotificationPriority.high,
+        actions: androidActions,
+      );
+
+      final notificationId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final merchantName = extractionResult.merchantName ?? 'a recent purchase';
+
+      await _plugin.show(
+        notificationId,
+        'Expense Detected',
+        'Record expense from $merchantName?',
+        details,
+        payload: payload,
+      );
+
+      debugPrint(
+          '📤 NotificationService: Sent actionable expense notification');
+      return true;
+    } catch (e) {
+      debugPrint(
+          '❌ NotificationService: Failed to send actionable notification: $e');
+      return false;
+    }
+  }
+
+  /// Clean up old temporary storage entries
+  void _cleanupTempStorage() {
+    final now = DateTime.now();
+    _tempExpenseStorage.removeWhere((key, value) {
+      return now.difference(value.timestamp) > _tempStorageTimeout;
+    });
+  }
+
+  /// Get stored expense data by detection ID
+  ExpenseExtractionResult? getStoredExpenseData(String detectionId) {
+    final tempData = _tempExpenseStorage[detectionId];
+    if (tempData != null) {
+      // Check if data is still valid
+      if (DateTime.now().difference(tempData.timestamp) <=
+          _tempStorageTimeout) {
+        return tempData.extractionResult;
+      } else {
+        // Remove expired data
+        _tempExpenseStorage.remove(detectionId);
+      }
+    }
+    return null;
+  }
+
+  /// Clear stored expense data by detection ID
+  void clearStoredExpenseData(String detectionId) {
+    _tempExpenseStorage.remove(detectionId);
+    debugPrint(
+        '📤 NotificationService: Cleared stored data for detection ID: $detectionId');
+  }
+
+  /// Send a reminder notification
+  Future<bool> sendReminderNotification({
+    required String message,
+    String? title,
+    String? payload,
+  }) async {
+    return await sendNotification(
+      title: title ?? 'Budgie Reminder',
+      content: message,
+      payload: payload ?? 'reminder_notification',
+      priority: NotificationPriority.normal,
+      channelId: _reminderChannelId,
+    );
+  }
+
+  /// Schedule a notification for later delivery
+  Future<bool> scheduleNotification({
+    required String title,
+    required String content,
+    required Duration delay,
+    String? payload,
+    NotificationPriority priority = NotificationPriority.normal,
+    String? channelId,
+  }) async {
+    if (!_isInitialized) {
+      await initialize();
+    }
+
+    try {
+      // Ensure timezone data is initialized
+      if (!_isTimeZoneInitialized) {
+        tz_data.initializeTimeZones();
+        _isTimeZoneInitialized = true;
+      }
+
+      final notificationId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final effectiveChannelId = channelId ?? _reminderChannelId;
+      final details = _getNotificationDetails(effectiveChannelId, priority);
+      final scheduledTime = tz.TZDateTime.now(tz.local).add(delay);
+
+      // For Android platform, request exact alarm permission if needed
+      if (Platform.isAndroid) {
+        final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+        if (androidPlugin != null) {
+          await androidPlugin.requestExactAlarmsPermission();
+        }
+      }
+
+      // Schedule the notification
+      await _plugin.zonedSchedule(
+        notificationId,
+        title,
+        content,
+        scheduledTime,
+        details,
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        payload: payload,
+      );
+
+      debugPrint(
+          '📤 NotificationService: Scheduled notification for ${scheduledTime.toString()}');
+      return true;
+    } catch (e) {
+      debugPrint('❌ NotificationService: Failed to schedule notification: $e');
+
+      // Fallback to Future.delayed if zonedSchedule fails
+      Future.delayed(delay, () async {
+        await sendNotification(
+          title: title,
+          content: content,
+          payload: payload,
+          priority: priority,
+          channelId: channelId,
+        );
+      });
+      return false;
+    }
+  }
+
+  /// Cancel a specific notification
+  Future<void> cancelNotification(int id) async {
+    try {
+      await _plugin.cancel(id);
+      debugPrint('📤 NotificationService: Cancelled notification $id');
+    } catch (e) {
+      debugPrint('❌ NotificationService: Failed to cancel notification: $e');
+    }
+  }
+
+  /// Cancel all notifications
+  Future<void> cancelAllNotifications() async {
+    try {
+      await _plugin.cancelAll();
+      debugPrint('📤 NotificationService: Cancelled all notifications');
+    } catch (e) {
+      debugPrint(
+          '❌ NotificationService: Failed to cancel all notifications: $e');
+    }
+  }
+
+  /// Get pending notifications
+  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
+    try {
+      return await _plugin.pendingNotificationRequests();
+    } catch (e) {
+      debugPrint(
+          '❌ NotificationService: Failed to get pending notifications: $e');
+      return [];
+    }
+  }
+
+  /// Get active notifications (Android only)
+  Future<List<ActiveNotification>> getActiveNotifications() async {
+    try {
+      if (Platform.isAndroid) {
+        return await _plugin.getActiveNotifications();
+      }
+    } catch (e) {
+      debugPrint(
+          '❌ NotificationService: Failed to get active notifications: $e');
+    }
+    return [];
+  }
+
+  // Private methods
+
+  /// Create platform-specific initialization settings
+  InitializationSettings _createInitializationSettings() {
+    // Android initialization settings
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+
+    // iOS initialization settings
+    const DarwinInitializationSettings initializationSettingsIOS =
+        DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    // macOS initialization settings
+    const DarwinInitializationSettings initializationSettingsMacOS =
+        DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    // Linux initialization settings
+    const LinuxInitializationSettings initializationSettingsLinux =
+        LinuxInitializationSettings(defaultActionName: 'Open notification');
+
+    // Windows initialization settings
+    const WindowsInitializationSettings initializationSettingsWindows =
+        WindowsInitializationSettings(
+      appName: 'Budgie',
+      appUserModelId: 'com.kai.budgie',
+      guid: 'a7a8d8e8-f8f8-4e4e-a8a8-d8e8f8f8e8f8',
+    );
+
+    return const InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsIOS,
+      macOS: initializationSettingsMacOS,
+      linux: initializationSettingsLinux,
+      windows: initializationSettingsWindows,
+    );
+  }
+
+  /// Create notification channels for Android
+  Future<void> _createNotificationChannels() async {
+    final androidPlugin = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+
+    if (androidPlugin == null) return;
+
+    // Define channels
+    const AndroidNotificationChannel generalChannel =
+        AndroidNotificationChannel(
+      _generalChannelId,
+      'General Notifications',
+      description: 'General notifications from Budgie',
+      importance: Importance.defaultImportance,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    const AndroidNotificationChannel expenseChannel =
+        AndroidNotificationChannel(
+      _expenseChannelId,
+      'Expense Notifications',
+      description: 'Notifications for expense detection and alerts',
+      importance: Importance.high,
+      playSound: true,
+      enableVibration: true,
+    );
+
+    const AndroidNotificationChannel reminderChannel =
+        AndroidNotificationChannel(
+      _reminderChannelId,
+      'Reminder Notifications',
+      description: 'Reminders for budget and expense tracking',
+      importance: Importance.defaultImportance,
+      playSound: true,
+      enableVibration: false,
+    );
+
+    // Create channels
+    await androidPlugin.createNotificationChannel(generalChannel);
+    await androidPlugin.createNotificationChannel(expenseChannel);
+    await androidPlugin.createNotificationChannel(reminderChannel);
+  }
+
+  /// Get notification details based on channel ID and priority
+  NotificationDetails _getNotificationDetails(
+      String channelId, NotificationPriority priority,
+      {List<AndroidNotificationAction>? actions}) {
+    // Determine importance and priority based on enum
+    final importance = priority == NotificationPriority.high
+        ? Importance.high
+        : priority == NotificationPriority.low
+            ? Importance.low
+            : Importance.defaultImportance;
+
+    final androidPriority = priority == NotificationPriority.high
+        ? Priority.high
+        : priority == NotificationPriority.low
+            ? Priority.low
+            : Priority.defaultPriority;
+
+    // Android notification details
+    final AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+      channelId,
+      _getChannelName(channelId),
+      channelDescription: 'Notifications for Budgie expense tracking app',
+      importance: importance,
+      priority: androidPriority,
+      ticker: 'ticker',
+      icon: '@mipmap/ic_launcher',
+      actions: actions,
+    );
+
+    // iOS notification details
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    return NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+  }
+
+  /// Get channel name from channel ID
+  String _getChannelName(String channelId) {
+    switch (channelId) {
+      case _expenseChannelId:
+        return 'Expense Notifications';
+      case _reminderChannelId:
+        return 'Reminder Notifications';
+      case _generalChannelId:
+        return 'General Notifications';
+      default:
+        return 'General Notifications';
+    }
+  }
+
+  /// Handle notification response when app is in foreground
+  void _onNotificationResponse(NotificationResponse notificationResponse) {
+    final String? payload = notificationResponse.payload;
+    final String? actionId = notificationResponse.actionId;
+    debugPrint(
+        '📤 NotificationService: Notification tapped with payload: $payload, action: $actionId');
+
+    if (payload == null) return;
+
+    try {
+      final payloadMap = jsonDecode(payload) as Map<String, dynamic>;
+      final type = payloadMap['type'] as String?;
+
+      // Handle expense detection notifications
+      if (type == 'expense_detected') {
+        _handleExpenseNotificationResponse(actionId, payload);
+      }
+    } catch (e) {
+      debugPrint(
+          '📤 NotificationService: Error handling notification response: $e');
+    }
+  }
+
+  /// Handle expense detection notification responses
+  void _handleExpenseNotificationResponse(String? actionId, String payload) {
+    try {
+      final payloadMap = jsonDecode(payload) as Map<String, dynamic>;
+      final detectionId = payloadMap['detectionId'] as String?;
+
+      if (detectionId == null) {
+        debugPrint('📤 NotificationService: Missing detectionId in payload');
+        return;
+      }
+
+      final recordUseCase = di.sl<RecordNotificationDetectionUseCase>();
+
+      // Handle different action types
+      if (actionId == 'record_expense' || actionId == null) {
+        // Default action is to record
+        recordUseCase.recordUserConfirmation(
+          detectionId: detectionId,
+          userConfirmed: true,
+        );
+
+        // Queue navigation to add expense screen with stored data
+        _queueNavigationFromStoredData(detectionId);
+      } else if (actionId == 'dismiss') {
+        // User dismissed - clear the stored data and record dismissal
+        debugPrint(
+            '📤 NotificationService: Expense notification dismissed by user.');
+        recordUseCase.recordUserDismissal(
+          detectionId: detectionId,
+          dismissalReason: 'user_dismissed',
+        );
+
+        // Clear the temporary storage
+        clearStoredExpenseData(detectionId);
+      }
+    } catch (e) {
+      debugPrint(
+          '📤 NotificationService: Error handling expense notification: $e');
+    }
+  }
+
+  /// Queues navigation using stored expense data
+  void _queueNavigationFromStoredData(String detectionId) {
+    try {
+      final extractionResult = getStoredExpenseData(detectionId);
+
+      if (extractionResult != null) {
+        // Map to arguments for AddExpenseScreen
+        final arguments = {
+          'amount': extractionResult.parsedAmount,
+          'currency': extractionResult.currency,
+          'remarks': extractionResult.merchantName,
+          'category': extractionResult.suggestedCategory,
+          'paymentMethod': extractionResult.paymentMethod,
+          'detectionId':
+              detectionId, // Include detection ID for cleanup after use
+        };
+
+        debugPrint(
+            '📤 NotificationService: Queuing navigation to add expense with stored data: $arguments');
+
+        _navigationStreamController.add(
+          NotificationNavigationAction(
+            route: '/add_expense',
+            arguments: arguments,
+          ),
+        );
+      } else {
+        debugPrint(
+            '📤 NotificationService: No stored data found for detection ID: $detectionId');
+        // Fallback - queue navigation without prefilled data
+        _navigationStreamController.add(
+          NotificationNavigationAction(route: '/add_expense'),
+        );
+      }
+    } catch (e) {
+      debugPrint(
+          '📤 NotificationService: Error queuing navigation from stored data: $e');
+
+      // Fallback - queue navigation without prefilled data
+      _navigationStreamController.add(
+        NotificationNavigationAction(route: '/add_expense'),
+      );
+    }
+  }
+
+  /// Parses the payload and adds a navigation action to the stream (legacy method - kept for backward compatibility)
+  void _queueNavigationFromPayload(String payload) {
+    try {
+      // Parse the JSON payload
+      final payloadMap = jsonDecode(payload) as Map<String, dynamic>;
+      final detectionId = payloadMap['detectionId'] as String?;
+
+      if (detectionId != null) {
+        // Use the new method with stored data
+        _queueNavigationFromStoredData(detectionId);
+        return;
+      }
+
+      // Legacy fallback for old payload format
+      final extractedData =
+          payloadMap['extractedData'] as Map<String, dynamic>?;
+      if (extractedData != null) {
+        final result = ExpenseExtractionResult.fromJson(extractedData);
+
+        // Map to arguments for AddExpenseScreen
+        final arguments = {
+          'amount': result.parsedAmount,
+          'currency': result.currency,
+          'remarks': result.merchantName,
+          'category': result.suggestedCategory,
+          'paymentMethod': result.paymentMethod,
+        };
+
+        debugPrint(
+            '📤 NotificationService: Queuing navigation to add expense with legacy data: $arguments');
+
+        _navigationStreamController.add(
+          NotificationNavigationAction(
+            route: '/add_expense',
+            arguments: arguments,
+          ),
+        );
+      } else {
+        // Fallback - queue navigation without prefilled data
+        _navigationStreamController.add(
+          NotificationNavigationAction(route: '/add_expense'),
+        );
+      }
+    } catch (e) {
+      debugPrint(
+          '📤 NotificationService: Error queuing navigation from payload: $e');
+
+      // Fallback - queue navigation without prefilled data
+      _navigationStreamController.add(
+        NotificationNavigationAction(route: '/add_expense'),
+      );
+    }
+  }
+
+  /// Handle notification response when app is in background
+  @pragma('vm:entry-point')
+  static void _onBackgroundNotificationResponse(
+      NotificationResponse notificationResponse) {
+    final String? payload = notificationResponse.payload;
+    debugPrint(
+        '📤 NotificationService: Background notification tapped with payload: $payload');
+
+    // Additional handling can be added here based on payload
+  }
+
+  /// Cleanup resources
+  void dispose() {
+    _navigationStreamController.close();
+    _tempExpenseStorage.clear();
+    debugPrint('📤 NotificationService: Service disposed');
+  }
+
+  /// Check if service is initialized
+  bool get isInitialized => _isInitialized;
+
+  /// Clean up stored data after successful expense addition
+  void cleanupAfterExpenseAdded(String? detectionId) {
+    if (detectionId != null) {
+      clearStoredExpenseData(detectionId);
+    }
+  }
+}
+
+/// Notification priority levels
+enum NotificationPriority {
+  low,
+  normal,
+  high,
+}

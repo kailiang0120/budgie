@@ -1,9 +1,10 @@
 import 'dart:io';
-import 'dart:convert';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:uuid/uuid.dart';
 
 // Import database tables
 part 'app_database.g.dart';
@@ -11,7 +12,6 @@ part 'app_database.g.dart';
 /// Expenses table definition
 class Expenses extends Table {
   TextColumn get id => text()();
-  TextColumn get userId => text()();
   TextColumn get remark => text()();
   RealColumn get amount => real()();
   DateTimeColumn get date => dateTime()();
@@ -21,88 +21,107 @@ class Expenses extends Table {
   TextColumn get currency => text().withDefault(const Constant('MYR'))();
   TextColumn get recurringDetailsJson =>
       text().nullable()(); // JSON field for embedded recurring details
-  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
-  DateTimeColumn get lastModified => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
 
   @override
   Set<Column> get primaryKey => {id};
 
-  // Add indexes for performance optimization
-  @override
-  List<Set<Column>> get uniqueKeys => [];
-
   // Custom indexes for frequently queried columns
-  static const String indexUserId =
-      'CREATE INDEX IF NOT EXISTS expenses_user_id_idx ON expenses (user_id)';
   static const String indexDate =
       'CREATE INDEX IF NOT EXISTS expenses_date_idx ON expenses (date)';
-  static const String indexUserDate =
-      'CREATE INDEX IF NOT EXISTS expenses_user_date_idx ON expenses (user_id, date)';
-  static const String indexSyncStatus =
-      'CREATE INDEX IF NOT EXISTS expenses_sync_idx ON expenses (is_synced)';
 }
 
 /// Budgets table definition
 class Budgets extends Table {
   TextColumn get monthId => text()();
-  TextColumn get userId => text()();
   RealColumn get total => real()();
   RealColumn get left => real()();
   TextColumn get categoriesJson => text()();
   RealColumn get saving => real().withDefault(const Constant(0.0))();
-  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
-  DateTimeColumn get lastModified => dateTime()();
-
-  @override
-  Set<Column> get primaryKey => {monthId, userId};
-
-  // Custom indexes for performance optimization
-  static const String indexUserId =
-      'CREATE INDEX IF NOT EXISTS budgets_user_id_idx ON budgets (user_id)';
-  static const String indexSyncStatus =
-      'CREATE INDEX IF NOT EXISTS budgets_sync_idx ON budgets (is_synced)';
-}
-
-/// Sync queue table for tracking operations that need to be synchronized
-class SyncQueue extends Table {
-  IntColumn get id => integer().autoIncrement()();
-  TextColumn get entityType =>
-      text()(); // 'expense', 'budget', or 'user_settings'
-  TextColumn get entityId => text()();
-  TextColumn get userId => text()();
-  TextColumn get operation => text()(); // 'add', 'update', 'delete'
-  DateTimeColumn get timestamp => dateTime()();
-}
-
-/// Exchange rates table for storing currency conversion rates
-class ExchangeRates extends Table {
-  TextColumn get baseCurrency => text()();
-  TextColumn get userId => text()();
-  TextColumn get ratesJson => text()();
-  DateTimeColumn get timestamp => dateTime()();
-  DateTimeColumn get lastModified => dateTime()();
-
-  @override
-  Set<Column> get primaryKey => {baseCurrency, userId};
-}
-
-/// Users table for storing user information and settings
-class Users extends Table {
-  TextColumn get id => text()();
-  TextColumn get email => text().nullable()();
-  TextColumn get displayName => text().nullable()();
-  TextColumn get photoUrl => text().nullable()();
   TextColumn get currency => text().withDefault(const Constant('MYR'))();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {monthId};
+}
+
+/// Financial goals table definition
+class FinancialGoals extends Table {
+  TextColumn get id => text()();
+  TextColumn get title => text()();
+  RealColumn get targetAmount => real()();
+  RealColumn get currentAmount => real()();
+  DateTimeColumn get deadline => dateTime()();
+  TextColumn get iconName => text()();
+  TextColumn get colorValue => text()();
+  BoolColumn get isCompleted => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Goal history table definition
+class GoalHistory extends Table {
+  TextColumn get id => text()();
+  TextColumn get goalId => text()();
+  TextColumn get title => text()();
+  RealColumn get targetAmount => real()();
+  RealColumn get finalAmount => real()();
+  DateTimeColumn get createdDate => dateTime()();
+  DateTimeColumn get completedDate => dateTime()();
+  TextColumn get iconName => text()();
+  TextColumn get colorValue => text()();
+  TextColumn get notes => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Settings table for app-wide settings
+class AppSettings extends Table {
+  // Use a single row for app settings with id=1
+  IntColumn get id => integer().autoIncrement()();
   TextColumn get theme => text().withDefault(const Constant('light'))();
+  TextColumn get currency => text().withDefault(const Constant('MYR'))();
   BoolColumn get allowNotification =>
       boolean().withDefault(const Constant(false))();
   BoolColumn get autoBudget => boolean().withDefault(const Constant(false))();
   BoolColumn get improveAccuracy =>
       boolean().withDefault(const Constant(false))();
-  BoolColumn get automaticRebalanceSuggestions =>
-      boolean().withDefault(const Constant(false))();
-  DateTimeColumn get lastModified => dateTime()();
-  BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  BoolColumn get syncEnabled => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get updatedAt => dateTime()();
+}
+
+/// Exchange rates table for storing currency conversion rates
+class ExchangeRates extends Table {
+  TextColumn get baseCurrency => text()();
+  TextColumn get ratesJson => text()();
+  DateTimeColumn get timestamp => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {baseCurrency};
+}
+
+/// User profiles table for storing financial behavior profiles
+class UserProfiles extends Table {
+  TextColumn get id => text()();
+  TextColumn get userId => text()();
+  TextColumn get primaryFinancialGoal => text()();
+  TextColumn get incomeStability => text()();
+  TextColumn get spendingMentality => text()();
+  TextColumn get riskAppetite => text()();
+  RealColumn get monthlyIncome => real()();
+  RealColumn get emergencyFundTarget => real()();
+  TextColumn get aiPreferencesJson => text().named('ai_preferences')();
+  TextColumn get categoryPreferencesJson =>
+      text().named('category_preferences')();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+  BoolColumn get isComplete => boolean()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -118,27 +137,26 @@ LazyDatabase _openConnection() {
 }
 
 /// Main application database
-@DriftDatabase(tables: [
-  Expenses,
-  Budgets,
-  SyncQueue,
-  Users,
-  ExchangeRates,
-])
+@DriftDatabase(
+  tables: [
+    Expenses,
+    Budgets,
+    AppSettings,
+    ExchangeRates,
+    FinancialGoals,
+    GoalHistory,
+    UserProfiles,
+  ],
+)
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 13;
 
   /// Create performance indexes for better query performance
   Future<void> _createPerformanceIndexes() async {
-    await customStatement(Expenses.indexUserId);
     await customStatement(Expenses.indexDate);
-    await customStatement(Expenses.indexUserDate);
-    await customStatement(Expenses.indexSyncStatus);
-    await customStatement(Budgets.indexUserId);
-    await customStatement(Budgets.indexSyncStatus);
   }
 
   @override
@@ -148,105 +166,277 @@ class AppDatabase extends _$AppDatabase {
         await m.createAll();
         // Create performance indexes
         await _createPerformanceIndexes();
+
+        // Create default settings directly with SQL
+        await customStatement('''
+          INSERT INTO app_settings (
+            theme,
+            currency, 
+            allow_notification, 
+            auto_budget, 
+            improve_accuracy, 
+            sync_enabled,
+            updated_at
+          ) VALUES (
+            'light',
+            'MYR', 
+            0, 
+            0, 
+            0, 
+            0,
+            ${DateTime.now().millisecondsSinceEpoch}
+          )
+        ''');
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        if (from == 1 && to >= 2) {
-          // Add new settings columns to Users table
-          await m.addColumn(
-              users, users.allowNotification as GeneratedColumn<Object>);
-          await m.addColumn(users, users.autoBudget as GeneratedColumn<Object>);
-          await m.addColumn(
-              users, users.improveAccuracy as GeneratedColumn<Object>);
-        }
-        if (from <= 2 && to >= 3) {
-          // Skip old recurring expense structure - no longer used
-          // This migration step is kept for compatibility but does nothing
-        }
-        if (from <= 3 && to >= 4) {
-          // Add exchange rates table for currency conversion
-          await m.createTable(exchangeRates);
-        }
-        if (from <= 4 && to >= 5) {
-          // Add saving field to budgets table with a safe default
-          final tableInfo =
-              await m.database.customSelect('PRAGMA table_info(budgets)').get();
-          final hasSavingColumn =
-              tableInfo.any((row) => row.data['name'] == 'saving');
+        if (from < 12) {
+          // Handle migration from previous versions
 
-          if (!hasSavingColumn) {
-            await m.addColumn(
-                budgets, budgets.saving as GeneratedColumn<Object>);
-          }
-        }
-        if (from <= 5 && to >= 6) {
-          // Add automatic rebalance suggestions setting
-          final tableInfo =
-              await m.database.customSelect('PRAGMA table_info(users)').get();
-          final hasColumn = tableInfo.any(
-              (row) => row.data['name'] == 'automatic_rebalance_suggestions');
-          if (!hasColumn) {
-            await m.addColumn(users,
-                users.automaticRebalanceSuggestions as GeneratedColumn<Object>);
-          }
-        }
-        if (from <= 6 && to >= 7) {
-          // Legacy migration - add isRecurring column (will be removed in v9)
-          await m.addColumn(expenses,
-              expenses.recurringDetailsJson as GeneratedColumn<Object>);
-        }
-        if (from <= 7 && to >= 8) {
-          // Legacy migration for endDate - no longer needed
-        }
-        if (from <= 8 && to >= 9) {
-          // Migrate from subcollection structure to embedded recurring details
+          // Add currency column to app_settings if it doesn't exist
           try {
-            // Add recurringDetailsJson column if not exists
-            final tableInfo = await m.database
-                .customSelect('PRAGMA table_info(expenses)')
-                .get();
-            final hasRecurringDetailsJson = tableInfo
-                .any((row) => row.data['name'] == 'recurring_details_json');
-
-            if (!hasRecurringDetailsJson) {
-              await m.addColumn(expenses,
-                  expenses.recurringDetailsJson as GeneratedColumn<Object>);
-            }
-
-            // Migrate data from recurring_details table to embedded JSON field
-            final recurringDetailsData = await m.database
-                .customSelect('SELECT * FROM recurring_details')
-                .get();
-
-            for (final recurringDetail in recurringDetailsData) {
-              final expenseId = recurringDetail.data['expense_id'] as String;
-              final recurringDetailsJson = {
-                'frequency': recurringDetail.data['frequency'],
-                'dayOfMonth': recurringDetail.data['day_of_month'],
-                'dayOfWeek': recurringDetail.data['day_of_week'],
-                'endDate': recurringDetail.data['end_date']?.toString(),
-              };
-
-              await m.database.customUpdate(
-                'UPDATE expenses SET recurring_details_json = ? WHERE id = ?',
-                variables: [
-                  Variable.withString(jsonEncode(recurringDetailsJson)),
-                  Variable.withString(expenseId),
-                ],
-              );
-            }
-
-            // Drop the old recurring_details table
-            await m.database
-                .customStatement('DROP TABLE IF EXISTS recurring_details');
-
-            // Remove isRecurring column as it's now computed from recurringDetails
-            // Note: SQLite doesn't support dropping columns directly, so we leave it for backward compatibility
+            await customStatement(
+                'ALTER TABLE app_settings ADD COLUMN currency TEXT NOT NULL DEFAULT \'MYR\'');
           } catch (e) {
-            // If migration fails, continue - this is not critical
-            print('Recurring details migration warning: $e');
+            debugPrint('Error adding currency column to app_settings: $e');
+          }
+
+          // Create new tables without user ID if needed
+          try {
+            // Create new expenses table without user ID
+            await customStatement('''
+              CREATE TABLE IF NOT EXISTS expenses_new (
+                id TEXT PRIMARY KEY NOT NULL,
+                remark TEXT NOT NULL,
+                amount REAL NOT NULL,
+                date INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                method TEXT NOT NULL,
+                description TEXT,
+                currency TEXT NOT NULL DEFAULT 'MYR',
+                recurring_details_json TEXT,
+                updated_at INTEGER NOT NULL
+              )
+            ''');
+
+            // Copy data from old table to new table
+            await customStatement('''
+              INSERT INTO expenses_new 
+              SELECT id, remark, amount, date, category, method, description, 
+                     currency, recurring_details_json, last_modified
+              FROM expenses
+            ''');
+
+            // Drop old table and rename new table
+            await customStatement('DROP TABLE expenses');
+            await customStatement(
+                'ALTER TABLE expenses_new RENAME TO expenses');
+
+            // Create index on date
+            await customStatement(Expenses.indexDate);
+
+            // Create new budgets table without user ID
+            await customStatement('''
+              CREATE TABLE IF NOT EXISTS budgets_new (
+                month_id TEXT PRIMARY KEY NOT NULL,
+                total REAL NOT NULL,
+                left REAL NOT NULL,
+                categories_json TEXT NOT NULL,
+                saving REAL NOT NULL DEFAULT 0.0,
+                currency TEXT NOT NULL DEFAULT 'MYR',
+                updated_at INTEGER NOT NULL
+              )
+            ''');
+
+            // Copy data from old table to new table, taking the first entry for each month_id
+            await customStatement('''
+              INSERT INTO budgets_new 
+              SELECT month_id, total, left, categories_json, saving, currency, last_modified
+              FROM budgets
+              GROUP BY month_id
+            ''');
+
+            // Drop old table and rename new table
+            await customStatement('DROP TABLE budgets');
+            await customStatement('ALTER TABLE budgets_new RENAME TO budgets');
+
+            // Create new exchange_rates table without user ID
+            await customStatement('''
+              CREATE TABLE IF NOT EXISTS exchange_rates_new (
+                base_currency TEXT PRIMARY KEY NOT NULL,
+                rates_json TEXT NOT NULL,
+                timestamp INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+              )
+            ''');
+
+            // Copy data from old table to new table
+            await customStatement('''
+              INSERT INTO exchange_rates_new 
+              SELECT base_currency, rates_json, timestamp, last_modified
+              FROM exchange_rates
+              GROUP BY base_currency
+            ''');
+
+            // Drop old table and rename new table
+            await customStatement('DROP TABLE exchange_rates');
+            await customStatement(
+                'ALTER TABLE exchange_rates_new RENAME TO exchange_rates');
+
+            // Drop unused tables
+            await customStatement('DROP TABLE IF EXISTS users');
+            await customStatement('DROP TABLE IF EXISTS sync_queue');
+          } catch (e) {
+            debugPrint('Error during migration: $e');
+          }
+        }
+
+        if (from < 13) {
+          // Create financial goals tables
+          try {
+            await m.createTable(financialGoals);
+            await m.createTable(goalHistory);
+          } catch (e) {
+            debugPrint('Error creating financial goals tables: $e');
           }
         }
       },
     );
+  }
+
+  // Get app settings
+  Future<Map<String, dynamic>> getAppSettings() async {
+    final result = await customSelect(
+      'SELECT * FROM app_settings LIMIT 1',
+    ).getSingleOrNull();
+
+    if (result != null) {
+      return result.data;
+    }
+
+    // Create default settings if none exist
+    await customStatement('''
+      INSERT INTO app_settings (
+        theme,
+        currency, 
+        allow_notification, 
+        auto_budget, 
+        improve_accuracy, 
+        sync_enabled,
+        updated_at
+      ) VALUES (
+        'light',
+        'MYR',
+        0,
+        0,
+        0,
+        0,
+        ${DateTime.now().millisecondsSinceEpoch}
+      )
+    ''');
+
+    final newResult = await customSelect(
+      'SELECT * FROM app_settings LIMIT 1',
+    ).getSingle();
+
+    return newResult.data;
+  }
+
+  // Update app settings
+  Future<void> updateAppSettings(Map<String, dynamic> settings) async {
+    final settingsData = await getAppSettings();
+    final id = settingsData['id'] as int;
+
+    final updates = <String>[];
+    final values = <String>[];
+
+    settings.forEach((key, value) {
+      updates.add('$key = ?');
+
+      if (value is bool) {
+        values.add(value ? '1' : '0');
+      } else if (value is String) {
+        values.add("'$value'");
+      } else if (value is DateTime) {
+        values.add('${value.millisecondsSinceEpoch}');
+      } else if (value is int || value is double) {
+        values.add('$value');
+      }
+    });
+
+    // Add updated_at to the update
+    updates.add('updated_at = ${DateTime.now().millisecondsSinceEpoch}');
+
+    await customStatement(
+        'UPDATE app_settings SET ${updates.join(', ')} WHERE id = $id');
+  }
+
+  /// Delete and recreate the budgets table
+  Future<void> resetBudgetsTable() async {
+    try {
+      debugPrint('🗑️ AppDatabase: Deleting budgets table...');
+      await customStatement('DROP TABLE IF EXISTS budgets');
+      debugPrint('✅ AppDatabase: Budgets table deleted successfully');
+
+      debugPrint('🔄 AppDatabase: Recreating budgets table...');
+      await customStatement('''
+        CREATE TABLE budgets (
+          month_id TEXT PRIMARY KEY NOT NULL,
+          total REAL NOT NULL,
+          left REAL NOT NULL,
+          categories_json TEXT NOT NULL,
+          saving REAL NOT NULL DEFAULT 0.0,
+          currency TEXT NOT NULL DEFAULT 'MYR',
+          updated_at INTEGER NOT NULL
+        )
+      ''');
+      debugPrint('✅ AppDatabase: Budgets table recreated successfully');
+    } catch (e) {
+      debugPrint('❌ AppDatabase: Error resetting budgets table: $e');
+      rethrow;
+    }
+  }
+
+  /// Financial goals methods
+  Future<List<FinancialGoal>> getActiveGoals() {
+    return (select(financialGoals)
+          ..where((tbl) => tbl.isCompleted.equals(false))
+          ..orderBy([(t) => OrderingTerm.asc(t.deadline)]))
+        .get();
+  }
+
+  Future<FinancialGoal?> getGoalById(String id) {
+    return (select(financialGoals)..where((tbl) => tbl.id.equals(id)))
+        .getSingleOrNull();
+  }
+
+  Future<int> insertGoal(FinancialGoalsCompanion goal) {
+    return into(financialGoals).insert(goal);
+  }
+
+  Future<bool> updateGoal(FinancialGoalsCompanion goal) async {
+    return update(financialGoals).replace(goal);
+  }
+
+  Future<int> deleteGoal(String id) {
+    return (delete(financialGoals)..where((tbl) => tbl.id.equals(id))).go();
+  }
+
+  Future<int> countActiveGoals() async {
+    final query = selectOnly(financialGoals)
+      ..addColumns([financialGoals.id.count()])
+      ..where(financialGoals.isCompleted.equals(false));
+
+    final result = await query.getSingle();
+    return result.read(financialGoals.id.count()) ?? 0;
+  }
+
+  Future<int> insertGoalHistory(GoalHistoryCompanion history) {
+    return into(goalHistory).insert(history);
+  }
+
+  Future<List<GoalHistoryData>> getGoalHistory() {
+    return (select(goalHistory)
+          ..orderBy([(t) => OrderingTerm.desc(t.completedDate)]))
+        .get();
   }
 }

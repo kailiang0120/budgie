@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../core/constants/routes.dart';
+import '../utils/app_constants.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -18,22 +19,22 @@ class BottomNavBar extends StatelessWidget {
     final icons = [
       Icons.home,
       Icons.analytics,
+      Icons.flag,
       Icons.settings,
-      Icons.person,
     ];
     final labels = [
       'Home',
       'Analytics',
+      'Goals',
       'Settings',
-      'Profile',
     ];
 
     // Page routes mapping
     final routes = [
       Routes.home,
       Routes.analytic,
+      Routes.goals,
       Routes.settings,
-      Routes.profile,
     ];
 
     final primaryColor = Theme.of(context).colorScheme.primary;
@@ -41,7 +42,8 @@ class BottomNavBar extends StatelessWidget {
 
     // Create a more distinct background for the nav bar
     final backgroundColor = Theme.of(context).brightness == Brightness.dark
-        ? Color.lerp(Theme.of(context).colorScheme.surface, Colors.black, 0.2)!
+        ? Color.lerp(Theme.of(context).colorScheme.surface, Colors.black,
+            AppConstants.opacityLow)!
         : Color.lerp(
             Theme.of(context).colorScheme.surface, Colors.blueGrey, 0.0)!;
 
@@ -58,7 +60,8 @@ class BottomNavBar extends StatelessWidget {
           ),
           // Enhanced nav bar icons with smooth animations
           Positioned.fill(
-            bottom: 16.h, // Adjust bottom position for better centering
+            bottom: AppConstants
+                .spacingLarge.h, // Adjust bottom position for better centering
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -95,25 +98,27 @@ class BottomNavBar extends StatelessWidget {
     return GestureDetector(
       onTap: () => _handleNavigation(context, index, route),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
+        duration: AppConstants.animationDurationShort,
         curve: Curves.easeInOut,
-        padding: EdgeInsets.all(8.w),
+        padding: EdgeInsets.all(AppConstants.spacingSmall.w),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: isSelected
-              ? primaryColor.withAlpha((255 * 0.1).toInt())
+              ? primaryColor
+                  .withAlpha((255 * AppConstants.opacityOverlay).toInt())
               : Colors.transparent,
         ),
         child: AnimatedScale(
           scale: isSelected ? 1.1 : 1.0,
-          duration: const Duration(milliseconds: 200),
+          duration: AppConstants.animationDurationShort,
           curve: Curves.easeInOut,
           child: Icon(
             icon,
             color: isSelected
                 ? primaryColor
-                : textColor.withAlpha((255 * 0.6).toInt()),
-            size: 24.sp,
+                : textColor
+                    .withAlpha((255 * AppConstants.opacityMedium).toInt()),
+            size: AppConstants.iconSizeLarge.sp,
           ),
         ),
       ),
@@ -161,7 +166,7 @@ class _NavBarPainter extends CustomPainter {
       ..style = PaintingStyle.fill
       ..isAntiAlias = true;
 
-    final double notchRadius = 32.r;
+    final double notchRadius = AppConstants.borderRadiusLarge.r;
     final double notchCenterX = size.width / 2;
     const double notchTop = 0;
     final double barHeight = size.height;
@@ -169,7 +174,8 @@ class _NavBarPainter extends CustomPainter {
     final path = Path();
     path.moveTo(0, notchTop);
     // Left to notch
-    path.lineTo(notchCenterX - notchRadius - 12.w, notchTop);
+    path.lineTo(
+        notchCenterX - notchRadius - AppConstants.spacingMedium.w, notchTop);
     // Notch curve
     path.quadraticBezierTo(
       notchCenterX - notchRadius,
@@ -185,7 +191,7 @@ class _NavBarPainter extends CustomPainter {
     path.quadraticBezierTo(
       notchCenterX + notchRadius,
       notchTop,
-      notchCenterX + notchRadius + 12.w,
+      notchCenterX + notchRadius + AppConstants.spacingMedium.w,
       notchTop,
     );
     // Right to end

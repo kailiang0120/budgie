@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
 
 class SubmitButton extends StatelessWidget {
   final String text;
@@ -24,14 +25,14 @@ class SubmitButton extends StatelessWidget {
   const SubmitButton({
     Key? key,
     required this.text,
-    this.loadingText = 'Processing...',
+    this.loadingText = AppConstants.processingText,
     required this.isLoading,
     required this.onPressed,
     this.color,
-    this.borderRadius = 45, // Updated to match new design
+    this.borderRadius = 45.0,
     this.icon,
     this.width,
-    this.height = 56.0, // Updated to match new square-ish design
+    this.height = 45.0,
   }) : super(key: key);
 
   @override
@@ -45,36 +46,37 @@ class SubmitButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: effectiveColor,
-          disabledBackgroundColor:
-              effectiveColor.withAlpha((255 * 0.5).toInt()),
+          disabledBackgroundColor: effectiveColor
+              .withAlpha((255 * AppConstants.opacityMedium).toInt()),
           padding: EdgeInsets.symmetric(
-            horizontal: 24.w,
-            vertical: 16.h,
+            horizontal: AppConstants.spacingMedium.w,
+            vertical: AppConstants.spacingMedium.h,
           ),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(borderRadius.r),
+            borderRadius:
+                BorderRadius.circular(AppConstants.borderRadiusCircular.r),
           ),
-          elevation: 2,
+          elevation: AppConstants.elevationStandard,
         ),
         child: isLoading
             ? Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
-                    width: 20.w,
-                    height: 20.h,
+                    width: AppConstants.iconSizeSmall.w,
+                    height: AppConstants.iconSizeSmall.h,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.w,
                       color: Colors.white,
                     ),
                   ),
-                  SizedBox(width: 12.w),
+                  SizedBox(width: AppConstants.spacingMedium.w),
                   Text(
                     loadingText,
                     style: TextStyle(
                       fontFamily: AppTheme.fontFamily,
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w600,
+                      fontSize: AppConstants.textSizeLarge.sp,
+                      fontWeight: FontWeight.w500,
                       color: Colors.white,
                     ),
                   ),
@@ -90,14 +92,14 @@ class SubmitButton extends StatelessWidget {
       return Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 22.sp),
-          SizedBox(width: 8.w),
+          Icon(icon, size: AppConstants.iconSizeMedium.sp),
+          SizedBox(width: AppConstants.spacingSmall.w),
           Text(
             text,
             style: TextStyle(
               fontFamily: AppTheme.fontFamily,
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w600,
+              fontSize: AppConstants.textSizeLarge.sp,
+              fontWeight: FontWeight.w500,
               color: Colors.white,
             ),
           ),
@@ -109,8 +111,8 @@ class SubmitButton extends StatelessWidget {
       text,
       style: TextStyle(
         fontFamily: AppTheme.fontFamily,
-        fontSize: 16.sp,
-        fontWeight: FontWeight.w600,
+        fontSize: AppConstants.textSizeLarge.sp,
+        fontWeight: FontWeight.w500,
         color: Colors.white,
       ),
     );

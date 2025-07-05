@@ -67,12 +67,12 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
+      elevation: AppConstants.elevationStandard,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.r),
+        borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge.r),
       ),
       child: Padding(
-        padding: EdgeInsets.all(16.w),
+        padding: AppConstants.containerPaddingLarge,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -80,12 +80,12 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
               'Recurring Settings',
               style: TextStyle(
                 fontFamily: AppTheme.fontFamily,
-                fontSize: 18.sp,
+                fontSize: AppConstants.textSizeXLarge.sp,
                 fontWeight: FontWeight.w600,
                 color: AppTheme.primaryColor,
               ),
             ),
-            SizedBox(height: 16.h),
+            SizedBox(height: AppConstants.spacingLarge.h),
 
             // Frequency selection
             CustomDropdownField<String>(
@@ -127,11 +127,12 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
               },
               itemLabelBuilder: (item) => item,
               prefixIcon: Icons.repeat,
+              borderRadius: AppConstants.borderRadiusMedium,
             ),
 
             // Conditional fields based on frequency
             if (_selectedFrequency == RecurringFrequency.weekly) ...[
-              SizedBox(height: 16.h),
+              SizedBox(height: AppConstants.spacingLarge.h),
               CustomDropdownField<String>(
                 value: _selectedDayOfWeek?.displayName ??
                     AppConstants.daysOfWeek.first,
@@ -148,11 +149,12 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
                 },
                 itemLabelBuilder: (item) => item,
                 prefixIcon: Icons.today,
+                borderRadius: AppConstants.borderRadiusMedium,
               ),
             ],
 
             if (_selectedFrequency == RecurringFrequency.monthly) ...[
-              SizedBox(height: 16.h),
+              SizedBox(height: AppConstants.spacingLarge.h),
               CustomDropdownField<String>(
                 value: _selectedDayOfMonth?.toString() ?? '1',
                 items: AppConstants.getDaysOfMonth(),
@@ -168,20 +170,21 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
                 },
                 itemLabelBuilder: (item) => item,
                 prefixIcon: Icons.calendar_today,
+                borderRadius: AppConstants.borderRadiusMedium,
               ),
             ],
 
             // End date selection (optional) - now always shown for recurring expenses
-            SizedBox(height: 16.h),
+            SizedBox(height: AppConstants.spacingLarge.h),
             Text(
               'End Date (Optional)',
               style: TextStyle(
                 fontFamily: AppTheme.fontFamily,
-                fontSize: 14.sp,
+                fontSize: AppConstants.textSizeMedium.sp,
                 fontWeight: FontWeight.w500,
               ),
             ),
-            SizedBox(height: 8.h),
+            SizedBox(height: AppConstants.spacingSmall.h),
             if (_selectedEndDate != null)
               DateTimePickerField(
                 dateTime: _selectedEndDate!,
@@ -205,92 +208,72 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
                   });
                   widget.onEndDateChanged(now);
                 },
-                showCurrentTimeButton: false,
-              )
-            else
-              ElevatedButton.icon(
+              ),
+            if (_selectedEndDate == null)
+              OutlinedButton.icon(
                 onPressed: () {
-                  final tomorrow = DateTime.now().add(const Duration(days: 1));
+                  final now = DateTime.now().add(const Duration(days: 30));
                   setState(() {
-                    _selectedEndDate = tomorrow;
+                    _selectedEndDate = now;
                   });
-                  widget.onEndDateChanged(tomorrow);
+                  widget.onEndDateChanged(now);
                 },
-                icon: const Icon(Icons.calendar_today),
-                label: const Text('Set End Date'),
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(
-                    vertical: 12.h,
-                    horizontal: 16.w,
+                icon: Icon(
+                  Icons.date_range,
+                  size: AppConstants.iconSizeMedium.sp,
+                ),
+                label: Text(
+                  'Set End Date',
+                  style: TextStyle(
+                    fontFamily: AppTheme.fontFamily,
+                    fontSize: AppConstants.textSizeMedium.sp,
                   ),
-                  backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                ),
+                style: OutlinedButton.styleFrom(
                   foregroundColor: AppTheme.primaryColor,
-                  elevation: 1,
+                  side: const BorderSide(color: AppTheme.primaryColor),
+                  padding: EdgeInsets.symmetric(
+                    vertical: AppConstants.spacingMedium.h,
+                    horizontal: AppConstants.spacingLarge.w,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadiusMedium.r),
+                  ),
                 ),
               ),
             if (_selectedEndDate != null) ...[
-              SizedBox(height: 8.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Recurring until ${_formatDate(_selectedEndDate!)}',
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: Colors.grey,
-                      ),
-                    ),
+              SizedBox(height: AppConstants.spacingSmall.h),
+              TextButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _selectedEndDate = null;
+                  });
+                  widget.onEndDateChanged(null);
+                },
+                icon: Icon(
+                  Icons.clear,
+                  size: AppConstants.iconSizeSmall.sp,
+                  color: Colors.red.shade700,
+                ),
+                label: Text(
+                  'Remove End Date',
+                  style: TextStyle(
+                    fontFamily: AppTheme.fontFamily,
+                    fontSize: AppConstants.textSizeSmall.sp,
+                    color: Colors.red.shade700,
                   ),
-                  TextButton(
-                    onPressed: () {
-                      setState(() {
-                        _selectedEndDate = null;
-                      });
-                      widget.onEndDateChanged(null);
-                    },
-                    child: const Text('Remove'),
-                  ),
-                ],
+                ),
               ),
             ],
-
-            // Help text - now always shown for recurring expenses
-            SizedBox(height: 16.h),
-            Container(
-              padding: EdgeInsets.all(8.w),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16.r),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 16.sp,
-                    color: AppTheme.primaryColor,
-                  ),
-                  SizedBox(width: 8.w),
-                  Expanded(
-                    child: Text(
-                      _getHelpText(),
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: AppTheme.primaryColor,
-                        fontFamily: AppTheme.fontFamily,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),
     );
   }
 
-  RecurringFrequency? _getFrequencyFromDisplayName(String displayName) {
-    switch (displayName) {
+  RecurringFrequency? _getFrequencyFromDisplayName(String name) {
+    switch (name) {
       case 'Weekly':
         return RecurringFrequency.weekly;
       case 'Monthly':
@@ -300,57 +283,11 @@ class _RecurringExpenseConfigState extends State<RecurringExpenseConfig> {
     }
   }
 
-  DayOfWeek? _getDayOfWeekFromDisplayName(String displayName) {
-    switch (displayName) {
-      case 'Monday':
-        return DayOfWeek.monday;
-      case 'Tuesday':
-        return DayOfWeek.tuesday;
-      case 'Wednesday':
-        return DayOfWeek.wednesday;
-      case 'Thursday':
-        return DayOfWeek.thursday;
-      case 'Friday':
-        return DayOfWeek.friday;
-      case 'Saturday':
-        return DayOfWeek.saturday;
-      case 'Sunday':
-        return DayOfWeek.sunday;
-      default:
-        return null;
+  DayOfWeek? _getDayOfWeekFromDisplayName(String name) {
+    final index = AppConstants.daysOfWeek.indexOf(name);
+    if (index >= 0) {
+      return DayOfWeek.values[index];
     }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
-
-  String _getHelpText() {
-    switch (_selectedFrequency) {
-      case RecurringFrequency.weekly:
-        final day = _selectedDayOfWeek?.displayName ?? 'the selected day';
-        return 'This expense will be automatically recorded every $day.';
-      case RecurringFrequency.monthly:
-        final dayText = _selectedDayOfMonth != null
-            ? 'the $_selectedDayOfMonth${_getOrdinalSuffix(_selectedDayOfMonth!)}'
-            : 'the selected day';
-        return 'This expense will be automatically recorded on $dayText of each month.';
-    }
-  }
-
-  String _getOrdinalSuffix(int number) {
-    if (number >= 11 && number <= 13) {
-      return 'th';
-    }
-    switch (number % 10) {
-      case 1:
-        return 'st';
-      case 2:
-        return 'nd';
-      case 3:
-        return 'rd';
-      default:
-        return 'th';
-    }
+    return null;
   }
 }

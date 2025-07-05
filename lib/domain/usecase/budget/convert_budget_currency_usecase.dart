@@ -22,38 +22,55 @@ class ConvertBudgetCurrencyUseCase {
     try {
       final budget = await _budgetRepository.getBudget(monthId);
 
-      // If no budget or already in progress or currencies match, skip conversion
-      if (budget == null ||
-          _isConvertingCurrency ||
-          budget.currency == targetCurrency) {
+      // If no budget, return null
+      if (budget == null) {
         debugPrint(
-            'Currency check - No conversion needed: ${budget?.currency ?? 'No budget'} -> $targetCurrency');
+            '💱 ConvertBudgetCurrency: No budget found for month: $monthId');
+        return null;
+      }
+
+      // If already converting or currencies match, return existing budget
+      if (_isConvertingCurrency) {
+        debugPrint(
+            '💱 ConvertBudgetCurrency: Conversion already in progress, skipping');
         return budget;
       }
 
-      debugPrint('Currency check - STARTING conversion check');
-      debugPrint(
-          'Current budget currency: ${budget.currency}, Target currency: $targetCurrency');
-      debugPrint('Current budget total: ${budget.total}');
-
-      // If currencies differ, perform conversion
-      if (budget.currency != targetCurrency) {
+      if (budget.currency == targetCurrency) {
         debugPrint(
-            'Currency conversion NEEDED - converting ${budget.currency} to $targetCurrency');
-        final convertedBudget =
-            await _convertBudget(budget, targetCurrency, monthId);
-        debugPrint(
-            'After conversion - Budget currency: ${convertedBudget?.currency}, Budget total: ${convertedBudget?.total}');
-        return convertedBudget;
+            '💱 ConvertBudgetCurrency: Budget already in target currency ($targetCurrency)');
+        return budget;
       }
 
-      return budget;
+      debugPrint(
+          '💱 ConvertBudgetCurrency: Starting conversion from ${budget.currency} to $targetCurrency');
+      debugPrint(
+          '💱 ConvertBudgetCurrency: Current budget total: ${budget.total}');
+
+      // Perform conversion
+      final convertedBudget =
+          await _convertBudget(budget, targetCurrency, monthId);
+
+      if (convertedBudget != null) {
+        debugPrint(
+            '💱 ConvertBudgetCurrency: Conversion completed - new total: ${convertedBudget.total}');
+      } else {
+        debugPrint('💱 ConvertBudgetCurrency: Conversion failed');
+      }
+
+      return convertedBudget;
     } catch (e) {
-      debugPrint('Error checking/converting budget currency: $e');
+      debugPrint('💱 ConvertBudgetCurrency: Error in currency conversion: $e');
       // Reset the conversion flag in case of error to prevent deadlock
       _isConvertingCurrency = false;
-      // Don't rethrow - this is a background operation
-      return null;
+      // Return the original budget on error
+      try {
+        return await _budgetRepository.getBudget(monthId);
+      } catch (fallbackError) {
+        debugPrint(
+            '💱 ConvertBudgetCurrency: Fallback getBudget also failed: $fallbackError');
+        return null;
+      }
     }
   }
 
@@ -134,8 +151,8 @@ class ConvertBudgetCurrencyUseCase {
       print(
           'Converted saving: ${budget.saving} $oldCurrency → ${convertedBudget.saving} $newCurrency');
 
-      // Save the converted budget to Firebase
-      print('Saving converted budget to Firebase with currency: $newCurrency');
+      // Save the converted budget
+      print('Saving converted budget with currency: $newCurrency');
       await _budgetRepository.setBudget(monthId, convertedBudget);
 
       print(

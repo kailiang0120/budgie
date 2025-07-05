@@ -1,0 +1,240 @@
+{
+  "BudgetReallocationModels": {
+    "BudgetReallocationRequest": {
+      "currentBudget": {
+        "totalBudget": 1000.0,
+        "totalRemaining": 500.0,
+        "categories": {
+          "food": {
+            "categoryId": "food",
+            "categoryName": "Food",
+            "allocated": 200.0,
+            "remaining": 50.0,
+            "utilizationRate": 0.75
+          }
+        },
+        "savings": 100.0,
+        "currency": "USD",
+        "lastModified": "2023-10-27T10:00:00.000Z"
+      },
+      "recentExpenses": [
+        {
+          "amount": 25.50,
+          "categoryId": "food",
+          "categoryName": "Food",
+          "date": "2023-10-26T14:30:00.000Z",
+          "description": "Lunch at cafe",
+          "isRecurring": false,
+          "frequency": 0
+        }
+      ],
+      "recurringExpenses": [
+        {
+          "amount": 50.0,
+          "categoryId": "utilities",
+          "categoryName": "Utilities",
+          "date": "2023-10-01T00:00:00.000Z",
+          "description": "Internet Bill",
+          "isRecurring": true,
+          "frequency": 30
+        }
+      ],
+      "categoryUtilization": {
+        "food": 0.75,
+        "transport": 1.1
+      },
+      "analysisDate": "2023-10-27T10:00:00.000Z",
+      "currency": "USD",
+      "userPreferences": {
+        "risk_aversion": "medium"
+      }
+    },
+    "BudgetReallocationResponse": {
+      "reallocationNeeded": true,
+      "confidenceScore": 0.85,
+      "recommendations": [
+        {
+          "fromCategory": "entertainment",
+          "toCategory": "savings",
+          "amount": 50.0,
+          "reasoning": "Underutilized funds in entertainment can be moved to boost savings.",
+          "impactScore": 0.7,
+          "priority": "high",
+          "riskFactors": ["Reduced discretionary spending"]
+        }
+      ],
+      "summary": {
+        "totalReallocationAmount": 50.0,
+        "categoriesAffected": 2,
+        "expectedImprovement": 0.05,
+        "riskLevel": "low",
+        "primaryBenefits": ["Increased savings", "Better budget alignment"],
+        "implementationComplexity": 0.2
+      },
+      "insights": [
+        {
+          "type": "warning",
+          "category": "transport",
+          "message": "Spending on transport is higher than allocated.",
+          "severity": 0.8,
+          "actionItems": ["Review transport expenses", "Consider public transport"],
+          "data": {
+            "overspend": 25.0
+          }
+        }
+      ],
+      "metadata": {
+        "analysisId": "xyz-123"
+      }
+    }
+  },
+  "SpendingBehaviorModels": {
+    "SpendingBehaviorRequest": {
+      "historicalExpenses": [
+        {
+          "amount": 75.0,
+          "categoryId": "shopping",
+          "categoryName": "Shopping",
+          "date": "2023-10-25T18:00:00.000Z",
+          "currency": "USD",
+          "description": "New shoes",
+          "isRecurring": false
+        }
+      ],
+      "currentBudget": {
+        "totalBudget": 2000.0,
+        "remainingBudget": 800.0,
+        "categoryBudgets": {
+          "shopping": {
+            "budget": 500.0,
+            "remaining": 150.0
+          }
+        },
+        "saving": 200.0,
+        "currency": "USD"
+      },
+      "currency": "USD",
+      "analysisDate": "2023-10-27T10:00:00.000Z",
+      "analysisDepthMonths": 6,
+      "userProfile": {
+        "age": 30,
+        "financial_goals": ["save_for_vacation"]
+      }
+    },
+    "SpendingBehaviorResponse": {
+      "patterns": {
+        "weeklyPatterns": {
+          "Monday": 50.0,
+          "Tuesday": 30.0,
+          "Wednesday": 45.0,
+          "Thursday": 60.0,
+          "Friday": 120.0,
+          "Saturday": 150.0,
+          "Sunday": 70.0
+        },
+        "monthlyPatterns": {
+          "1": 100.0,
+          "15": 150.0
+        },
+        "seasonalPatterns": {
+          "Q1": 2500.0,
+          "Q2": 2200.0
+        },
+        "recurringPatterns": [
+          {
+            "categoryName": "Subscriptions",
+            "averageAmount": 15.99,
+            "intervalDays": 30,
+            "confidence": 0.98,
+            "description": "Streaming service subscription"
+          }
+        ],
+        "averageDailySpending": 45.5,
+        "spendingVolatility": 15.2
+      },
+      "insights": [
+        {
+          "type": "anomaly",
+          "category": "shopping",
+          "message": "Unusually high spending in shopping this month.",
+          "impact": -150.0,
+          "confidence": 0.8,
+          "actionableRecommendations": [
+            "Review recent purchases",
+            "Set a spending limit for this category"
+          ],
+          "priority": "high"
+        }
+      ],
+      "trends": [
+        {
+          "categoryName": "Groceries",
+          "trendDirection": "increasing",
+          "changePercentage": 10.5,
+          "monthlyGrowthRate": 2.5,
+          "significance": "moderate",
+          "reasoning": "Possible price inflation or change in shopping habits."
+        }
+      ],
+      "categoryAnalysis": {
+        "categoryBehaviors": {
+          "Groceries": {
+            "utilizationRate": 0.95,
+            "averageSpending": 450.0,
+            "spendingVolatility": 80.0,
+            "spendingDrivers": [
+              "Weekly grocery shopping",
+              "Dining out"
+            ],
+            "spendingPersonality": "moderate"
+          }
+        },
+        "overAllocatedCategories": [
+          "Entertainment"
+        ],
+        "underUtilizedCategories": [
+          "Gifts"
+        ],
+        "volatileCategories": [
+          "Shopping"
+        ]
+      },
+      "optimizationSuggestions": {
+        "reallocations": [
+          {
+            "fromCategory": "Dining Out",
+            "toCategory": "Savings",
+            "suggestedAmount": 50.0,
+            "reason": "Frequent dining out is impacting savings goals.",
+            "confidence": 0.85,
+            "expectedImpact": 0.05
+          }
+        ],
+        "savingsOpportunities": [
+          {
+            "category": "Subscriptions",
+            "description": "You have multiple streaming subscriptions. Consider canceling one.",
+            "potentialSaving": 15.99,
+            "actionRequired": "Review and cancel unused subscriptions.",
+            "difficulty": "easy",
+            "confidence": 0.9
+          }
+        ],
+        "budgetAdjustments": [
+          {
+            "category": "Shopping",
+            "adjustmentType": "decrease",
+            "suggestedAmount": 100.0,
+            "reasoning": "High volatility and frequent overspending observed.",
+            "priority": 0.9
+          }
+        ],
+        "potentialMonthlySavings": 120.0
+      },
+      "confidenceScore": 0.9,
+      "metadata": {
+        "analysisId": "abc-456"
+      }
+    }
+  }
+} 

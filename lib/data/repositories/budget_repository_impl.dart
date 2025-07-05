@@ -1,186 +1,106 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../../domain/entities/budget.dart';
 import '../../domain/repositories/budget_repository.dart';
-import '../infrastructure/errors/app_error.dart';
 import '../datasources/local_data_source.dart';
-import '../infrastructure/network/connectivity_service.dart';
 
-/// Implementation of BudgetRepository with offline support
+/// Implementation of BudgetRepository with local storage focus
 class BudgetRepositoryImpl implements BudgetRepository {
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
   final LocalDataSource _localDataSource;
-  final ConnectivityService _connectivityService;
 
   BudgetRepositoryImpl({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
     required LocalDataSource localDataSource,
-    required ConnectivityService connectivityService,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance,
-        _localDataSource = localDataSource,
-        _connectivityService = connectivityService;
-
-  /// Gets the current user ID with null safety
-  String? get _userId {
-    final user = _auth.currentUser;
-    return user?.uid;
-  }
-
-  /// Safely gets the current user ID, throws if not authenticated
-  String _requireUserId() {
-    final userId = _userId;
-    if (userId == null) {
-      throw AuthError.unauthenticated();
-    }
-    return userId;
-  }
-
-  /// Checks if user is authenticated
-  void _checkAuthentication() {
-    if (_userId == null) {
-      throw AuthError.unauthenticated();
-    }
-  }
-
-  /// Gets the Firestore document reference for a budget with proper null safety
-  DocumentReference<Map<String, dynamic>> _budgetDoc(String monthId) {
-    final userId = _requireUserId();
-    return _firestore
-        .collection('users')
-        .doc(userId)
-        .collection('budgets')
-        .doc(monthId);
-  }
+  }) : _localDataSource = localDataSource;
 
   @override
   Future<Budget?> getBudget(String monthId) async {
     try {
-      _checkAuthentication();
-      final userId = _requireUserId();
-
-      // Check network connectivity
-      final isConnected = await _connectivityService.isConnected;
-      if (!isConnected) {
-        // Offline mode: get budget from local database
-        return _localDataSource.getBudget(monthId, userId);
+      debugPrint('🔍 BudgetRepository: Getting budget for month: $monthId');
+      // Get budget from local database
+      final localBudget = await _localDataSource.getBudget(monthId);
+      debugPrint('🔍 BudgetRepository: Budget found: ${localBudget != null}');
+      if (localBudget != null) {
+        debugPrint(
+            '🔍 BudgetRepository: Budget total: ${localBudget.total}, left: ${localBudget.left}, currency: ${localBudget.currency}');
       }
-
-      // Online mode: get data from Firebase
-      final doc = await _budgetDoc(monthId).get().timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw NetworkError(
-              'Firebase budget get timeout - request took too long');
-        },
-      );
-      if (!doc.exists) return null;
-
-      final data = doc.data();
-      if (data == null) {
-        return null;
-      }
-
-      final budget = Budget.fromMap(data);
-
-      // Only update local cache if it doesn't exist or is out of sync
-      final localBudget = await _localDataSource.getBudget(monthId, userId);
-      if (localBudget == null) {
-        // Local budget doesn't exist, save it
-        await _localDataSource.saveBudget(monthId, budget, userId,
-            isSynced: true);
-        await _localDataSource.markBudgetAsSynced(monthId, userId);
-      }
-
-      return budget;
-    } catch (e, stackTrace) {
-      if (e is AuthError) {
-        rethrow;
-      }
-
-      if (e is NetworkError) {
-        // If network error, try to get data from local storage
-        final userId = _userId;
-        if (userId != null) {
-          return _localDataSource.getBudget(monthId, userId);
-        }
-        return null;
-      }
-
-      throw DataError('Failed to get budget: ${e.toString()}',
-          originalError: e, stackTrace: stackTrace);
+      return localBudget;
+    } catch (e) {
+      debugPrint('🔍 BudgetRepository: Error getting budget: $e');
+      return null;
     }
   }
 
   @override
   Future<void> setBudget(String monthId, Budget budget) async {
     try {
-      _checkAuthentication();
-      final userId = _requireUserId();
-      debugPrint('Setting budget for month: $monthId, user: $userId');
+      debugPrint('💾 BudgetRepository: Saving budget for month: $monthId');
+      debugPrint(
+          '💾 BudgetRepository: Budget total: ${budget.total}, left: ${budget.left}, currency: ${budget.currency}');
 
-      // Check network connectivity
-      final isConnected = await _connectivityService.isConnected;
-      debugPrint('Network connectivity: $isConnected');
+      // Validate month ID format
+      if (!monthId.contains('-') || monthId.split('-').length != 2) {
+        debugPrint('💾 BudgetRepository: Invalid month ID format: $monthId');
+
+        // Fix the month ID format if needed
+        final now = DateTime.now();
+        monthId = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+        debugPrint('💾 BudgetRepository: Using corrected month ID: $monthId');
+      }
 
       // First check if the budget already exists and is identical
-      final existingBudget = await _localDataSource.getBudget(monthId, userId);
+      final existingBudget = await _localDataSource.getBudget(monthId);
       if (existingBudget != null && existingBudget == budget) {
+        debugPrint('💾 BudgetRepository: Budget unchanged, skipping save');
+        return;
+      }
+
+      // Save to local database
+      await _localDataSource.saveBudget(monthId, budget);
+      debugPrint('💾 BudgetRepository: Budget saved successfully');
+
+      // Verify the save worked
+      final savedBudget = await _localDataSource.getBudget(monthId);
+      debugPrint(
+          '💾 BudgetRepository: Verified saved budget exists: ${savedBudget != null}');
+      if (savedBudget != null) {
         debugPrint(
-            'Budget for month $monthId is identical to existing budget - skipping update');
-        return;
+            '💾 BudgetRepository: Saved budget total: ${savedBudget.total}, left: ${savedBudget.left}, currency: ${savedBudget.currency}');
+      } else {
+        debugPrint(
+            '💾 BudgetRepository: WARNING - Budget verification failed, saved budget is null');
+      }
+    } catch (e) {
+      debugPrint('💾 BudgetRepository: Error setting budget: $e');
+      throw Exception('Failed to save budget: $e');
+    }
+  }
+
+  @override
+  Future<void> deleteBudget(String monthId) async {
+    try {
+      debugPrint('🗑️ BudgetRepository: Deleting budget for month: $monthId');
+
+      // Validate month ID format
+      if (!monthId.contains('-') || monthId.split('-').length != 2) {
+        debugPrint('🗑️ BudgetRepository: Invalid month ID format: $monthId');
+        throw Exception('Invalid month ID format');
       }
 
-      // Save to local database first
-      await _localDataSource.saveBudget(monthId, budget, userId,
-          isSynced: isConnected); // Mark as synced if we're online
-      debugPrint('Budget saved to local database');
+      // Delete from local database
+      await _localDataSource.deleteBudget(monthId);
+      debugPrint('🗑️ BudgetRepository: Budget deleted successfully');
 
-      if (!isConnected) {
-        // Offline mode: save locally only, sync later
-        debugPrint('Offline mode: Budget saved locally only');
-        return;
+      // Verify the deletion worked
+      final deletedBudget = await _localDataSource.getBudget(monthId);
+      if (deletedBudget == null) {
+        debugPrint(
+            '🗑️ BudgetRepository: Verified budget was deleted successfully');
+      } else {
+        debugPrint(
+            '🗑️ BudgetRepository: WARNING - Budget deletion verification failed');
       }
-
-      // Online mode: save to Firebase
-      debugPrint('Online mode: Saving budget to Firebase');
-      try {
-        await _budgetDoc(monthId).set(budget.toMap()).timeout(
-          const Duration(seconds: 10),
-          onTimeout: () {
-            throw NetworkError(
-                'Firebase budget save timeout - request took too long');
-          },
-        );
-        debugPrint('Budget saved to Firebase successfully');
-
-        // Mark as synced only if Firebase save succeeded
-        await _localDataSource.markBudgetAsSynced(monthId, userId);
-        debugPrint('Budget marked as synced in local database');
-      } catch (e) {
-        debugPrint('Firebase budget save error: $e');
-        if (e is FirebaseException) {
-          debugPrint('Firebase error code: ${e.code}, message: ${e.message}');
-          throw NetworkError('Firebase budget error: ${e.message}',
-              code: e.code);
-        }
-        rethrow;
-      }
-    } catch (e, stackTrace) {
-      if (e is AuthError) {
-        rethrow;
-      }
-
-      if (e is NetworkError) {
-        // Network error but already saved locally, no additional handling needed
-        return;
-      }
-
-      throw DataError('Failed to set budget: ${e.toString()}',
-          originalError: e, stackTrace: stackTrace);
+    } catch (e) {
+      debugPrint('🗑️ BudgetRepository: Error deleting budget: $e');
+      throw Exception('Failed to delete budget: $e');
     }
   }
 }

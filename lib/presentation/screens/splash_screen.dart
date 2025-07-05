@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/routes.dart';
-import '../viewmodels/auth_viewmodel.dart';
-import '../../data/infrastructure/errors/app_error.dart';
 import '../widgets/responsive_logo.dart';
-import 'login_screen.dart';
+import '../utils/app_constants.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -25,7 +22,7 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     _setupAnimations();
-    _checkAuthState();
+    _navigateToHome();
   }
 
   void _setupAnimations() {
@@ -59,69 +56,27 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  Future<void> _checkAuthState() async {
+  Future<void> _navigateToHome() async {
     try {
       await Future.delayed(const Duration(seconds: 2));
       if (!mounted) return;
 
-      final viewModel = Provider.of<AuthViewModel>(context, listen: false);
+      // Check if this is the first time the user is opening the app
+      final prefs = await SharedPreferences.getInstance();
+      final bool welcomeCompleted = prefs.getBool('welcome_completed') ?? false;
 
-      await viewModel.refreshAuthState();
-
-      if (!mounted) return;
-
-      final route = viewModel.isAuthenticated ? Routes.home : Routes.login;
-      debugPrint(
-          'Auth State: ${viewModel.isAuthenticated ? "Authenticated" : "Not Authenticated"}');
-
-      if (viewModel.isAuthenticated) {
-        debugPrint(
-            'Current User ID: ${FirebaseAuth.instance.currentUser?.uid}');
-      }
-
-      if (route == Routes.login) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            settings: RouteSettings(name: route),
-            pageBuilder: (_, __, ___) => const LoginScreen(),
-            transitionDuration: const Duration(
-                milliseconds:
-                    800), // Slightly longer for smooth hero transition
-            reverseTransitionDuration: const Duration(milliseconds: 600),
-            transitionsBuilder: (_, animation, __, child) {
-              // Combination of slide and fade for smooth hero transition
-              return SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0.0, 0.15), // Start slightly below center
-                  end: Offset.zero,
-                ).animate(CurvedAnimation(
-                  parent: animation,
-                  curve: Curves.easeOutCubic,
-                )),
-                child: FadeTransition(
-                  opacity: Tween<double>(
-                    begin: 0.0,
-                    end: 1.0,
-                  ).animate(CurvedAnimation(
-                    parent: animation,
-                    curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
-                  )),
-                  child: child,
-                ),
-              );
-            },
-          ),
-        );
+      if (!welcomeCompleted) {
+        // First time user - navigate to welcome screen
+        Navigator.of(context).pushReplacementNamed(Routes.welcome);
       } else {
-        Navigator.of(context).pushReplacementNamed(route);
+        // Returning user - navigate directly to home screen
+        Navigator.of(context).pushReplacementNamed(Routes.home);
       }
-    } catch (e, stackTrace) {
+    } catch (e) {
       debugPrint('Splash screen error: $e');
-      final error = AppError.from(e, stackTrace);
-      error.log();
-
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed(Routes.login);
+        // Fallback to home screen in case of error
+        Navigator.of(context).pushReplacementNamed(Routes.home);
       }
     }
   }
@@ -150,7 +105,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                   ),
-                  SizedBox(height: 40.h),
+                  SizedBox(height: AppConstants.spacingHuge.h),
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: CircularProgressIndicator(
@@ -159,14 +114,14 @@ class _SplashScreenState extends State<SplashScreen>
                       strokeWidth: 1.w,
                     ),
                   ),
-                  SizedBox(height: 16.h),
+                  SizedBox(height: AppConstants.spacingLarge.h),
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: Text(
                       'Loading...',
                       style: TextStyle(
                         color: Colors.white70,
-                        fontSize: 12.sp,
+                        fontSize: AppConstants.textSizeSmall.sp,
                         fontWeight: FontWeight.w300,
                         letterSpacing: 1.2,
                       ),

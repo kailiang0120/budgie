@@ -2,7 +2,7 @@ import '../entities/expense.dart';
 
 /// Repository interface for expense operations
 abstract class ExpensesRepository {
-  /// Gets all expenses for the current user
+  /// Gets all expenses
   Future<List<Expense>> getExpenses();
 
   /// Adds a new expense

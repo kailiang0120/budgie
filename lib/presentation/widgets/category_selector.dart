@@ -3,28 +3,29 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../domain/entities/category.dart';
 import '../utils/category_manager.dart';
 import '../utils/app_theme.dart';
+import '../utils/app_constants.dart';
 
-/// 类别选择器组件 - Responsive Design
+/// - Category selector widget - Responsive design
 class CategorySelector extends StatelessWidget {
-  /// 当前选择的类别
+  /// - Required: Currently selected category
   final Category selectedCategory;
 
-  /// 类别选择回调
+  /// - Required: Callback when category is selected
   final Function(Category) onCategorySelected;
 
-  /// 容器大小
+  /// - Optional: Container size
   final double containerSize;
 
-  /// 图标大小
+  /// - Optional: Icon size
   final double iconSize;
 
-  /// 文本大小
+  /// - Optional: Text size
   final double fontSize;
 
-  /// 是否显示类别名称
+  /// - Optional: Show category name
   final bool showCategoryName;
 
-  /// 可选的过滤类别列表
+  /// - Optional: Filter categories
   final List<Category>? categories;
 
   const CategorySelector({
@@ -52,13 +53,16 @@ class CategorySelector extends StatelessWidget {
             width: containerSize.w,
             height: containerSize.h,
             decoration: BoxDecoration(
-              color: categoryColor.withAlpha((255 * 0.1).toInt()),
-              borderRadius: BorderRadius.circular(AppTheme.largeBorderRadius.r),
+              color: categoryColor
+                  .withAlpha((255 * AppConstants.opacityOverlay).toInt()),
+              borderRadius:
+                  BorderRadius.circular(AppConstants.borderRadiusXLarge.r),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 4.r,
-                  offset: Offset(0, 2.h),
+                  color: Colors.black
+                      .withAlpha((255 * AppConstants.opacityOverlay).toInt()),
+                  blurRadius: AppConstants.elevationSmall.r * 2,
+                  offset: Offset(0, AppConstants.elevationSmall.h * 2),
                 ),
               ],
             ),
@@ -71,7 +75,7 @@ class CategorySelector extends StatelessWidget {
             ),
           ),
           if (showCategoryName) ...[
-            SizedBox(height: 8.h),
+            SizedBox(height: AppConstants.spacingSmall.h),
             Text(
               categoryName,
               style: TextStyle(
@@ -93,11 +97,12 @@ class CategorySelector extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20.r)),
+        borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppConstants.borderRadiusLarge.r)),
       ),
       builder: (context) {
         return Container(
-          padding: EdgeInsets.symmetric(vertical: 20.h),
+          padding: EdgeInsets.symmetric(vertical: AppConstants.spacingXLarge.h),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -105,11 +110,11 @@ class CategorySelector extends StatelessWidget {
                 'Select Category',
                 style: TextStyle(
                   fontFamily: AppTheme.fontFamily,
-                  fontSize: 18.sp,
+                  fontSize: AppConstants.textSizeXLarge.sp,
                   fontWeight: FontWeight.w400,
                 ),
               ),
-              SizedBox(height: 20.h),
+              SizedBox(height: AppConstants.spacingXLarge.h),
               Flexible(
                 child: ListView.builder(
                   shrinkWrap: true,
@@ -122,23 +127,25 @@ class CategorySelector extends StatelessWidget {
 
                     return ListTile(
                       leading: Container(
-                        width: 40.w,
-                        height: 40.h,
+                        width: AppConstants.iconSizeXLarge.w * 1.25,
+                        height: AppConstants.iconSizeXLarge.h * 1.25,
                         decoration: BoxDecoration(
-                          color: categoryColor.withAlpha((255 * 0.1).toInt()),
-                          borderRadius: BorderRadius.circular(15.r),
+                          color: categoryColor.withAlpha(
+                              (255 * AppConstants.opacityOverlay).toInt()),
+                          borderRadius: BorderRadius.circular(
+                              AppConstants.borderRadiusMedium.r),
                         ),
                         child: Icon(
                           categoryIcon,
                           color: categoryColor,
-                          size: 24.sp,
+                          size: AppConstants.iconSizeLarge.sp,
                         ),
                       ),
                       title: Text(
                         categoryName,
                         style: TextStyle(
                           fontFamily: AppTheme.fontFamily,
-                          fontSize: 16.sp,
+                          fontSize: AppConstants.textSizeLarge.sp,
                           fontWeight: FontWeight.w400,
                         ),
                       ),

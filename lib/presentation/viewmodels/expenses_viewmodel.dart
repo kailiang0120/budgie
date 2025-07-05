@@ -1,6 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/widgets.dart';
 
 import '../../domain/entities/expense.dart';
@@ -15,7 +13,11 @@ import '../../domain/usecase/expense/load_expenses_usecase.dart';
 import '../../domain/usecase/expense/filter_expenses_usecase.dart';
 import '../../domain/usecase/expense/calculate_expense_totals_usecase.dart';
 import '../utils/performance_utils.dart';
+import '../widgets/date_picker_button.dart';
 import 'dart:async';
+
+/// Filter modes for expenses (import from date_picker_button)
+typedef FilterMode = DateFilterMode;
 
 class ExpensesViewModel extends ChangeNotifier
     with PerformanceOptimizedViewModel {
@@ -33,7 +35,6 @@ class ExpensesViewModel extends ChangeNotifier
   List<Expense> _filteredExpenses = [];
   bool _isLoading = true;
   String? _error;
-  StreamSubscription? _expensesSubscription;
   bool _isOffline = false;
 
   // Flag to prevent auto-reset of month filter when navigating between screens
@@ -53,6 +54,9 @@ class ExpensesViewModel extends ChangeNotifier
     'home': false,
     'analytics': false,
   };
+
+  // Current filter mode (day, month, or year)
+  FilterMode _filterMode = DateFilterMode.month;
 
   ExpensesViewModel({
     required ExpensesRepository expensesRepository,
@@ -77,9 +81,6 @@ class ExpensesViewModel extends ChangeNotifier
   }
 
   Future<void> _init() async {
-    // Check network connection status
-    _isOffline = await _loadExpensesUseCase.isOffline;
-
     // Listen for network status changes with performance optimization
     final subscription =
         _connectivityService.connectionStatusStream.listen((isConnected) {
@@ -87,13 +88,13 @@ class ExpensesViewModel extends ChangeNotifier
       _isOffline = !isConnected;
 
       // Reload data when going from offline to online
-      if (wasOffline && isConnected) {
+      if (wasOffline && isConnected && _settingsService.syncEnabled) {
         debugPrint(
             '🔄 ExpensesViewModel: Network connection restored, triggering sync and reload');
         // Trigger sync first
-        _loadExpensesUseCase.triggerSync();
+        _loadExpensesUseCase.execute();
         // Then reload data
-        _startExpensesStream();
+        _loadExpensesFromLocalDatabase();
       } else if (!wasOffline && !isConnected) {
         // Load local data when going from online to offline
         debugPrint(
@@ -104,15 +105,7 @@ class ExpensesViewModel extends ChangeNotifier
     trackSubscription(subscription);
 
     // Initial data load
-    if (_isOffline) {
-      debugPrint(
-          '🔄 ExpensesViewModel: Starting in offline mode, loading from local database');
-      _loadExpensesFromLocalDatabase();
-    } else {
-      debugPrint(
-          '🔄 ExpensesViewModel: Starting in online mode, loading from server');
-      _startExpensesStream();
-    }
+    _loadExpensesFromLocalDatabase();
   }
 
   // Load expenses from local database
@@ -121,23 +114,49 @@ class ExpensesViewModel extends ChangeNotifier
     _error = null;
     notifyListeners();
 
-    try {
-      final localExpenses = await _loadExpensesUseCase.loadFromLocalDatabase();
+    await _loadExpensesWithRetry();
+  }
 
-      _expenses = localExpenses;
+  /// Load expenses with retry mechanism
+  Future<void> _loadExpensesWithRetry({int maxRetries = 3}) async {
+    for (int attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        debugPrint(
+            '🔄 ExpensesViewModel: Loading expenses attempt ${attempt + 1}/$maxRetries');
 
-      // Apply default filtering for current month
-      _isFiltering = true;
-      // Use the current _selectedMonth instead of forcing to 'home' screen filter
-      if (_selectedMonth == DateTime.now() || !_isFiltering) {
-        _selectedMonth = DateTime.now();
+        final localExpenses = await _expensesRepository.getExpenses();
+
+        _expenses = localExpenses;
+
+        // Apply default filtering for current month
+        _isFiltering = true;
+        // Use the current _selectedMonth instead of forcing to 'home' screen filter
+        if (_selectedMonth == DateTime.now() || !_isFiltering) {
+          _selectedMonth = DateTime.now();
+        }
+        _filterExpensesByMonth();
+
+        _isLoading = false;
+        notifyListenersThrottled('expenses_loaded');
+
+        debugPrint(
+            '✅ ExpensesViewModel: Successfully loaded ${_expenses.length} expenses');
+        return; // Success, exit retry loop
+      } catch (e, stackTrace) {
+        debugPrint('⚠️ ExpensesViewModel: Attempt ${attempt + 1} failed: $e');
+
+        // Check if this is the last attempt
+        if (attempt >= maxRetries - 1) {
+          _handleError(e, stackTrace);
+          return;
+        }
+
+        // Wait before retrying, with exponential backoff
+        final delay = Duration(milliseconds: 500 * (attempt + 1));
+        debugPrint(
+            '🔄 ExpensesViewModel: Retrying in ${delay.inMilliseconds}ms...');
+        await Future.delayed(delay);
       }
-      _filterExpensesByMonth();
-
-      _isLoading = false;
-      notifyListenersThrottled('expenses_loaded');
-    } catch (e, stackTrace) {
-      _handleError(e, stackTrace);
     }
   }
 
@@ -153,6 +172,7 @@ class ExpensesViewModel extends ChangeNotifier
   String get currentCurrency => _settingsService.currency;
   bool get allowNotification => _settingsService.allowNotification;
   bool get autoBudget => _settingsService.autoBudget;
+  bool get syncEnabled => _settingsService.syncEnabled;
 
   /// Set selected month with screen context
   void setSelectedMonth(DateTime month,
@@ -190,21 +210,306 @@ class ExpensesViewModel extends ChangeNotifier
         _persistFilter = persist;
       }
 
-      // Initialize filtered expenses as empty to prevent null access
-      _filteredExpenses = [];
-
       _filterExpensesByMonth();
+      notifyListenersThrottled('month_filter_changed');
     } catch (e) {
       debugPrint('Error setting selected month: $e');
-      _error = 'Failed to set selected month';
-      // Use post frame callback to avoid build phase issues
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        notifyListeners();
-      });
     }
   }
 
-  /// Get filter settings for a specific screen
+  /// Restore screen-specific filter
+  void restoreScreenFilter(String screenKey) {
+    if (!_persistFilter) {
+      return; // Skip if filter persistence is disabled
+    }
+
+    final savedMonth = _screenFilters[screenKey];
+    final isDayFilter = _screenDayFilters[screenKey] ?? false;
+
+    if (savedMonth != null) {
+      setSelectedMonth(savedMonth,
+          filterByDay: isDayFilter, screenKey: screenKey);
+    }
+  }
+
+  /// Reset month filter to show all expenses
+  void resetMonthFilter() {
+    _isFiltering = false;
+    _isDayFiltering = false;
+    _filteredExpenses = _expenses;
+    notifyListenersThrottled('filter_reset');
+  }
+
+  /// Filter expenses by the selected period (day, month, or year)
+  void _filterExpensesByMonth() {
+    if (!_isFiltering) {
+      _filteredExpenses = _expenses;
+      return;
+    }
+
+    switch (_filterMode) {
+      case DateFilterMode.day:
+        // Day-level filtering: exact date
+        _filteredExpenses = _filterExpensesUseCase
+            .filterByMonth(_expenses, _selectedMonth, isDayFiltering: true);
+        break;
+      case DateFilterMode.month:
+        // Month-level filtering: first day of month is normalized in setSelectedMonth
+        _filteredExpenses = _filterExpensesUseCase
+            .filterByMonth(_expenses, _selectedMonth, isDayFiltering: false);
+        break;
+      case DateFilterMode.year:
+        // Year-level filtering: include all expenses in the selected year
+        _filteredExpenses = _expenses
+            .where((expense) => expense.date.year == _selectedMonth.year)
+            .toList();
+        break;
+    }
+  }
+
+  /// Add a new expense
+  Future<void> addExpense(Expense expense) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      await _addExpenseUseCase.execute(expense);
+
+      // Refresh the expenses list
+      await _loadExpensesFromLocalDatabase();
+    } catch (e, stackTrace) {
+      _handleError(e, stackTrace);
+    }
+  }
+
+  /// Update an existing expense
+  Future<void> updateExpense(Expense expense) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      await _updateExpenseUseCase.execute(expense);
+
+      // Refresh the expenses list
+      await _loadExpensesFromLocalDatabase();
+    } catch (e, stackTrace) {
+      _handleError(e, stackTrace);
+    }
+  }
+
+  /// Delete an expense
+  Future<void> deleteExpense(String expenseId, DateTime expenseDate) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+
+      await _deleteExpenseUseCase.execute(expenseId, expenseDate);
+
+      // Refresh the expenses list
+      await _loadExpensesFromLocalDatabase();
+    } catch (e, stackTrace) {
+      _handleError(e, stackTrace);
+    }
+  }
+
+  /// Calculate expense totals for a specific month
+  Future<Map<String, double>> calculateMonthlyTotals(
+      int year, int month) async {
+    try {
+      final monthDate = DateTime(year, month, 1);
+      final monthExpenses =
+          _filterExpensesUseCase.filterByMonth(_expenses, monthDate);
+      final total =
+          await _calculateExpenseTotalsUseCase.getTotalExpenses(monthExpenses);
+      return {'total': total};
+    } catch (e, stackTrace) {
+      _handleError(e, stackTrace);
+      return {};
+    }
+  }
+
+  /// Calculate expense totals by category for a specific month
+  Future<Map<String, double>> calculateCategoryTotals(
+      int year, int month) async {
+    try {
+      final monthDate = DateTime(year, month, 1);
+      final monthExpenses =
+          _filterExpensesUseCase.filterByMonth(_expenses, monthDate);
+      return await _calculateExpenseTotalsUseCase
+          .getCategoryTotals(monthExpenses);
+    } catch (e, stackTrace) {
+      _handleError(e, stackTrace);
+      return {};
+    }
+  }
+
+  /// Calculate expense totals for the current day
+  Future<double> calculateDailyTotal(DateTime day) async {
+    try {
+      final dayExpenses = _filterExpensesUseCase.filterByMonth(_expenses, day,
+          isDayFiltering: true);
+      final totals =
+          await _calculateExpenseTotalsUseCase.getTotalExpenses(dayExpenses);
+      return totals;
+    } catch (e, stackTrace) {
+      _handleError(e, stackTrace);
+      return 0.0;
+    }
+  }
+
+  /// Calculate daily spending pattern for a month (returns map of day -> amount)
+  Future<Map<int, double>> calculateDailySpendingPattern(
+      DateTime selectedMonth) async {
+    try {
+      final Map<int, double> dailyTotals = {};
+
+      // Get the number of days in the selected month
+      final daysInMonth =
+          DateTime(selectedMonth.year, selectedMonth.month + 1, 0).day;
+
+      // Initialize all days with 0
+      for (int day = 1; day <= daysInMonth; day++) {
+        dailyTotals[day] = 0.0;
+      }
+
+      // Filter expenses for the selected month
+      final monthExpenses =
+          _filterExpensesUseCase.filterByMonth(_expenses, selectedMonth);
+
+      // Group expenses by day and calculate totals
+      for (final expense in monthExpenses) {
+        final day = expense.date.day;
+
+        // Convert currency if needed
+        double convertedAmount = expense.amount;
+        if (expense.currency != currentCurrency) {
+          // Use approximate conversion for display purposes
+          convertedAmount = await _convertCurrency(
+              expense.amount, expense.currency, currentCurrency);
+        }
+
+        dailyTotals[day] = (dailyTotals[day] ?? 0.0) + convertedAmount;
+      }
+
+      return dailyTotals;
+    } catch (e, stackTrace) {
+      _handleError(e, stackTrace);
+      return {};
+    }
+  }
+
+  /// Simple currency conversion helper (can be enhanced with real-time rates)
+  Future<double> _convertCurrency(
+      double amount, String fromCurrency, String toCurrency) async {
+    if (fromCurrency == toCurrency) return amount;
+
+    // Simple conversion rates for demonstration
+    const Map<String, Map<String, double>> rates = {
+      'MYR': {'USD': 0.21, 'EUR': 0.19, 'GBP': 0.17},
+      'USD': {'MYR': 4.73, 'EUR': 0.92, 'GBP': 0.79},
+      'EUR': {'MYR': 5.26, 'USD': 1.09, 'GBP': 0.86},
+      'GBP': {'MYR': 6.12, 'USD': 1.26, 'EUR': 1.16},
+    };
+
+    final rate = rates[fromCurrency]?[toCurrency] ?? 1.0;
+    return amount * rate;
+  }
+
+  /// Calculate yearly spending totals by month
+  Future<Map<int, double>> calculateYearlySpendingPattern(int year) async {
+    try {
+      final Map<int, double> monthlyTotals = {};
+
+      // Initialize all months with 0
+      for (int month = 1; month <= 12; month++) {
+        monthlyTotals[month] = 0.0;
+      }
+
+      // Filter expenses for the selected year
+      final yearExpenses =
+          _expenses.where((expense) => expense.date.year == year).toList();
+
+      // Group expenses by month and calculate totals
+      for (final expense in yearExpenses) {
+        final month = expense.date.month;
+
+        // Convert currency if needed
+        double convertedAmount = expense.amount;
+        if (expense.currency != currentCurrency) {
+          convertedAmount = await _convertCurrency(
+              expense.amount, expense.currency, currentCurrency);
+        }
+
+        monthlyTotals[month] = (monthlyTotals[month] ?? 0.0) + convertedAmount;
+      }
+
+      return monthlyTotals;
+    } catch (e, stackTrace) {
+      _handleError(e, stackTrace);
+      return {};
+    }
+  }
+
+  /// Set filter mode and date
+  void setFilterMode(FilterMode mode, DateTime date,
+      {String screenKey = 'default'}) {
+    try {
+      // Update the filter mode
+      _filterMode = mode;
+
+      // Store the filter mode info in screen filters for consistency
+      _screenDayFilters[screenKey] = (mode == DateFilterMode.day);
+      _screenFilters[screenKey] = date;
+
+      switch (mode) {
+        case DateFilterMode.day:
+          // For day filtering, use exact date
+          _selectedMonth = date;
+          _isFiltering = true;
+          _isDayFiltering = true;
+          break;
+        case DateFilterMode.month:
+          // For month filtering, standardize to first day of month
+          final normalizedMonth = DateTime(date.year, date.month, 1);
+          _selectedMonth = normalizedMonth;
+          _isFiltering = true;
+          _isDayFiltering = false;
+          break;
+        case DateFilterMode.year:
+          // For year filtering, store the year in _selectedMonth
+          final yearDate = DateTime(date.year, 1, 1);
+          _selectedMonth = yearDate;
+          _isFiltering = true;
+          _isDayFiltering = false;
+          break;
+      }
+
+      // Apply the filter immediately
+      _filterExpensesByMonth();
+      notifyListenersThrottled('filter_mode_changed');
+    } catch (e) {
+      debugPrint('Error setting filter mode: $e');
+    }
+  }
+
+  /// Get current filter mode for a screen
+  FilterMode getFilterMode(String screenKey) {
+    final isDayFilter = _screenDayFilters[screenKey] ?? false;
+    if (isDayFilter) return DateFilterMode.day;
+    // If no screen-specific setting, return the current global filter mode
+    return _filterMode;
+  }
+
+  /// Handle errors
+  void _handleError(Object e, StackTrace? stackTrace) {
+    final error = AppError.from(e, stackTrace ?? StackTrace.current);
+    error.log();
+    _error = error.message;
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  /// Get the filter date for a specific screen
   DateTime getScreenFilterDate(String screenKey) {
     return _screenFilters[screenKey] ?? DateTime.now();
   }
@@ -214,219 +519,44 @@ class ExpensesViewModel extends ChangeNotifier
     return _screenDayFilters[screenKey] ?? false;
   }
 
-  /// Manually set if the filter should be persisted between screen navigations
-  void setPersistFilter(bool persist) {
-    _persistFilter = persist;
-  }
-
-  /// Check if filter should be persisted
-  bool get shouldPersistFilter => _persistFilter;
-
-  void clearMonthFilter() {
-    _isFiltering = false;
-    notifyListeners();
-  }
-
-  void _filterExpensesByMonth() {
-    if (!_isFiltering) return;
-
-    // Use the filter use case for filtering
-    _filteredExpenses = _filterExpensesUseCase.filterByMonth(
-        _expenses, _selectedMonth,
-        isDayFiltering: _isDayFiltering);
-
-    // Schedule notification for next event loop to avoid build phase issues
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      notifyListeners();
-    });
-  }
-
-  /// Force filtering by month (public method for external components)
-  void forceFilterByMonth(DateTime month) {
-    debugPrint('Forcing filter by month: ${month.toString()}');
-    debugPrint('Previous selected month: ${_selectedMonth.toString()}');
-
-    // Clear relevant cache to ensure fresh filtering
-    _filterExpensesUseCase.clearCache();
-
-    // Set filter parameters
-    _selectedMonth = month;
-    _isFiltering = true;
-    _isDayFiltering = false;
-
-    debugPrint('Set new selected month: ${_selectedMonth.toString()}');
-    debugPrint(
-        'Filtering enabled: $_isFiltering, Day filtering: $_isDayFiltering');
-
-    // Perform filtering
-    _filterExpensesByMonth();
-  }
-
-  void _startExpensesStream() {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) {
-      _handleError(AuthError.unauthenticated());
-      return;
-    }
-
-    final userId = currentUser.uid;
-
-    _expensesSubscription?.cancel(); // Cancel previous subscription if any
-
-    // Use database layer filtering for current month data, add pagination
-    const int pageSize = 50;
-    Query expensesQuery = FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('expenses')
-        .orderBy('date', descending: true)
-        .limit(pageSize);
-
-    _expensesSubscription = expensesQuery.snapshots().listen(
-      (snapshot) {
-        _processExpensesSnapshot(snapshot, userId, pageSize);
-      },
-      onError: (e, stackTrace) {
-        // When handling exceptions, try to load data from local database
-        debugPrint('Firestore stream error: $e, loading from local database');
-        _loadExpensesFromLocalDatabase();
-      },
-    );
-  }
-
-  // Extract data processing logic to independent method for better code management
-  void _processExpensesSnapshot(
-      QuerySnapshot snapshot, String userId, int pageSize) {
-    // Use compute for parallel processing to improve performance
-    compute<List<QueryDocumentSnapshot>, List<Expense>>(
-            LoadExpensesUseCase.processExpensesDocs, snapshot.docs)
-        .then((processedExpenses) {
-      _expenses = processedExpenses;
-
-      // Clear expired cache
-      _filterExpensesUseCase.clearCache();
-
-      // Apply filtering based on current state
-      if (!_isFiltering) {
-        _isFiltering = true;
-        _selectedMonth = DateTime.now();
-        _isDayFiltering = false;
-      }
-      _filterExpensesByMonth();
-
-      _isLoading = false;
-      notifyListeners();
-    }).catchError((e, stackTrace) {
-      _handleError(e, stackTrace);
-    });
-  }
-
-  void _handleError(dynamic e, [StackTrace? stackTrace]) {
-    final appError = AppError.from(e, stackTrace);
-    _error = appError.message;
-    _isLoading = false;
-    notifyListeners();
-    appError.log();
-  }
-
-  // Get total expenses for the selected month by category with currency conversion
-  Future<Map<String, double>> getCategoryTotals() async {
-    final expensesToUse = _isFiltering ? _filteredExpenses : _expenses;
-    return await _calculateExpenseTotalsUseCase
-        .getCategoryTotals(expensesToUse);
-  }
-
-  // Get total expenses for the selected month with currency conversion
-  Future<double> getTotalExpenses() async {
-    final expensesToUse = _isFiltering ? _filteredExpenses : _expenses;
-    return await _calculateExpenseTotalsUseCase.getTotalExpenses(expensesToUse);
-  }
-
-  Future<void> addExpense(Expense expense) async {
-    try {
-      // Add expense to database
-      await _addExpenseUseCase.execute(expense);
-
-      // Clear cache to ensure data consistency
-      _filterExpensesUseCase.clearCache();
-
-      // Offline mode support
-      if (_isOffline) {
-        await _loadExpensesFromLocalDatabase();
-      }
-    } catch (e, stackTrace) {
-      _handleError(e, stackTrace);
-      rethrow; // Rethrow to allow UI to handle
-    }
-  }
-
-  Future<void> updateExpense(Expense expense) async {
-    try {
-      // Update expense data
-      await _updateExpenseUseCase.execute(expense);
-
-      // Clear cache to ensure data consistency
-      _filterExpensesUseCase.clearCache();
-
-      // Force refresh data to ensure UI consistency
-      await refreshData();
-    } catch (e, stackTrace) {
-      _handleError(e, stackTrace);
-      rethrow;
-    }
-  }
-
-  Future<void> deleteExpense(String id) async {
-    try {
-      // Get the expense to delete for budget update
-      final expenseToDelete = _expenses.firstWhere((e) => e.id == id);
-
-      // Delete expense
-      await _deleteExpenseUseCase.execute(id, expenseToDelete);
-
-      // Clear cache
-      _filterExpensesUseCase.clearCache();
-
-      // Offline mode support
-      if (_isOffline) {
-        await _loadExpensesFromLocalDatabase();
-      }
-    } catch (e, stackTrace) {
-      _handleError(e, stackTrace);
-      rethrow;
-    }
-  }
-
-  // Get expenses for a specific month
+  /// Get expenses for a specific month
   List<Expense> getExpensesForMonth(int year, int month) {
-    return _filterExpensesUseCase.getExpensesForMonth(_expenses, year, month);
+    final monthDate = DateTime(year, month, 1);
+    return _filterExpensesUseCase.filterByMonth(_expenses, monthDate);
   }
 
+  /// Get category totals for the current filter
+  Future<Map<String, double>> getCategoryTotals() async {
+    try {
+      return await _calculateExpenseTotalsUseCase
+          .getCategoryTotals(_filteredExpenses);
+    } catch (e, stackTrace) {
+      _handleError(e, stackTrace);
+      return {};
+    }
+  }
+
+  /// Refresh all data
   Future<void> refreshData() async {
-    debugPrint('🔄 ExpensesViewModel: Manual data refresh requested');
     _isLoading = true;
     notifyListeners();
 
     try {
-      // Check if we're online
-      final isConnected = await _connectivityService.isConnected;
+      // Clear any cached filter data
+      _filterExpensesUseCase.clearCache();
 
-      if (isConnected) {
-        // If online, trigger sync first
-        await _loadExpensesUseCase.triggerSync();
-        // Then reload data
-        await _loadExpensesFromLocalDatabase();
-      } else {
-        // If offline, just reload from local database
-        await _loadExpensesFromLocalDatabase();
+      // Load fresh data from database
+      await _loadExpensesFromLocalDatabase();
+
+      // Reapply current filter if active
+      if (_isFiltering) {
+        _filterExpensesByMonth();
       }
+
+      debugPrint(
+          'ExpensesViewModel: Data refreshed successfully, ${_expenses.length} expenses loaded');
     } catch (e) {
-      debugPrint('🔄 ExpensesViewModel: Error refreshing data: $e');
-      _error = 'Failed to refresh data: ${e.toString()}';
+      debugPrint('ExpensesViewModel: Error refreshing data: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -435,7 +565,6 @@ class ExpensesViewModel extends ChangeNotifier
 
   @override
   void dispose() {
-    _expensesSubscription?.cancel(); // Cancel the stream subscription
     super.dispose();
   }
 }

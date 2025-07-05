@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../presentation/screens/splash_screen.dart';
-import '../../presentation/screens/login_screen.dart';
+import '../../presentation/screens/welcome_screen.dart';
 import '../../presentation/screens/home_screen.dart';
 import '../../presentation/screens/add_expense_screen.dart';
 import '../../presentation/screens/edit_expense_screen.dart';
 import '../../presentation/screens/analytic_screen.dart';
 import '../../presentation/screens/setting_screen.dart';
-import '../../presentation/screens/profile_screen.dart';
+import '../../presentation/screens/goals_screen.dart';
+import '../../presentation/screens/notification_test_screen.dart';
 import '../../domain/entities/expense.dart';
 import '../constants/routes.dart';
 import 'page_transition.dart';
@@ -20,12 +21,13 @@ class AppRouter {
     final pagePositions = {
       Routes.home: 0, // Main hub
       Routes.analytic: 1, // Right of home
-      Routes.settings: 2, // Further right
-      Routes.profile: 3, // Rightmost main screen
+      Routes.goals: 2, // Goals moved to position 2
+      Routes.settings: 3, // Settings moved to position 3
       Routes.expenses: 10, // Modal-style (special handling)
       Routes.editExpense: 11, // Modal-style (special handling)
       Routes.splash: -10, // Initial screen
-      Routes.login: -5, // Auth screen
+      Routes.welcome: -5, // Welcome screen
+      Routes.notificationTest: 4, // Additional screen
     };
 
     // Handle special cases first
@@ -61,8 +63,10 @@ class AppRouter {
 
     // Special handling for expense screen (modal behavior)
     if (settings.name == Routes.expenses) {
+      // Handle prefilled data if provided
+      final prefilledData = settings.arguments as Map<String, dynamic>?;
       return PageTransition(
-        child: const AddExpenseScreen(),
+        child: AddExpenseScreen(prefilledData: prefilledData),
         type: TransitionType.slideAndFadeVertical,
         duration: const Duration(milliseconds: 400),
         curve: Curves.easeOutCubic,
@@ -92,12 +96,12 @@ class AppRouter {
           settings: settings,
         );
 
-      case Routes.login:
+      case Routes.welcome:
         return PageTransition(
-          child: const LoginScreen(),
-          type: TransitionType.materialPageRoute,
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.fastOutSlowIn,
+          child: const WelcomeScreen(),
+          type: TransitionType.smoothFadeSlide,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOutCubic,
           settings: settings,
         );
 
@@ -121,9 +125,9 @@ class AppRouter {
           settings: settings,
         );
 
-      case Routes.profile:
+      case Routes.goals:
         return PageTransition(
-          child: const ProfileScreen(),
+          child: const GoalsScreen(),
           type: TransitionType.smoothScale,
           duration: const Duration(milliseconds: 450),
           curve: Curves.easeInOutBack,
@@ -136,6 +140,15 @@ class AppRouter {
           type: TransitionType.materialPageRoute,
           duration: const Duration(milliseconds: 350),
           curve: Curves.fastOutSlowIn,
+          settings: settings,
+        );
+
+      case Routes.notificationTest:
+        return PageTransition(
+          child: const NotificationTestScreen(),
+          type: TransitionType.smoothFadeSlide,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutQuart,
           settings: settings,
         );
 

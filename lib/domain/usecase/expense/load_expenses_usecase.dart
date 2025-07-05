@@ -1,26 +1,19 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../entities/expense.dart';
 import '../../entities/recurring_expense.dart';
 import '../../entities/category.dart' as app_category;
 import '../../repositories/expenses_repository.dart';
 import '../../../data/infrastructure/errors/app_error.dart';
-import '../../../data/infrastructure/network/connectivity_service.dart';
-import '../../../data/infrastructure/services/sync_service.dart';
-import '../../../di/injection_container.dart' as di;
 
 /// Use case for loading expenses from various sources
 class LoadExpensesUseCase {
   final ExpensesRepository _expensesRepository;
-  final ConnectivityService _connectivityService;
 
   LoadExpensesUseCase({
     required ExpensesRepository expensesRepository,
-    required ConnectivityService connectivityService,
-  })  : _expensesRepository = expensesRepository,
-        _connectivityService = connectivityService;
+  }) : _expensesRepository = expensesRepository;
 
   /// Load expenses from local database
   Future<List<Expense>> loadFromLocalDatabase() async {
@@ -34,27 +27,14 @@ class LoadExpensesUseCase {
     }
   }
 
-  /// Load expenses from Firestore with pagination
+  /// Load expenses from Firestore with pagination (deprecated - use local database instead)
+  @deprecated
   Future<List<Expense>> loadFromFirestore({int pageSize = 50}) async {
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) {
-        throw AuthError.unauthenticated();
-      }
-
-      final userId = currentUser.uid;
-
-      Query expensesQuery = FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('expenses')
-          .orderBy('date', descending: true)
-          .limit(pageSize);
-
-      final snapshot = await expensesQuery.get();
-      final expenses = processExpensesDocs(snapshot.docs);
-
-      return expenses;
+      // This method is deprecated - use local database instead
+      debugPrint(
+          'loadFromFirestore is deprecated, loading from local database instead');
+      return await loadFromLocalDatabase();
     } catch (e, stackTrace) {
       final appError = AppError.from(e, stackTrace);
       appError.log();
@@ -118,21 +98,18 @@ class LoadExpensesUseCase {
         .toList(); // Filter out null expenses
   }
 
-  /// Trigger data synchronization
-  Future<void> triggerSync() async {
+  /// Execute the load expenses use case
+  Future<List<Expense>> execute() async {
     try {
-      debugPrint('🔄 LoadExpensesUseCase: Triggering data synchronization');
-      final syncService = di.sl<SyncService>();
-      await syncService.syncData(fullSync: true);
-      debugPrint('🔄 LoadExpensesUseCase: Data synchronization completed');
-    } catch (e) {
       debugPrint(
-          '🔄 LoadExpensesUseCase: Error during data synchronization: $e');
-    }
-  }
+          '🔄 LoadExpensesUseCase: Loading expenses from local database');
 
-  /// Check if device is offline
-  Future<bool> get isOffline async {
-    return !await _connectivityService.isConnected;
+      // Load expenses from repository directly
+      return await _expensesRepository.getExpenses();
+    } catch (e) {
+      debugPrint('Error loading expenses: $e');
+      // If there's an error, try to load from local data
+      return await _expensesRepository.getExpenses();
+    }
   }
 }
