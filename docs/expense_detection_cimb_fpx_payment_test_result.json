@@ -1,0 +1,10 @@
+{
+  "amount": 141.0,
+  "currency": "MYR",
+  "merchant": "SEAMONEY CAPITAL MALAYSIA",
+  "paymentMethod": "FPX",
+  "suggestedCategory": "Others",
+  "confidence": 0.95,
+  "success": true,
+  "errorMessage": null
+}

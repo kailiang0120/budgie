@@ -3,10 +3,13 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 
 import '../../models/exceptions.dart';
 import '../network/connectivity_service.dart';
 import '../../models/expense_detection_models.dart';
+import '../../models/budget_reallocation_models.dart';
+import '../../models/spending_behavior_models.dart';
 
 /// HTTP client for communicating with BudgieAI FastAPI backend
 ///
@@ -93,6 +96,17 @@ class GeminiApiClient {
       defaultHeaders.addAll(headers);
     }
 
+    // Log the request body in debug mode
+    if (kDebugMode && body != null) {
+      try {
+        final requestBodyJson =
+            const JsonEncoder.withIndent('  ').convert(body);
+        debugPrint('🤖 Request to $endpoint:\n$requestBodyJson');
+      } catch (e) {
+        debugPrint('🤖 Could not format request body for logging: $e');
+      }
+    }
+
     http.Response response;
 
     try {
@@ -140,8 +154,12 @@ class GeminiApiClient {
       if (statusCode >= 200 && statusCode < 300) {
         return responseData;
       } else {
-        throw AIApiException(_extractErrorMessage(responseData, statusCode),
-            code: 'API_ERROR', statusCode: statusCode);
+        throw AIApiException(
+          _extractErrorMessage(responseData, statusCode),
+          code: 'API_ERROR',
+          statusCode: statusCode,
+          details: responseData, // Log the full response body for debugging
+        );
       }
     } catch (e) {
       if (e is AIApiException) rethrow;
@@ -176,10 +194,10 @@ class GeminiApiClient {
       final requestBody = request.toJson();
 
       final response = await _makeRequest(
-        '/extract-expense',
+        '/expense-detection/extract',
         'POST',
         body: requestBody,
-        timeout: const Duration(seconds: 60),
+        timeout: const Duration(seconds: 30),
       );
 
       debugPrint(
@@ -193,28 +211,18 @@ class GeminiApiClient {
 
   /// Analyze budget reallocation using FastAPI backend
   Future<Map<String, dynamic>> analyzeBudgetReallocation({
-    required Map<String, dynamic> currentBudget,
-    required List<Map<String, dynamic>> recentExpenses,
-    required Map<String, double> categoryUtilization,
-    Map<String, dynamic>? userPreferences,
+    required BudgetReallocationRequest request,
   }) async {
     try {
       await _ensureInitialized();
 
       debugPrint('🤖 BudgieApiClient: Analyzing budget reallocation...');
 
-      final requestBody = {
-        'current_budget': currentBudget,
-        'recent_expenses': recentExpenses,
-        'category_utilization': categoryUtilization,
-        if (userPreferences != null) 'user_preferences': userPreferences,
-      };
-
       final response = await _makeRequest(
         '/budget-reallocation/analyze',
         'POST',
-        body: requestBody,
-        timeout: const Duration(seconds: 90),
+        body: request.toJson(),
+        timeout: const Duration(seconds: 60),
       );
 
       debugPrint(
@@ -228,28 +236,18 @@ class GeminiApiClient {
 
   /// Analyze spending behavior using FastAPI backend
   Future<Map<String, dynamic>> analyzeSpendingBehavior({
-    required List<Map<String, dynamic>> historicalExpenses,
-    required Map<String, dynamic> currentBudget,
-    int analysisDepthMonths = 6,
-    Map<String, dynamic>? userProfile,
+    required SpendingBehaviorAnalysisRequest request,
   }) async {
     try {
       await _ensureInitialized();
 
       debugPrint('🤖 BudgieApiClient: Analyzing spending behavior...');
 
-      final requestBody = {
-        'historical_expenses': historicalExpenses,
-        'current_budget': currentBudget,
-        'analysis_depth_months': analysisDepthMonths,
-        if (userProfile != null) 'user_profile': userProfile,
-      };
-
       final response = await _makeRequest(
         '/spending-behavior/analyze',
         'POST',
-        body: requestBody,
-        timeout: const Duration(seconds: 120),
+        body: request.toJson(),
+        timeout: const Duration(seconds: 90),
       );
 
       debugPrint(

@@ -33,9 +33,7 @@ class UserBehaviorRepositoryImpl implements UserBehaviorRepository {
 
   @override
   Future<List<UserBehaviorProfile>> getAllUserBehaviorProfiles() async {
-    // This might need a new method in the local data source if it's required
-    // For now, returning an empty list as per the original implementation
-    return [];
+    return _localDataSource.getAllUserBehaviorProfiles();
   }
 
   @override
@@ -44,5 +42,10 @@ class UserBehaviorRepositoryImpl implements UserBehaviorRepository {
     Map<String, dynamic> updates,
   ) async {
     return _localDataSource.updateUserBehaviorProfileFields(userId, updates);
+  }
+
+  @override
+  Future<void> cleanupDuplicateProfiles(String userId) async {
+    return _localDataSource.cleanupDuplicateProfiles(userId);
   }
 }

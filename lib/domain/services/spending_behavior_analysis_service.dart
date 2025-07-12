@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 
 import '../entities/expense.dart';
 import '../entities/budget.dart';
-import '../entities/category.dart';
 import '../entities/financial_goal.dart';
 import '../entities/user_behavior_profile.dart';
 import '../../data/models/spending_behavior_models.dart';
@@ -79,7 +78,7 @@ class SpendingBehaviorAnalysisService {
   /// - Goal achievement analysis
   /// - Personalized financial insights
   /// - Anomaly detection
-  Future<ComprehensiveAnalysisResult> analyzeSpendingBehavior({
+  Future<SpendingBehaviorAnalysisResult> analyzeSpendingBehavior({
     required List<Expense> historicalExpenses,
     required Budget currentBudget,
     required UserBehaviorProfile userProfile,
@@ -118,310 +117,6 @@ class SpendingBehaviorAnalysisService {
         details: {'originalError': e.toString()},
       );
     }
-  }
-
-  /// Quick budget optimization analysis
-  Future<BudgetReallocationRecommendation> generateBudgetRecommendations({
-    required List<Expense> recentExpenses,
-    required Budget currentBudget,
-    required UserBehaviorProfile userProfile,
-  }) async {
-    try {
-      debugPrint('💡 Getting budget reallocation recommendations...');
-
-      final fullAnalysis = await analyzeSpendingBehavior(
-        historicalExpenses: recentExpenses,
-        currentBudget: currentBudget,
-        userProfile: userProfile,
-      );
-
-      return fullAnalysis.budgetRecommendation;
-    } catch (e) {
-      debugPrint('💡 Failed to get budget recommendations: $e');
-      // Return default recommendations if analysis fails
-      return BudgetReallocationRecommendation(
-        recommendedAllocations: {},
-        categoriesNeedingIncrease: [],
-        categoriesNeedingDecrease: [],
-        confidenceScore: 0.0,
-        reasoning:
-            'Unable to generate recommendations due to analysis error: $e',
-      );
-    }
-  }
-
-  /// Analyze goal achievement likelihood
-  Future<GoalAnalysisResult> analyzeGoalAchievability({
-    required UserBehaviorProfile userProfile,
-    required List<FinancialGoal> goals,
-    required List<Expense> expenses,
-  }) async {
-    try {
-      debugPrint('💡 Analyzing goal achievability...');
-
-      // For now, return mock analysis - TODO: Implement actual analysis
-      return GoalAnalysisResult(
-        goalAchievabilityScores: {
-          for (final goal in goals)
-            goal.id: _calculateGoalScore(goal, userProfile, expenses)
-        },
-        estimatedCompletionDates: {
-          for (final goal in goals)
-            goal.id: _estimateCompletionDate(goal, userProfile, expenses)
-        },
-        recommendedGoalAdjustments:
-            _generateGoalAdjustments(goals, userProfile, expenses),
-        overallGoalHealthScore:
-            _calculateOverallGoalHealth(goals, userProfile, expenses),
-      );
-    } catch (e) {
-      debugPrint('💡 Failed to analyze goal achievability: $e');
-      rethrow;
-    }
-  }
-
-  /// Generate personalized financial insights
-  Future<List<FinancialInsight>> generatePersonalizedInsights({
-    required UserBehaviorProfile userProfile,
-    required List<Expense> expenses,
-    Budget? currentBudget,
-    List<FinancialGoal>? goals,
-  }) async {
-    try {
-      debugPrint('💡 Generating personalized financial insights...');
-
-      final insights = <FinancialInsight>[];
-
-      // Generate insights based on user profile and spending patterns
-      insights.addAll(_generateSpendingInsights(userProfile, expenses));
-
-      if (currentBudget != null) {
-        insights.addAll(
-            _generateBudgetInsights(userProfile, currentBudget, expenses));
-      }
-
-      if (goals != null && goals.isNotEmpty) {
-        insights.addAll(_generateGoalInsights(userProfile, goals, expenses));
-      }
-
-      // Sort by priority
-      insights.sort((a, b) => b.priority.index.compareTo(a.priority.index));
-
-      return insights;
-    } catch (e) {
-      debugPrint('💡 Failed to generate personalized insights: $e');
-      return [];
-    }
-  }
-
-  /// Detect spending anomalies based on user patterns
-  Future<List<SpendingAnomaly>> detectSpendingAnomalies({
-    required UserBehaviorProfile userProfile,
-    required List<Expense> expenses,
-  }) async {
-    try {
-      debugPrint('💡 Detecting spending anomalies...');
-
-      final anomalies = <SpendingAnomaly>[];
-      final recentExpenses = expenses
-          .where((e) =>
-              e.date.isAfter(DateTime.now().subtract(const Duration(days: 30))))
-          .toList();
-
-      // Analyze spending patterns based on user profile
-      anomalies.addAll(_detectAmountAnomalies(userProfile, recentExpenses));
-      anomalies.addAll(_detectFrequencyAnomalies(userProfile, recentExpenses));
-      anomalies.addAll(_detectCategoryAnomalies(userProfile, recentExpenses));
-
-      return anomalies;
-    } catch (e) {
-      debugPrint('💡 Failed to detect spending anomalies: $e');
-      return [];
-    }
-  }
-
-  /// Recommend optimal savings allocation
-  Future<SavingsAllocationRecommendation> recommendSavingsAllocation({
-    required UserBehaviorProfile userProfile,
-    required double availableSavings,
-    List<FinancialGoal>? goals,
-  }) async {
-    try {
-      debugPrint('💡 Generating savings allocation recommendations...');
-
-      final recommendation =
-          _calculateSavingsAllocation(userProfile, availableSavings, goals);
-      return recommendation;
-    } catch (e) {
-      debugPrint(
-          '💡 Failed to generate savings allocation recommendations: $e');
-      return SavingsAllocationRecommendation(
-        goalAllocations: {},
-        emergencyFundAllocation: availableSavings * 0.5,
-        investmentAllocation: availableSavings * 0.5,
-        reasoning: 'Default allocation due to analysis error: $e',
-        confidenceScore: 0.0,
-      );
-    }
-  }
-
-  // Private helper methods for analysis logic
-
-  double _calculateGoalScore(
-      FinancialGoal goal, UserBehaviorProfile profile, List<Expense> expenses) {
-    // TODO: Implement actual goal scoring algorithm
-    final baseScore = goal.currentAmount / goal.targetAmount;
-    final profileMultiplier =
-        profile.primaryFinancialGoal == FinancialGoalType.aggressiveSaving
-            ? 1.2
-            : 1.0;
-    return (baseScore * profileMultiplier).clamp(0.0, 1.0);
-  }
-
-  DateTime _estimateCompletionDate(
-      FinancialGoal goal, UserBehaviorProfile profile, List<Expense> expenses) {
-    // TODO: Implement actual completion date estimation
-    final remainingAmount = goal.targetAmount - goal.currentAmount;
-    final monthlyContribution =
-        profile.monthlyIncome * 0.1; // Assume 10% contribution
-    final monthsToComplete = (remainingAmount / monthlyContribution).ceil();
-    return DateTime.now().add(Duration(days: monthsToComplete * 30));
-  }
-
-  List<String> _generateGoalAdjustments(List<FinancialGoal> goals,
-      UserBehaviorProfile profile, List<Expense> expenses) {
-    // TODO: Implement actual goal adjustment recommendations
-    return [
-      'Consider increasing emergency fund target to ${profile.emergencyFundTarget} months',
-      'Adjust savings goals based on your ${profile.spendingMentality.displayName} spending style',
-    ];
-  }
-
-  double _calculateOverallGoalHealth(List<FinancialGoal> goals,
-      UserBehaviorProfile profile, List<Expense> expenses) {
-    // TODO: Implement actual goal health calculation
-    if (goals.isEmpty) return 1.0;
-    final avgProgress = goals
-            .map((g) => g.currentAmount / g.targetAmount)
-            .reduce((a, b) => a + b) /
-        goals.length;
-    return avgProgress.clamp(0.0, 1.0);
-  }
-
-  List<FinancialInsight> _generateSpendingInsights(
-      UserBehaviorProfile profile, List<Expense> expenses) {
-    final insights = <FinancialInsight>[];
-
-    // Example insight based on spending mentality
-    if (profile.spendingMentality == SpendingMentality.spontaneous) {
-      insights.add(FinancialInsight(
-        title: 'Mindful Spending Opportunity',
-        description:
-            'As a spontaneous spender, setting up spending alerts could help you stay on track with your budget.',
-        type: FinancialInsightType.spendingAlert,
-        priority: FinancialInsightPriority.medium,
-        actionData: {'suggestedAction': 'enable_spending_alerts'},
-      ));
-    }
-
-    return insights;
-  }
-
-  List<FinancialInsight> _generateBudgetInsights(
-      UserBehaviorProfile profile, Budget budget, List<Expense> expenses) {
-    final insights = <FinancialInsight>[];
-
-    // Example budget insight
-    if (budget.saving / budget.total < 0.2 &&
-        profile.primaryFinancialGoal == FinancialGoalType.aggressiveSaving) {
-      insights.add(FinancialInsight(
-        title: 'Savings Rate Below Target',
-        description:
-            'Your current savings rate is below 20%. Consider adjusting your budget to align with your aggressive saving goal.',
-        type: FinancialInsightType.budgetOptimization,
-        priority: FinancialInsightPriority.high,
-        actionData: {
-          'currentSavingsRate': budget.saving / budget.total,
-          'targetRate': 0.2
-        },
-      ));
-    }
-
-    return insights;
-  }
-
-  List<FinancialInsight> _generateGoalInsights(UserBehaviorProfile profile,
-      List<FinancialGoal> goals, List<Expense> expenses) {
-    final insights = <FinancialInsight>[];
-
-    // Example goal insight
-    for (final goal in goals) {
-      final progress = goal.currentAmount / goal.targetAmount;
-      if (progress > 0.8) {
-        insights.add(FinancialInsight(
-          title: 'Goal Almost Achieved!',
-          description:
-              'You\'re ${(progress * 100).round()}% towards your ${goal.title} goal. Keep up the great work!',
-          type: FinancialInsightType.achievementCelebration,
-          priority: FinancialInsightPriority.low,
-          actionData: {'goalId': goal.id, 'progress': progress},
-        ));
-      }
-    }
-
-    return insights;
-  }
-
-  List<SpendingAnomaly> _detectAmountAnomalies(
-      UserBehaviorProfile profile, List<Expense> expenses) {
-    // TODO: Implement actual anomaly detection
-    return [];
-  }
-
-  List<SpendingAnomaly> _detectFrequencyAnomalies(
-      UserBehaviorProfile profile, List<Expense> expenses) {
-    // TODO: Implement actual frequency anomaly detection
-    return [];
-  }
-
-  List<SpendingAnomaly> _detectCategoryAnomalies(
-      UserBehaviorProfile profile, List<Expense> expenses) {
-    // TODO: Implement actual category anomaly detection
-    return [];
-  }
-
-  SavingsAllocationRecommendation _calculateSavingsAllocation(
-      UserBehaviorProfile profile,
-      double availableSavings,
-      List<FinancialGoal>? goals) {
-    final emergencyMultiplier = profile.riskAppetite == RiskAppetite.low
-        ? 0.6
-        : profile.riskAppetite == RiskAppetite.medium
-            ? 0.4
-            : 0.2;
-
-    final emergencyAllocation = availableSavings * emergencyMultiplier;
-    final investmentAllocation =
-        availableSavings * (1 - emergencyMultiplier) * 0.3;
-    final goalAllocation =
-        availableSavings - emergencyAllocation - investmentAllocation;
-
-    final goalAllocations = <String, double>{};
-    if (goals != null && goals.isNotEmpty) {
-      final perGoal = goalAllocation / goals.length;
-      for (final goal in goals) {
-        goalAllocations[goal.id] = perGoal;
-      }
-    }
-
-    return SavingsAllocationRecommendation(
-      goalAllocations: goalAllocations,
-      emergencyFundAllocation: emergencyAllocation,
-      investmentAllocation: investmentAllocation,
-      reasoning:
-          'Allocation based on your ${profile.riskAppetite.displayName} risk appetite and ${profile.primaryFinancialGoal.displayName} financial goal.',
-      confidenceScore: 0.85,
-    );
   }
 
   Future<void> _ensureInitialized() async {
@@ -487,7 +182,7 @@ class SpendingBehaviorAnalysisService {
     }
   }
 
-  ComprehensiveAnalysisRequest _prepareComprehensiveAnalysisRequest(
+  SpendingBehaviorAnalysisRequest _prepareComprehensiveAnalysisRequest(
     List<Expense> historicalExpenses,
     Budget currentBudget,
     UserBehaviorProfile userProfile,
@@ -511,28 +206,26 @@ class SpendingBehaviorAnalysisService {
     debugPrint(
         '💡 Current budget total: ${currentBudget.total} ${currentBudget.currency}');
 
-    return ComprehensiveAnalysisRequest(
+    return SpendingBehaviorAnalysisRequest(
       historicalExpenses: relevantExpenses
-          .map((e) => SpendingExpenseData.fromExpense(e))
+          .map((e) => AnalysisExpenseData.fromExpense(e))
           .toList(),
-      currentBudget: SpendingBudgetData.fromBudget(currentBudget),
-      userProfile: UserBehaviorProfileData.fromProfile(userProfile),
-      goals: goals?.map((g) => FinancialGoalData.fromGoal(g)).toList(),
+      currentBudget: AnalysisBudgetData.fromBudget(currentBudget),
+      userProfile: AnalysisUserProfileData.fromProfile(userProfile),
+      financialGoals:
+          goals?.map((g) => AnalysisFinancialGoalData.fromGoal(g)).toList() ??
+              [], // Ensure it's an empty list, not null
       analysisDate: DateTime.now(),
     );
   }
 
   Future<Map<String, dynamic>> _callFastAPIBackend(
-      ComprehensiveAnalysisRequest request) async {
+      SpendingBehaviorAnalysisRequest request) async {
     try {
       debugPrint('💡 Calling FastAPI backend for comprehensive analysis...');
 
-      final jsonRequest = request.toJson();
       final response = await _apiClient!.analyzeSpendingBehavior(
-        historicalExpenses:
-            jsonRequest['historicalExpenses'] as List<Map<String, dynamic>>,
-        currentBudget: jsonRequest['currentBudget'] as Map<String, dynamic>,
-        userProfile: jsonRequest['userProfile'] as Map<String, dynamic>,
+        request: request,
       );
 
       debugPrint('💡 FastAPI backend response received successfully');
@@ -547,49 +240,50 @@ class SpendingBehaviorAnalysisService {
     }
   }
 
-  Future<ComprehensiveAnalysisResult> _parseComprehensiveResponse(
+  Future<SpendingBehaviorAnalysisResult> _parseComprehensiveResponse(
       Map<String, dynamic> response) async {
     try {
-      debugPrint('💡 [AI COMPREHENSIVE RESPONSE] ===========================');
-      debugPrint('💡 Raw response received: $response');
+      debugPrint('💡 [AI COMPREHENSIVE RESPONSE - SIMPLIFIED] ===============');
+      debugPrint('💡 Raw response received');
+      debugPrint('💡 Response keys: ${response.keys.toList()}');
 
-      // TODO: Implement full response parsing when the API is ready
-      // For now, returning a mock comprehensive analysis result
-      final analysisResult = ComprehensiveAnalysisResult(
-        spendingAnalysis: SpendingAnalysisResult(
-          categorySpendingRatios: {
-            'food': 0.3,
-            'transport': 0.2,
-            'entertainment': 0.15
-          },
-          averageMonthlySpending: 2500.0,
-          spendingVariability: 0.15,
-          topSpendingCategories: ['food', 'transport', 'entertainment'],
-          savingsRate: 0.25,
-          categoryTrends: {},
-        ),
-        budgetRecommendation: BudgetReallocationRecommendation(
-          recommendedAllocations: {'food': 800.0, 'transport': 500.0},
-          categoriesNeedingIncrease: ['food'],
-          categoriesNeedingDecrease: ['entertainment'],
-          confidenceScore: 0.85,
-          reasoning: 'Mock recommendation based on user profile analysis',
-        ),
-        personalizedInsights: [],
-        anomalies: [],
-        savingsRecommendation: SavingsAllocationRecommendation(
-          goalAllocations: {},
-          emergencyFundAllocation: 1000.0,
-          investmentAllocation: 500.0,
-          reasoning: 'Mock savings allocation',
-          confidenceScore: 0.8,
-        ),
-      );
+      // Log the main response components
+      if (response.containsKey('categoryInsights')) {
+        final categoryInsights =
+            response['categoryInsights'] as List<dynamic>? ?? [];
+        debugPrint('💡 Category insights count: ${categoryInsights.length}');
+      }
 
-      debugPrint('💡 Comprehensive response parsing completed (mock data)');
+      if (response.containsKey('keyInsights')) {
+        final keyInsights = response['keyInsights'] as List<dynamic>? ?? [];
+        debugPrint('💡 Key insights count: ${keyInsights.length}');
+      }
+
+      if (response.containsKey('actionableRecommendations')) {
+        final recommendations =
+            response['actionableRecommendations'] as List<dynamic>? ?? [];
+        debugPrint(
+            '💡 Actionable recommendations count: ${recommendations.length}');
+      }
+
+      if (response.containsKey('summary')) {
+        final summary = response['summary'] as String? ?? '';
+        debugPrint('💡 Summary length: ${summary.length} characters');
+      }
+
+      final analysisResult = SpendingBehaviorAnalysisResult.fromJson(response);
+
+      debugPrint('💡 Simplified response parsed successfully');
+      debugPrint('💡 Summary: ${analysisResult.summary}');
+      debugPrint(
+          '💡 Category insights: ${analysisResult.categoryInsights.length}');
+      debugPrint('💡 Key insights: ${analysisResult.keyInsights.length}');
+      debugPrint(
+          '💡 Recommendations: ${analysisResult.actionableRecommendations.length}');
+
       return analysisResult;
     } catch (e) {
-      debugPrint('💡 Failed to parse comprehensive response: $e');
+      debugPrint('💡 Failed to parse simplified response: $e');
       throw AIApiException(
         'Failed to parse comprehensive analysis: $e',
         code: 'PARSE_ERROR',
@@ -608,7 +302,4 @@ class SpendingBehaviorAnalysisService {
     _isInitialized = false;
     debugPrint('💡 SpendingBehaviorAnalysisService: Disposed');
   }
-
-  /// Check if service is initialized
-  bool get isInitialized => _isInitialized;
 }

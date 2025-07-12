@@ -6,6 +6,7 @@ import '../../../di/injection_container.dart' as di;
 import 'settings_service.dart';
 import 'sync_service.dart';
 import '../../../domain/services/budget_reallocation_service.dart';
+import '../../../domain/repositories/user_behavior_repository.dart';
 
 const autoReallocationTask = 'autoReallocationTask';
 const dataSyncTask = 'dataSyncTask';
@@ -41,15 +42,19 @@ void callbackDispatcher() {
           // Execute auto budget reallocation
           try {
             final reallocationService = di.sl<BudgetReallocationService>();
+            final userBehaviorRepository = di.sl<UserBehaviorRepository>();
+            final allUsers =
+                await userBehaviorRepository.getAllUserBehaviorProfiles();
             final now = DateTime.now();
             final monthId =
                 '${now.year}-${now.month.toString().padLeft(2, '0')}';
-
-            debugPrint(
-                '🔄 Background: Starting auto budget reallocation for $monthId');
-            await reallocationService.reallocateBudget(monthId);
-            debugPrint(
-                '✅ Background: Auto budget reallocation completed successfully');
+            for (final user in allUsers) {
+              debugPrint(
+                  '🔄 Background: Starting auto budget reallocation for ${user.userId} in $monthId');
+              await reallocationService.reallocateBudget(user.userId, monthId);
+              debugPrint(
+                  '✅ Background: Auto budget reallocation for ${user.userId} completed successfully');
+            }
           } catch (e) {
             debugPrint('❌ Background: Auto budget reallocation failed: $e');
           }

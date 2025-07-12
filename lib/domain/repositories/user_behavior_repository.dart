@@ -22,4 +22,7 @@ abstract class UserBehaviorRepository {
     String userId,
     Map<String, dynamic> updates,
   );
+
+  /// Clean up any duplicate profiles for a user
+  Future<void> cleanupDuplicateProfiles(String userId);
 }

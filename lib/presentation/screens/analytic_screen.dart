@@ -4,11 +4,14 @@ import 'package:provider/provider.dart';
 
 import '../viewmodels/expenses_viewmodel.dart';
 import '../viewmodels/budget_viewmodel.dart';
+import '../viewmodels/analysis_viewmodel.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/date_picker_button.dart';
 import '../widgets/animated_float_button.dart';
 import '../widgets/category_distribution_card.dart';
 import '../widgets/spending_trends_card.dart';
+import '../widgets/submit_button.dart';
+import '../widgets/ai_analysis_dialog.dart';
 import '../utils/app_constants.dart';
 import 'add_expense_screen.dart';
 
@@ -405,6 +408,28 @@ class _AnalyticScreenState extends State<AnalyticScreen>
     );
   }
 
+  /// Show AI analysis dialog with spending behavior and budget reallocation
+  void _showAIAnalysisDialog(BuildContext context) {
+    final analysisViewModel =
+        Provider.of<AnalysisViewModel>(context, listen: false);
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) => AIAnalysisDialog(
+        selectedDate: _selectedDate,
+        analysisViewModel: analysisViewModel,
+      ),
+    ).then((result) {
+      // If recommendations were applied successfully, refresh the budget data
+      if (result == true && mounted) {
+        debugPrint(
+            'Analytics: Budget recommendations applied, refreshing data...');
+        _refreshData();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -463,6 +488,27 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                             filterMode: _filterMode,
                             onFilterModeChanged: _onFilterModeChanged,
                             showFilterModeSelector: true,
+                          ),
+                        ),
+                      ),
+
+                      // AI Analysis Button
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: AppConstants.spacingLarge.w,
+                            vertical: AppConstants.spacingSmall.h),
+                        sliver: SliverToBoxAdapter(
+                          child: Consumer<AnalysisViewModel>(
+                            builder: (context, analysisViewModel, child) {
+                              return SubmitButton(
+                                text: 'Get AI Analysis',
+                                isLoading: analysisViewModel.isLoading,
+                                loadingText: 'Analyzing...',
+                                onPressed: () => _showAIAnalysisDialog(context),
+                                icon: Icons.psychology,
+                                width: double.infinity,
+                              );
+                            },
                           ),
                         ),
                       ),

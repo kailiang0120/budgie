@@ -6,178 +6,18 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import '../../domain/entities/budget.dart' as domain;
 import '../../domain/entities/expense.dart' as domain;
 import '../../domain/entities/recurring_expense.dart' as domain;
-import '../../domain/entities/category.dart';
+import '../../domain/entities/category.dart' as entity;
 
 import '../local/database/app_database.dart';
 import 'local_data_source.dart';
+import '../../domain/entities/category.dart';
 
 /// Implementation of LocalDataSource using Drift database
 class LocalDataSourceImpl implements LocalDataSource {
   final AppDatabase _database;
-  final Uuid _uuid = const Uuid();
+  final Uuid _uuid;
 
-  LocalDataSourceImpl(this._database);
-
-  // App Settings operations
-  @override
-  Future<Map<String, dynamic>> getAppSettings() async {
-    try {
-      final settingsRow = await (_database.select(_database.appSettings)
-            ..where((tbl) => tbl.id.equals(1)))
-          .getSingleOrNull();
-
-      if (settingsRow == null) {
-        // Create default settings if none exist using raw SQL
-        await _database.customStatement('''
-          INSERT INTO app_settings (
-            theme, 
-            currency,
-            allow_notification, 
-            auto_budget, 
-            improve_accuracy, 
-            updated_at
-          ) VALUES (
-            'light',
-            'MYR',
-            0, 
-            0, 
-            0, 
-            ${DateTime.now().millisecondsSinceEpoch}
-          )
-        ''');
-
-        // Return default settings as map
-        return {
-          'theme': 'light',
-          'currency': 'MYR',
-          'allow_notification': false,
-          'auto_budget': false,
-          'improve_accuracy': false,
-        };
-      }
-
-      // Convert row to map
-      return {
-        'id': settingsRow.id,
-        'theme': settingsRow.theme,
-        'currency': settingsRow.currency,
-        'allow_notification': settingsRow.allowNotification,
-        'auto_budget': settingsRow.autoBudget,
-        'improve_accuracy': settingsRow.improveAccuracy,
-        'updated_at': settingsRow.updatedAt.millisecondsSinceEpoch,
-      };
-    } catch (e) {
-      debugPrint('Error getting app settings: $e');
-      // Return default settings if any error occurs
-      return {
-        'theme': 'light',
-        'currency': 'MYR',
-        'allow_notification': false,
-        'auto_budget': false,
-        'improve_accuracy': false,
-      };
-    }
-  }
-
-  @override
-  Future<void> saveAppSettings(Map<String, dynamic> settings) async {
-    final existingSettings = await (_database.select(_database.appSettings)
-          ..where((tbl) => tbl.id.equals(1)))
-        .getSingleOrNull();
-
-    final companion = AppSettingsCompanion(
-      id: Value(existingSettings?.id ?? 1),
-      theme: Value(settings['theme'] as String? ?? 'light'),
-      currency: Value(settings['currency'] as String? ?? 'MYR'),
-      allowNotification:
-          Value(settings['allow_notification'] as bool? ?? false),
-      autoBudget: Value(settings['auto_budget'] as bool? ?? false),
-      improveAccuracy: Value(settings['improve_accuracy'] as bool? ?? false),
-      updatedAt: Value(DateTime.now()),
-    );
-
-    await _database
-        .into(_database.appSettings)
-        .insertOnConflictUpdate(companion);
-  }
-
-  @override
-  Future<String> getAppTheme() async {
-    final settings = await getAppSettings();
-    return settings['theme'] as String? ?? 'light';
-  }
-
-  @override
-  Future<void> updateAppTheme(String theme) async {
-    final settings = await getAppSettings();
-    settings['theme'] = theme;
-    await saveAppSettings(settings);
-  }
-
-  @override
-  Future<String> getAppCurrency() async {
-    final settings = await getAppSettings();
-    return settings['currency'] as String? ?? 'MYR';
-  }
-
-  @override
-  Future<void> updateAppCurrency(String currency) async {
-    final settings = await getAppSettings();
-    settings['currency'] = currency;
-    await saveAppSettings(settings);
-  }
-
-  @override
-  Future<bool> getNotificationsEnabled() async {
-    final settings = await getAppSettings();
-    return settings['allow_notification'] as bool? ?? false;
-  }
-
-  @override
-  Future<void> updateNotificationsEnabled(bool enabled) async {
-    final settings = await getAppSettings();
-    settings['allow_notification'] = enabled;
-    await saveAppSettings(settings);
-  }
-
-  @override
-  Future<bool> getAutoBudgetEnabled() async {
-    final settings = await getAppSettings();
-    return settings['auto_budget'] as bool? ?? false;
-  }
-
-  @override
-  Future<void> updateAutoBudgetEnabled(bool enabled) async {
-    final settings = await getAppSettings();
-    settings['auto_budget'] = enabled;
-    await saveAppSettings(settings);
-  }
-
-  @override
-  Future<bool> getImproveAccuracyEnabled() async {
-    final settings = await getAppSettings();
-    return settings['improve_accuracy'] as bool? ?? false;
-  }
-
-  @override
-  Future<void> updateImproveAccuracyEnabled(bool enabled) async {
-    final settings = await getAppSettings();
-    settings['improve_accuracy'] = enabled;
-    await saveAppSettings(settings);
-  }
-
-  @override
-  Future<bool> getSyncEnabled() async {
-    final settings = await getAppSettings();
-    return settings['sync_enabled'] as bool? ?? false;
-  }
-
-  @override
-  Future<void> updateSyncEnabled(bool enabled) async {
-    final settings = await getAppSettings();
-    settings['sync_enabled'] = enabled;
-    await saveAppSettings(settings);
-  }
+  LocalDataSourceImpl(this._database, this._uuid);
 
   // Expenses operations
   @override

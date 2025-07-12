@@ -21,6 +21,7 @@ import '../utils/currency_formatter.dart';
 import 'add_expense_screen.dart';
 import 'notification_test_screen.dart';
 import 'financial_profile_screen.dart';
+import '../../domain/repositories/user_behavior_repository.dart';
 
 class SettingScreen extends StatefulWidget {
   const SettingScreen({Key? key}) : super(key: key);
@@ -897,10 +898,10 @@ class _SettingScreenState extends State<SettingScreen> {
             onTap: () {
               Navigator.push(
                 context,
-                PageTransition(
-                  child: const FinancialProfileScreen(),
-                  type: TransitionType.smoothSlideRight,
-                  settings: const RouteSettings(name: Routes.financialProfile),
+                MaterialPageRoute(
+                  builder: (context) => FinancialProfileScreen(
+                    userBehaviorRepository: di.sl<UserBehaviorRepository>(),
+                  ),
                 ),
               );
             },

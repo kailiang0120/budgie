@@ -1,0 +1,65 @@
+{
+  "suggestions": [
+    {
+      "fromCategory": "Food",
+      "toCategory": "House Down Payment",
+      "amount": 1000.0,
+      "criticality": "High",
+      "reason": "The user consistently spends significantly less than budgeted for Food (spent MYR 260.5 vs MYR 1500 budget). Reallocating a large portion frees up substantial funds for the primary goal while still leaving a generous budget (MYR 500) for food."
+    },
+    {
+      "fromCategory": "Entertainment",
+      "toCategory": "House Down Payment",
+      "amount": 600.0,
+      "criticality": "High",
+      "reason": "The user spends very little on entertainment (spent MYR 77 vs MYR 800 budget). This category has a large, consistent surplus that can be redirected to accelerate the house down payment goal."
+    },
+    {
+      "fromCategory": "Others",
+      "toCategory": "House Down Payment",
+      "amount": 300.0,
+      "criticality": "High",
+      "reason": "The user spends very little in the 'Others' category (spent MYR 30 vs MYR 450 budget). This significant and consistent surplus can be reallocated to the primary financial goal."
+    },
+    {
+      "fromCategory": "Shopping",
+      "toCategory": "House Down Payment",
+      "amount": 300.0,
+      "criticality": "Medium",
+      "reason": "The user consistently underspends in shopping (spent MYR 141 vs MYR 500 budget). Reallocating a portion helps accelerate savings for the house down payment while leaving a reasonable budget (MYR 200)."
+    },
+    {
+      "fromCategory": "Transportation",
+      "toCategory": "House Down Payment",
+      "amount": 150.0,
+      "criticality": "Medium",
+      "reason": "The user spent MYR 350 out of MYR 600, leaving a good surplus. Reallocating a portion allows for increased savings while still providing adequate funds for transportation (new budget MYR 450)."
+    },
+    {
+      "fromCategory": "Travel",
+      "toCategory": "House Down Payment",
+      "amount": 150.0,
+      "criticality": "Medium",
+      "reason": "The user spent nothing on travel this month, indicating it's not a high priority currently, especially with a major savings goal. Reallocating most of this budget directly supports the house down payment."
+    },
+    {
+      "fromCategory": "Utilities",
+      "toCategory": "House Down Payment",
+      "amount": 100.0,
+      "criticality": "Low",
+      "reason": "The user spent MYR 287.1 out of MYR 400, leaving a surplus. A small reallocation is possible without compromising essential utility coverage (new budget MYR 300)."
+    },
+    {
+      "fromCategory": "Medical",
+      "toCategory": "House Down Payment",
+      "amount": 50.0,
+      "criticality": "Low",
+      "reason": "The user spent nothing on medical this month. While essential, a small portion can be reallocated to the primary goal, leaving a small buffer (MYR 50) for unexpected needs."
+    }
+  ],
+  "metadata": {
+    "analysis_id": "b16fc95f-8b91-413e-ba05-b882c3f6b791",
+    "generated_at": "2025-07-09T06:12:18.544817+00:00",
+    "model_version": "2.3.0"
+  }
+}

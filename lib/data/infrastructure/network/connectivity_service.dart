@@ -14,20 +14,24 @@ class ConnectivityServiceImpl implements ConnectivityService {
   ConnectivityServiceImpl({Connectivity? connectivity})
       : _connectivity = connectivity ?? Connectivity() {
     _initConnectivity();
-    _connectivity.onConnectivityChanged.listen(_updateConnectionStatus);
+    _connectivity.onConnectivityChanged
+        .listen((List<ConnectivityResult> result) {
+      _updateConnectionStatus(result);
+    });
   }
 
   Future<void> _initConnectivity() async {
     try {
-      final ConnectivityResult result = await _connectivity.checkConnectivity();
+      final List<ConnectivityResult> result =
+          await _connectivity.checkConnectivity();
       _updateConnectionStatus(result);
     } catch (e) {
       _connectionStatusController.add(false);
     }
   }
 
-  void _updateConnectionStatus(ConnectivityResult result) {
-    final isConnected = result != ConnectivityResult.none;
+  void _updateConnectionStatus(List<ConnectivityResult> result) {
+    final isConnected = !result.contains(ConnectivityResult.none);
     _connectionStatusController.add(isConnected);
   }
 
@@ -37,7 +41,7 @@ class ConnectivityServiceImpl implements ConnectivityService {
   @override
   Future<bool> get isConnected async {
     final result = await _connectivity.checkConnectivity();
-    return result != ConnectivityResult.none;
+    return !result.contains(ConnectivityResult.none);
   }
 
   void dispose() {

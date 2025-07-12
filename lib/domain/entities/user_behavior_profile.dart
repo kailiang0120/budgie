@@ -1,21 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-/// Enumeration for primary financial goals
-enum FinancialGoalType {
-  aggressiveSaving(
-      'Aggressive Saving', 'Focus on maximizing savings and building wealth'),
-  balancedGrowth('Balanced Growth',
-      'Balance between spending and saving for steady growth'),
-  debtReduction(
-      'Debt Reduction', 'Priority on paying off debts and becoming debt-free'),
-  lifestyleSpending(
-      'Lifestyle Spending', 'Enjoy life while maintaining financial stability');
-
-  const FinancialGoalType(this.displayName, this.description);
-  final String displayName;
-  final String description;
-}
-
 /// Enumeration for income stability patterns
 enum IncomeStability {
   stable('Stable', 'Consistent monthly income (salary, pension)'),
@@ -49,181 +33,48 @@ enum RiskAppetite {
   final String description;
 }
 
-/// Enumeration for spending categories priority
-enum CategoryPriority {
-  essential('Essential', 'Necessary for basic living'),
-  important('Important', 'Valuable but not critical'),
-  optional('Optional', 'Nice to have but can be reduced');
+/// Enumeration for financial literacy level
+enum FinancialLiteracyLevel {
+  beginner('Beginner', 'New to personal finance and investing concepts'),
+  intermediate(
+      'Intermediate', 'Some knowledge of budgeting and basic investments'),
+  advanced('Advanced',
+      'Well-versed in financial planning and investment strategies'),
+  expert('Expert',
+      'Deep understanding of complex financial instruments and strategies');
 
-  const CategoryPriority(this.displayName, this.description);
+  const FinancialLiteracyLevel(this.displayName, this.description);
   final String displayName;
   final String description;
-}
-
-/// User's AI automation preferences
-class AIAutomationPreferences extends Equatable {
-  final bool enableBudgetReallocation;
-  final bool enableSpendingAlerts;
-  final bool enableGoalRecommendations;
-  final bool enableExpenseClassification;
-  final bool enableSavingsOptimization;
-  final double automationAggressiveness; // 0.0 to 1.0
-  final double alertSensitivity; // 0.0 to 1.0
-
-  const AIAutomationPreferences({
-    this.enableBudgetReallocation = true,
-    this.enableSpendingAlerts = true,
-    this.enableGoalRecommendations = true,
-    this.enableExpenseClassification = true,
-    this.enableSavingsOptimization = true,
-    this.automationAggressiveness = 0.5,
-    this.alertSensitivity = 0.5,
-  });
-
-  @override
-  List<Object?> get props => [
-        enableBudgetReallocation,
-        enableSpendingAlerts,
-        enableGoalRecommendations,
-        enableExpenseClassification,
-        enableSavingsOptimization,
-        automationAggressiveness,
-        alertSensitivity,
-      ];
-
-  AIAutomationPreferences copyWith({
-    bool? enableBudgetReallocation,
-    bool? enableSpendingAlerts,
-    bool? enableGoalRecommendations,
-    bool? enableExpenseClassification,
-    bool? enableSavingsOptimization,
-    double? automationAggressiveness,
-    double? alertSensitivity,
-  }) {
-    return AIAutomationPreferences(
-      enableBudgetReallocation:
-          enableBudgetReallocation ?? this.enableBudgetReallocation,
-      enableSpendingAlerts: enableSpendingAlerts ?? this.enableSpendingAlerts,
-      enableGoalRecommendations:
-          enableGoalRecommendations ?? this.enableGoalRecommendations,
-      enableExpenseClassification:
-          enableExpenseClassification ?? this.enableExpenseClassification,
-      enableSavingsOptimization:
-          enableSavingsOptimization ?? this.enableSavingsOptimization,
-      automationAggressiveness:
-          automationAggressiveness ?? this.automationAggressiveness,
-      alertSensitivity: alertSensitivity ?? this.alertSensitivity,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'enableBudgetReallocation': enableBudgetReallocation,
-      'enableSpendingAlerts': enableSpendingAlerts,
-      'enableGoalRecommendations': enableGoalRecommendations,
-      'enableExpenseClassification': enableExpenseClassification,
-      'enableSavingsOptimization': enableSavingsOptimization,
-      'automationAggressiveness': automationAggressiveness,
-      'alertSensitivity': alertSensitivity,
-    };
-  }
-
-  factory AIAutomationPreferences.fromMap(Map<String, dynamic> map) {
-    return AIAutomationPreferences(
-      enableBudgetReallocation: map['enableBudgetReallocation'] ?? true,
-      enableSpendingAlerts: map['enableSpendingAlerts'] ?? true,
-      enableGoalRecommendations: map['enableGoalRecommendations'] ?? true,
-      enableExpenseClassification: map['enableExpenseClassification'] ?? true,
-      enableSavingsOptimization: map['enableSavingsOptimization'] ?? true,
-      automationAggressiveness:
-          (map['automationAggressiveness'] ?? 0.5).toDouble(),
-      alertSensitivity: (map['alertSensitivity'] ?? 0.5).toDouble(),
-    );
-  }
-}
-
-/// User's spending category preferences
-class CategoryPreferences extends Equatable {
-  final Map<String, CategoryPriority> categoryPriorities;
-  final Map<String, double> categoryLimits; // Percentage of income
-  final List<String> flexibleCategories; // Can be reduced if needed
-
-  const CategoryPreferences({
-    this.categoryPriorities = const {},
-    this.categoryLimits = const {},
-    this.flexibleCategories = const [],
-  });
-
-  @override
-  List<Object?> get props =>
-      [categoryPriorities, categoryLimits, flexibleCategories];
-
-  CategoryPreferences copyWith({
-    Map<String, CategoryPriority>? categoryPriorities,
-    Map<String, double>? categoryLimits,
-    List<String>? flexibleCategories,
-  }) {
-    return CategoryPreferences(
-      categoryPriorities: categoryPriorities ?? this.categoryPriorities,
-      categoryLimits: categoryLimits ?? this.categoryLimits,
-      flexibleCategories: flexibleCategories ?? this.flexibleCategories,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'categoryPriorities':
-          categoryPriorities.map((k, v) => MapEntry(k, v.name)),
-      'categoryLimits': categoryLimits,
-      'flexibleCategories': flexibleCategories,
-    };
-  }
-
-  factory CategoryPreferences.fromMap(Map<String, dynamic> map) {
-    return CategoryPreferences(
-      categoryPriorities: (map['categoryPriorities'] as Map<String, dynamic>?)
-              ?.map((k, v) => MapEntry(
-                  k,
-                  CategoryPriority.values.firstWhere(
-                    (priority) => priority.name == v,
-                    orElse: () => CategoryPriority.important,
-                  ))) ??
-          {},
-      categoryLimits: Map<String, double>.from(map['categoryLimits'] ?? {}),
-      flexibleCategories: List<String>.from(map['flexibleCategories'] ?? []),
-    );
-  }
 }
 
 /// Comprehensive user behavior profile
 class UserBehaviorProfile extends Equatable {
   final String id;
   final String userId;
-  final FinancialGoalType primaryFinancialGoal;
   final IncomeStability incomeStability;
   final SpendingMentality spendingMentality;
   final RiskAppetite riskAppetite;
   final double monthlyIncome;
   final double emergencyFundTarget; // In months of expenses
-  final AIAutomationPreferences aiPreferences;
-  final CategoryPreferences categoryPreferences;
+  final FinancialLiteracyLevel financialLiteracyLevel;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? dataConsentAcceptedAt; // Track when user accepted data usage
   final bool isComplete;
 
   const UserBehaviorProfile({
     required this.id,
     required this.userId,
-    required this.primaryFinancialGoal,
     required this.incomeStability,
     required this.spendingMentality,
     required this.riskAppetite,
     required this.monthlyIncome,
     required this.emergencyFundTarget,
-    required this.aiPreferences,
-    required this.categoryPreferences,
+    required this.financialLiteracyLevel,
     required this.createdAt,
     required this.updatedAt,
+    this.dataConsentAcceptedAt,
     required this.isComplete,
   });
 
@@ -231,47 +82,46 @@ class UserBehaviorProfile extends Equatable {
   List<Object?> get props => [
         id,
         userId,
-        primaryFinancialGoal,
         incomeStability,
         spendingMentality,
         riskAppetite,
         monthlyIncome,
         emergencyFundTarget,
-        aiPreferences,
-        categoryPreferences,
+        financialLiteracyLevel,
         createdAt,
         updatedAt,
+        dataConsentAcceptedAt,
         isComplete,
       ];
 
   UserBehaviorProfile copyWith({
     String? id,
     String? userId,
-    FinancialGoalType? primaryFinancialGoal,
     IncomeStability? incomeStability,
     SpendingMentality? spendingMentality,
     RiskAppetite? riskAppetite,
     double? monthlyIncome,
     double? emergencyFundTarget,
-    AIAutomationPreferences? aiPreferences,
-    CategoryPreferences? categoryPreferences,
+    FinancialLiteracyLevel? financialLiteracyLevel,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? dataConsentAcceptedAt,
     bool? isComplete,
   }) {
     return UserBehaviorProfile(
       id: id ?? this.id,
       userId: userId ?? this.userId,
-      primaryFinancialGoal: primaryFinancialGoal ?? this.primaryFinancialGoal,
       incomeStability: incomeStability ?? this.incomeStability,
       spendingMentality: spendingMentality ?? this.spendingMentality,
       riskAppetite: riskAppetite ?? this.riskAppetite,
       monthlyIncome: monthlyIncome ?? this.monthlyIncome,
       emergencyFundTarget: emergencyFundTarget ?? this.emergencyFundTarget,
-      aiPreferences: aiPreferences ?? this.aiPreferences,
-      categoryPreferences: categoryPreferences ?? this.categoryPreferences,
+      financialLiteracyLevel:
+          financialLiteracyLevel ?? this.financialLiteracyLevel,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      dataConsentAcceptedAt:
+          dataConsentAcceptedAt ?? this.dataConsentAcceptedAt,
       isComplete: isComplete ?? this.isComplete,
     );
   }
@@ -280,16 +130,15 @@ class UserBehaviorProfile extends Equatable {
     return {
       'id': id,
       'userId': userId,
-      'primaryFinancialGoal': primaryFinancialGoal.name,
       'incomeStability': incomeStability.name,
       'spendingMentality': spendingMentality.name,
       'riskAppetite': riskAppetite.name,
       'monthlyIncome': monthlyIncome,
       'emergencyFundTarget': emergencyFundTarget,
-      'aiPreferences': aiPreferences.toMap(),
-      'categoryPreferences': categoryPreferences.toMap(),
+      'financialLiteracyLevel': financialLiteracyLevel.name,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      'dataConsentAcceptedAt': dataConsentAcceptedAt?.toIso8601String(),
       'isComplete': isComplete,
     };
   }
@@ -298,10 +147,6 @@ class UserBehaviorProfile extends Equatable {
     return UserBehaviorProfile(
       id: map['id'],
       userId: map['userId'],
-      primaryFinancialGoal: FinancialGoalType.values.firstWhere(
-        (goal) => goal.name == map['primaryFinancialGoal'],
-        orElse: () => FinancialGoalType.balancedGrowth,
-      ),
       incomeStability: IncomeStability.values.firstWhere(
         (stability) => stability.name == map['incomeStability'],
         orElse: () => IncomeStability.stable,
@@ -316,12 +161,15 @@ class UserBehaviorProfile extends Equatable {
       ),
       monthlyIncome: (map['monthlyIncome'] ?? 0.0).toDouble(),
       emergencyFundTarget: (map['emergencyFundTarget'] ?? 3.0).toDouble(),
-      aiPreferences:
-          AIAutomationPreferences.fromMap(map['aiPreferences'] ?? {}),
-      categoryPreferences:
-          CategoryPreferences.fromMap(map['categoryPreferences'] ?? {}),
+      financialLiteracyLevel: FinancialLiteracyLevel.values.firstWhere(
+        (level) => level.name == map['financialLiteracyLevel'],
+        orElse: () => FinancialLiteracyLevel.intermediate,
+      ),
       createdAt: DateTime.parse(map['createdAt']),
       updatedAt: DateTime.parse(map['updatedAt']),
+      dataConsentAcceptedAt: map['dataConsentAcceptedAt'] != null
+          ? DateTime.parse(map['dataConsentAcceptedAt'])
+          : null,
       isComplete: map['isComplete'] ?? false,
     );
   }
@@ -332,17 +180,47 @@ class UserBehaviorProfile extends Equatable {
     return UserBehaviorProfile(
       id: '', // Will be generated by repository
       userId: userId,
-      primaryFinancialGoal: FinancialGoalType.balancedGrowth,
       incomeStability: IncomeStability.stable,
       spendingMentality: SpendingMentality.balanced,
       riskAppetite: RiskAppetite.medium,
       monthlyIncome: 0.0,
       emergencyFundTarget: 3.0,
-      aiPreferences: const AIAutomationPreferences(),
-      categoryPreferences: const CategoryPreferences(),
+      financialLiteracyLevel: FinancialLiteracyLevel.intermediate,
       createdAt: now,
       updatedAt: now,
+      dataConsentAcceptedAt: null,
       isComplete: false,
     );
+  }
+
+  /// Check if user has consented to data usage
+  bool get hasDataConsent => dataConsentAcceptedAt != null;
+
+  /// Get appropriate advice complexity based on financial literacy
+  String get adviceComplexityLevel {
+    switch (financialLiteracyLevel) {
+      case FinancialLiteracyLevel.beginner:
+        return 'simple';
+      case FinancialLiteracyLevel.intermediate:
+        return 'moderate';
+      case FinancialLiteracyLevel.advanced:
+        return 'detailed';
+      case FinancialLiteracyLevel.expert:
+        return 'comprehensive';
+    }
+  }
+
+  /// Get personalized advice tone based on literacy level
+  String get adviceTone {
+    switch (financialLiteracyLevel) {
+      case FinancialLiteracyLevel.beginner:
+        return 'educational and encouraging';
+      case FinancialLiteracyLevel.intermediate:
+        return 'informative and supportive';
+      case FinancialLiteracyLevel.advanced:
+        return 'detailed and analytical';
+      case FinancialLiteracyLevel.expert:
+        return 'technical and comprehensive';
+    }
   }
 }

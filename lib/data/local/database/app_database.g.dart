@@ -3,6 +3,31 @@
 part of 'app_database.dart';
 
 // ignore_for_file: type=lint
+mixin _$AnalysisResultDaoMixin on DatabaseAccessor<AppDatabase> {
+  $AnalysisResultsTable get analysisResults => attachedDatabase.analysisResults;
+}
+mixin _$AppSettingsDaoMixin on DatabaseAccessor<AppDatabase> {
+  $AppSettingsTable get appSettings => attachedDatabase.appSettings;
+}
+mixin _$ExchangeRatesDaoMixin on DatabaseAccessor<AppDatabase> {
+  $ExchangeRatesTable get exchangeRates => attachedDatabase.exchangeRates;
+}
+mixin _$UserProfilesDaoMixin on DatabaseAccessor<AppDatabase> {
+  $UserProfilesTable get userProfiles => attachedDatabase.userProfiles;
+}
+mixin _$BudgetsDaoMixin on DatabaseAccessor<AppDatabase> {
+  $BudgetsTable get budgets => attachedDatabase.budgets;
+}
+mixin _$ExpensesDaoMixin on DatabaseAccessor<AppDatabase> {
+  $ExpensesTable get expenses => attachedDatabase.expenses;
+}
+mixin _$FinancialGoalsDaoMixin on DatabaseAccessor<AppDatabase> {
+  $FinancialGoalsTable get financialGoals => attachedDatabase.financialGoals;
+}
+mixin _$GoalHistoryDaoMixin on DatabaseAccessor<AppDatabase> {
+  $GoalHistoryTable get goalHistory => attachedDatabase.goalHistory;
+}
+
 class $ExpensesTable extends Expenses with TableInfo<$ExpensesTable, Expense> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -2706,12 +2731,6 @@ class $UserProfilesTable extends UserProfiles
   late final GeneratedColumn<String> userId = GeneratedColumn<String>(
       'user_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _primaryFinancialGoalMeta =
-      const VerificationMeta('primaryFinancialGoal');
-  @override
-  late final GeneratedColumn<String> primaryFinancialGoal =
-      GeneratedColumn<String>('primary_financial_goal', aliasedName, false,
-          type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _incomeStabilityMeta =
       const VerificationMeta('incomeStability');
   @override
@@ -2742,17 +2761,11 @@ class $UserProfilesTable extends UserProfiles
   late final GeneratedColumn<double> emergencyFundTarget =
       GeneratedColumn<double>('emergency_fund_target', aliasedName, false,
           type: DriftSqlType.double, requiredDuringInsert: true);
-  static const VerificationMeta _aiPreferencesJsonMeta =
-      const VerificationMeta('aiPreferencesJson');
+  static const VerificationMeta _financialLiteracyMeta =
+      const VerificationMeta('financialLiteracy');
   @override
-  late final GeneratedColumn<String> aiPreferencesJson =
-      GeneratedColumn<String>('ai_preferences', aliasedName, false,
-          type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _categoryPreferencesJsonMeta =
-      const VerificationMeta('categoryPreferencesJson');
-  @override
-  late final GeneratedColumn<String> categoryPreferencesJson =
-      GeneratedColumn<String>('category_preferences', aliasedName, false,
+  late final GeneratedColumn<String> financialLiteracy =
+      GeneratedColumn<String>('financial_literacy', aliasedName, false,
           type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
@@ -2766,6 +2779,12 @@ class $UserProfilesTable extends UserProfiles
   late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
       'updated_at', aliasedName, false,
       type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _dataConsentAcceptedAtMeta =
+      const VerificationMeta('dataConsentAcceptedAt');
+  @override
+  late final GeneratedColumn<DateTime> dataConsentAcceptedAt =
+      GeneratedColumn<DateTime>('data_consent_accepted_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
   static const VerificationMeta _isCompleteMeta =
       const VerificationMeta('isComplete');
   @override
@@ -2779,16 +2798,15 @@ class $UserProfilesTable extends UserProfiles
   List<GeneratedColumn> get $columns => [
         id,
         userId,
-        primaryFinancialGoal,
         incomeStability,
         spendingMentality,
         riskAppetite,
         monthlyIncome,
         emergencyFundTarget,
-        aiPreferencesJson,
-        categoryPreferencesJson,
+        financialLiteracy,
         createdAt,
         updatedAt,
+        dataConsentAcceptedAt,
         isComplete
       ];
   @override
@@ -2811,14 +2829,6 @@ class $UserProfilesTable extends UserProfiles
           userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
     } else if (isInserting) {
       context.missing(_userIdMeta);
-    }
-    if (data.containsKey('primary_financial_goal')) {
-      context.handle(
-          _primaryFinancialGoalMeta,
-          primaryFinancialGoal.isAcceptableOrUnknown(
-              data['primary_financial_goal']!, _primaryFinancialGoalMeta));
-    } else if (isInserting) {
-      context.missing(_primaryFinancialGoalMeta);
     }
     if (data.containsKey('income_stability')) {
       context.handle(
@@ -2860,21 +2870,13 @@ class $UserProfilesTable extends UserProfiles
     } else if (isInserting) {
       context.missing(_emergencyFundTargetMeta);
     }
-    if (data.containsKey('ai_preferences')) {
+    if (data.containsKey('financial_literacy')) {
       context.handle(
-          _aiPreferencesJsonMeta,
-          aiPreferencesJson.isAcceptableOrUnknown(
-              data['ai_preferences']!, _aiPreferencesJsonMeta));
+          _financialLiteracyMeta,
+          financialLiteracy.isAcceptableOrUnknown(
+              data['financial_literacy']!, _financialLiteracyMeta));
     } else if (isInserting) {
-      context.missing(_aiPreferencesJsonMeta);
-    }
-    if (data.containsKey('category_preferences')) {
-      context.handle(
-          _categoryPreferencesJsonMeta,
-          categoryPreferencesJson.isAcceptableOrUnknown(
-              data['category_preferences']!, _categoryPreferencesJsonMeta));
-    } else if (isInserting) {
-      context.missing(_categoryPreferencesJsonMeta);
+      context.missing(_financialLiteracyMeta);
     }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
@@ -2887,6 +2889,12 @@ class $UserProfilesTable extends UserProfiles
           updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
     } else if (isInserting) {
       context.missing(_updatedAtMeta);
+    }
+    if (data.containsKey('data_consent_accepted_at')) {
+      context.handle(
+          _dataConsentAcceptedAtMeta,
+          dataConsentAcceptedAt.isAcceptableOrUnknown(
+              data['data_consent_accepted_at']!, _dataConsentAcceptedAtMeta));
     }
     if (data.containsKey('is_complete')) {
       context.handle(
@@ -2909,9 +2917,6 @@ class $UserProfilesTable extends UserProfiles
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
       userId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
-      primaryFinancialGoal: attachedDatabase.typeMapping.read(
-          DriftSqlType.string,
-          data['${effectivePrefix}primary_financial_goal'])!,
       incomeStability: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}income_stability'])!,
       spendingMentality: attachedDatabase.typeMapping.read(
@@ -2923,14 +2928,15 @@ class $UserProfilesTable extends UserProfiles
       emergencyFundTarget: attachedDatabase.typeMapping.read(
           DriftSqlType.double,
           data['${effectivePrefix}emergency_fund_target'])!,
-      aiPreferencesJson: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}ai_preferences'])!,
-      categoryPreferencesJson: attachedDatabase.typeMapping.read(
-          DriftSqlType.string, data['${effectivePrefix}category_preferences'])!,
+      financialLiteracy: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}financial_literacy'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
+      dataConsentAcceptedAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime,
+          data['${effectivePrefix}data_consent_accepted_at']),
       isComplete: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_complete'])!,
     );
@@ -2945,46 +2951,46 @@ class $UserProfilesTable extends UserProfiles
 class UserProfile extends DataClass implements Insertable<UserProfile> {
   final String id;
   final String userId;
-  final String primaryFinancialGoal;
   final String incomeStability;
   final String spendingMentality;
   final String riskAppetite;
   final double monthlyIncome;
   final double emergencyFundTarget;
-  final String aiPreferencesJson;
-  final String categoryPreferencesJson;
+  final String financialLiteracy;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? dataConsentAcceptedAt;
   final bool isComplete;
   const UserProfile(
       {required this.id,
       required this.userId,
-      required this.primaryFinancialGoal,
       required this.incomeStability,
       required this.spendingMentality,
       required this.riskAppetite,
       required this.monthlyIncome,
       required this.emergencyFundTarget,
-      required this.aiPreferencesJson,
-      required this.categoryPreferencesJson,
+      required this.financialLiteracy,
       required this.createdAt,
       required this.updatedAt,
+      this.dataConsentAcceptedAt,
       required this.isComplete});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['user_id'] = Variable<String>(userId);
-    map['primary_financial_goal'] = Variable<String>(primaryFinancialGoal);
     map['income_stability'] = Variable<String>(incomeStability);
     map['spending_mentality'] = Variable<String>(spendingMentality);
     map['risk_appetite'] = Variable<String>(riskAppetite);
     map['monthly_income'] = Variable<double>(monthlyIncome);
     map['emergency_fund_target'] = Variable<double>(emergencyFundTarget);
-    map['ai_preferences'] = Variable<String>(aiPreferencesJson);
-    map['category_preferences'] = Variable<String>(categoryPreferencesJson);
+    map['financial_literacy'] = Variable<String>(financialLiteracy);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
+    if (!nullToAbsent || dataConsentAcceptedAt != null) {
+      map['data_consent_accepted_at'] =
+          Variable<DateTime>(dataConsentAcceptedAt);
+    }
     map['is_complete'] = Variable<bool>(isComplete);
     return map;
   }
@@ -2993,16 +2999,17 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     return UserProfilesCompanion(
       id: Value(id),
       userId: Value(userId),
-      primaryFinancialGoal: Value(primaryFinancialGoal),
       incomeStability: Value(incomeStability),
       spendingMentality: Value(spendingMentality),
       riskAppetite: Value(riskAppetite),
       monthlyIncome: Value(monthlyIncome),
       emergencyFundTarget: Value(emergencyFundTarget),
-      aiPreferencesJson: Value(aiPreferencesJson),
-      categoryPreferencesJson: Value(categoryPreferencesJson),
+      financialLiteracy: Value(financialLiteracy),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
+      dataConsentAcceptedAt: dataConsentAcceptedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dataConsentAcceptedAt),
       isComplete: Value(isComplete),
     );
   }
@@ -3013,19 +3020,17 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     return UserProfile(
       id: serializer.fromJson<String>(json['id']),
       userId: serializer.fromJson<String>(json['userId']),
-      primaryFinancialGoal:
-          serializer.fromJson<String>(json['primaryFinancialGoal']),
       incomeStability: serializer.fromJson<String>(json['incomeStability']),
       spendingMentality: serializer.fromJson<String>(json['spendingMentality']),
       riskAppetite: serializer.fromJson<String>(json['riskAppetite']),
       monthlyIncome: serializer.fromJson<double>(json['monthlyIncome']),
       emergencyFundTarget:
           serializer.fromJson<double>(json['emergencyFundTarget']),
-      aiPreferencesJson: serializer.fromJson<String>(json['aiPreferencesJson']),
-      categoryPreferencesJson:
-          serializer.fromJson<String>(json['categoryPreferencesJson']),
+      financialLiteracy: serializer.fromJson<String>(json['financialLiteracy']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+      dataConsentAcceptedAt:
+          serializer.fromJson<DateTime?>(json['dataConsentAcceptedAt']),
       isComplete: serializer.fromJson<bool>(json['isComplete']),
     );
   }
@@ -3035,17 +3040,16 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'userId': serializer.toJson<String>(userId),
-      'primaryFinancialGoal': serializer.toJson<String>(primaryFinancialGoal),
       'incomeStability': serializer.toJson<String>(incomeStability),
       'spendingMentality': serializer.toJson<String>(spendingMentality),
       'riskAppetite': serializer.toJson<String>(riskAppetite),
       'monthlyIncome': serializer.toJson<double>(monthlyIncome),
       'emergencyFundTarget': serializer.toJson<double>(emergencyFundTarget),
-      'aiPreferencesJson': serializer.toJson<String>(aiPreferencesJson),
-      'categoryPreferencesJson':
-          serializer.toJson<String>(categoryPreferencesJson),
+      'financialLiteracy': serializer.toJson<String>(financialLiteracy),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
+      'dataConsentAcceptedAt':
+          serializer.toJson<DateTime?>(dataConsentAcceptedAt),
       'isComplete': serializer.toJson<bool>(isComplete),
     };
   }
@@ -3053,40 +3057,36 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
   UserProfile copyWith(
           {String? id,
           String? userId,
-          String? primaryFinancialGoal,
           String? incomeStability,
           String? spendingMentality,
           String? riskAppetite,
           double? monthlyIncome,
           double? emergencyFundTarget,
-          String? aiPreferencesJson,
-          String? categoryPreferencesJson,
+          String? financialLiteracy,
           DateTime? createdAt,
           DateTime? updatedAt,
+          Value<DateTime?> dataConsentAcceptedAt = const Value.absent(),
           bool? isComplete}) =>
       UserProfile(
         id: id ?? this.id,
         userId: userId ?? this.userId,
-        primaryFinancialGoal: primaryFinancialGoal ?? this.primaryFinancialGoal,
         incomeStability: incomeStability ?? this.incomeStability,
         spendingMentality: spendingMentality ?? this.spendingMentality,
         riskAppetite: riskAppetite ?? this.riskAppetite,
         monthlyIncome: monthlyIncome ?? this.monthlyIncome,
         emergencyFundTarget: emergencyFundTarget ?? this.emergencyFundTarget,
-        aiPreferencesJson: aiPreferencesJson ?? this.aiPreferencesJson,
-        categoryPreferencesJson:
-            categoryPreferencesJson ?? this.categoryPreferencesJson,
+        financialLiteracy: financialLiteracy ?? this.financialLiteracy,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        dataConsentAcceptedAt: dataConsentAcceptedAt.present
+            ? dataConsentAcceptedAt.value
+            : this.dataConsentAcceptedAt,
         isComplete: isComplete ?? this.isComplete,
       );
   UserProfile copyWithCompanion(UserProfilesCompanion data) {
     return UserProfile(
       id: data.id.present ? data.id.value : this.id,
       userId: data.userId.present ? data.userId.value : this.userId,
-      primaryFinancialGoal: data.primaryFinancialGoal.present
-          ? data.primaryFinancialGoal.value
-          : this.primaryFinancialGoal,
       incomeStability: data.incomeStability.present
           ? data.incomeStability.value
           : this.incomeStability,
@@ -3102,14 +3102,14 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       emergencyFundTarget: data.emergencyFundTarget.present
           ? data.emergencyFundTarget.value
           : this.emergencyFundTarget,
-      aiPreferencesJson: data.aiPreferencesJson.present
-          ? data.aiPreferencesJson.value
-          : this.aiPreferencesJson,
-      categoryPreferencesJson: data.categoryPreferencesJson.present
-          ? data.categoryPreferencesJson.value
-          : this.categoryPreferencesJson,
+      financialLiteracy: data.financialLiteracy.present
+          ? data.financialLiteracy.value
+          : this.financialLiteracy,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+      dataConsentAcceptedAt: data.dataConsentAcceptedAt.present
+          ? data.dataConsentAcceptedAt.value
+          : this.dataConsentAcceptedAt,
       isComplete:
           data.isComplete.present ? data.isComplete.value : this.isComplete,
     );
@@ -3120,16 +3120,15 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     return (StringBuffer('UserProfile(')
           ..write('id: $id, ')
           ..write('userId: $userId, ')
-          ..write('primaryFinancialGoal: $primaryFinancialGoal, ')
           ..write('incomeStability: $incomeStability, ')
           ..write('spendingMentality: $spendingMentality, ')
           ..write('riskAppetite: $riskAppetite, ')
           ..write('monthlyIncome: $monthlyIncome, ')
           ..write('emergencyFundTarget: $emergencyFundTarget, ')
-          ..write('aiPreferencesJson: $aiPreferencesJson, ')
-          ..write('categoryPreferencesJson: $categoryPreferencesJson, ')
+          ..write('financialLiteracy: $financialLiteracy, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('dataConsentAcceptedAt: $dataConsentAcceptedAt, ')
           ..write('isComplete: $isComplete')
           ..write(')'))
         .toString();
@@ -3139,16 +3138,15 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
   int get hashCode => Object.hash(
       id,
       userId,
-      primaryFinancialGoal,
       incomeStability,
       spendingMentality,
       riskAppetite,
       monthlyIncome,
       emergencyFundTarget,
-      aiPreferencesJson,
-      categoryPreferencesJson,
+      financialLiteracy,
       createdAt,
       updatedAt,
+      dataConsentAcceptedAt,
       isComplete);
   @override
   bool operator ==(Object other) =>
@@ -3156,110 +3154,101 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       (other is UserProfile &&
           other.id == this.id &&
           other.userId == this.userId &&
-          other.primaryFinancialGoal == this.primaryFinancialGoal &&
           other.incomeStability == this.incomeStability &&
           other.spendingMentality == this.spendingMentality &&
           other.riskAppetite == this.riskAppetite &&
           other.monthlyIncome == this.monthlyIncome &&
           other.emergencyFundTarget == this.emergencyFundTarget &&
-          other.aiPreferencesJson == this.aiPreferencesJson &&
-          other.categoryPreferencesJson == this.categoryPreferencesJson &&
+          other.financialLiteracy == this.financialLiteracy &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
+          other.dataConsentAcceptedAt == this.dataConsentAcceptedAt &&
           other.isComplete == this.isComplete);
 }
 
 class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
   final Value<String> id;
   final Value<String> userId;
-  final Value<String> primaryFinancialGoal;
   final Value<String> incomeStability;
   final Value<String> spendingMentality;
   final Value<String> riskAppetite;
   final Value<double> monthlyIncome;
   final Value<double> emergencyFundTarget;
-  final Value<String> aiPreferencesJson;
-  final Value<String> categoryPreferencesJson;
+  final Value<String> financialLiteracy;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
+  final Value<DateTime?> dataConsentAcceptedAt;
   final Value<bool> isComplete;
   final Value<int> rowid;
   const UserProfilesCompanion({
     this.id = const Value.absent(),
     this.userId = const Value.absent(),
-    this.primaryFinancialGoal = const Value.absent(),
     this.incomeStability = const Value.absent(),
     this.spendingMentality = const Value.absent(),
     this.riskAppetite = const Value.absent(),
     this.monthlyIncome = const Value.absent(),
     this.emergencyFundTarget = const Value.absent(),
-    this.aiPreferencesJson = const Value.absent(),
-    this.categoryPreferencesJson = const Value.absent(),
+    this.financialLiteracy = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
+    this.dataConsentAcceptedAt = const Value.absent(),
     this.isComplete = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   UserProfilesCompanion.insert({
     required String id,
     required String userId,
-    required String primaryFinancialGoal,
     required String incomeStability,
     required String spendingMentality,
     required String riskAppetite,
     required double monthlyIncome,
     required double emergencyFundTarget,
-    required String aiPreferencesJson,
-    required String categoryPreferencesJson,
+    required String financialLiteracy,
     required DateTime createdAt,
     required DateTime updatedAt,
+    this.dataConsentAcceptedAt = const Value.absent(),
     required bool isComplete,
     this.rowid = const Value.absent(),
   })  : id = Value(id),
         userId = Value(userId),
-        primaryFinancialGoal = Value(primaryFinancialGoal),
         incomeStability = Value(incomeStability),
         spendingMentality = Value(spendingMentality),
         riskAppetite = Value(riskAppetite),
         monthlyIncome = Value(monthlyIncome),
         emergencyFundTarget = Value(emergencyFundTarget),
-        aiPreferencesJson = Value(aiPreferencesJson),
-        categoryPreferencesJson = Value(categoryPreferencesJson),
+        financialLiteracy = Value(financialLiteracy),
         createdAt = Value(createdAt),
         updatedAt = Value(updatedAt),
         isComplete = Value(isComplete);
   static Insertable<UserProfile> custom({
     Expression<String>? id,
     Expression<String>? userId,
-    Expression<String>? primaryFinancialGoal,
     Expression<String>? incomeStability,
     Expression<String>? spendingMentality,
     Expression<String>? riskAppetite,
     Expression<double>? monthlyIncome,
     Expression<double>? emergencyFundTarget,
-    Expression<String>? aiPreferencesJson,
-    Expression<String>? categoryPreferencesJson,
+    Expression<String>? financialLiteracy,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
+    Expression<DateTime>? dataConsentAcceptedAt,
     Expression<bool>? isComplete,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (userId != null) 'user_id': userId,
-      if (primaryFinancialGoal != null)
-        'primary_financial_goal': primaryFinancialGoal,
       if (incomeStability != null) 'income_stability': incomeStability,
       if (spendingMentality != null) 'spending_mentality': spendingMentality,
       if (riskAppetite != null) 'risk_appetite': riskAppetite,
       if (monthlyIncome != null) 'monthly_income': monthlyIncome,
       if (emergencyFundTarget != null)
         'emergency_fund_target': emergencyFundTarget,
-      if (aiPreferencesJson != null) 'ai_preferences': aiPreferencesJson,
-      if (categoryPreferencesJson != null)
-        'category_preferences': categoryPreferencesJson,
+      if (financialLiteracy != null) 'financial_literacy': financialLiteracy,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
+      if (dataConsentAcceptedAt != null)
+        'data_consent_accepted_at': dataConsentAcceptedAt,
       if (isComplete != null) 'is_complete': isComplete,
       if (rowid != null) 'rowid': rowid,
     });
@@ -3268,32 +3257,30 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
   UserProfilesCompanion copyWith(
       {Value<String>? id,
       Value<String>? userId,
-      Value<String>? primaryFinancialGoal,
       Value<String>? incomeStability,
       Value<String>? spendingMentality,
       Value<String>? riskAppetite,
       Value<double>? monthlyIncome,
       Value<double>? emergencyFundTarget,
-      Value<String>? aiPreferencesJson,
-      Value<String>? categoryPreferencesJson,
+      Value<String>? financialLiteracy,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
+      Value<DateTime?>? dataConsentAcceptedAt,
       Value<bool>? isComplete,
       Value<int>? rowid}) {
     return UserProfilesCompanion(
       id: id ?? this.id,
       userId: userId ?? this.userId,
-      primaryFinancialGoal: primaryFinancialGoal ?? this.primaryFinancialGoal,
       incomeStability: incomeStability ?? this.incomeStability,
       spendingMentality: spendingMentality ?? this.spendingMentality,
       riskAppetite: riskAppetite ?? this.riskAppetite,
       monthlyIncome: monthlyIncome ?? this.monthlyIncome,
       emergencyFundTarget: emergencyFundTarget ?? this.emergencyFundTarget,
-      aiPreferencesJson: aiPreferencesJson ?? this.aiPreferencesJson,
-      categoryPreferencesJson:
-          categoryPreferencesJson ?? this.categoryPreferencesJson,
+      financialLiteracy: financialLiteracy ?? this.financialLiteracy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      dataConsentAcceptedAt:
+          dataConsentAcceptedAt ?? this.dataConsentAcceptedAt,
       isComplete: isComplete ?? this.isComplete,
       rowid: rowid ?? this.rowid,
     );
@@ -3307,10 +3294,6 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     }
     if (userId.present) {
       map['user_id'] = Variable<String>(userId.value);
-    }
-    if (primaryFinancialGoal.present) {
-      map['primary_financial_goal'] =
-          Variable<String>(primaryFinancialGoal.value);
     }
     if (incomeStability.present) {
       map['income_stability'] = Variable<String>(incomeStability.value);
@@ -3328,18 +3311,18 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
       map['emergency_fund_target'] =
           Variable<double>(emergencyFundTarget.value);
     }
-    if (aiPreferencesJson.present) {
-      map['ai_preferences'] = Variable<String>(aiPreferencesJson.value);
-    }
-    if (categoryPreferencesJson.present) {
-      map['category_preferences'] =
-          Variable<String>(categoryPreferencesJson.value);
+    if (financialLiteracy.present) {
+      map['financial_literacy'] = Variable<String>(financialLiteracy.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (dataConsentAcceptedAt.present) {
+      map['data_consent_accepted_at'] =
+          Variable<DateTime>(dataConsentAcceptedAt.value);
     }
     if (isComplete.present) {
       map['is_complete'] = Variable<bool>(isComplete.value);
@@ -3355,17 +3338,297 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     return (StringBuffer('UserProfilesCompanion(')
           ..write('id: $id, ')
           ..write('userId: $userId, ')
-          ..write('primaryFinancialGoal: $primaryFinancialGoal, ')
           ..write('incomeStability: $incomeStability, ')
           ..write('spendingMentality: $spendingMentality, ')
           ..write('riskAppetite: $riskAppetite, ')
           ..write('monthlyIncome: $monthlyIncome, ')
           ..write('emergencyFundTarget: $emergencyFundTarget, ')
-          ..write('aiPreferencesJson: $aiPreferencesJson, ')
-          ..write('categoryPreferencesJson: $categoryPreferencesJson, ')
+          ..write('financialLiteracy: $financialLiteracy, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
+          ..write('dataConsentAcceptedAt: $dataConsentAcceptedAt, ')
           ..write('isComplete: $isComplete, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $AnalysisResultsTable extends AnalysisResults
+    with TableInfo<$AnalysisResultsTable, AnalysisResult> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $AnalysisResultsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+      'user_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _analysisDataMeta =
+      const VerificationMeta('analysisData');
+  @override
+  late final GeneratedColumn<String> analysisData = GeneratedColumn<String>(
+      'analysis_data', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _createdAtMeta =
+      const VerificationMeta('createdAt');
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+      'created_at', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  @override
+  List<GeneratedColumn> get $columns => [id, userId, analysisData, createdAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'analysis_results';
+  @override
+  VerificationContext validateIntegrity(Insertable<AnalysisResult> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(_userIdMeta,
+          userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta));
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('analysis_data')) {
+      context.handle(
+          _analysisDataMeta,
+          analysisData.isAcceptableOrUnknown(
+              data['analysis_data']!, _analysisDataMeta));
+    } else if (isInserting) {
+      context.missing(_analysisDataMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(_createdAtMeta,
+          createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  AnalysisResult map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return AnalysisResult(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      userId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_id'])!,
+      analysisData: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}analysis_data'])!,
+      createdAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
+    );
+  }
+
+  @override
+  $AnalysisResultsTable createAlias(String alias) {
+    return $AnalysisResultsTable(attachedDatabase, alias);
+  }
+}
+
+class AnalysisResult extends DataClass implements Insertable<AnalysisResult> {
+  /// A unique identifier for each analysis record.
+  final String id;
+
+  /// The ID of the user this analysis belongs to.
+  final String userId;
+
+  /// The full analysis response, stored as a serialized JSON string.
+  final String analysisData;
+
+  /// The timestamp when the analysis was performed and stored.
+  final DateTime createdAt;
+  const AnalysisResult(
+      {required this.id,
+      required this.userId,
+      required this.analysisData,
+      required this.createdAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['user_id'] = Variable<String>(userId);
+    map['analysis_data'] = Variable<String>(analysisData);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    return map;
+  }
+
+  AnalysisResultsCompanion toCompanion(bool nullToAbsent) {
+    return AnalysisResultsCompanion(
+      id: Value(id),
+      userId: Value(userId),
+      analysisData: Value(analysisData),
+      createdAt: Value(createdAt),
+    );
+  }
+
+  factory AnalysisResult.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return AnalysisResult(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String>(json['userId']),
+      analysisData: serializer.fromJson<String>(json['analysisData']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String>(userId),
+      'analysisData': serializer.toJson<String>(analysisData),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+    };
+  }
+
+  AnalysisResult copyWith(
+          {String? id,
+          String? userId,
+          String? analysisData,
+          DateTime? createdAt}) =>
+      AnalysisResult(
+        id: id ?? this.id,
+        userId: userId ?? this.userId,
+        analysisData: analysisData ?? this.analysisData,
+        createdAt: createdAt ?? this.createdAt,
+      );
+  AnalysisResult copyWithCompanion(AnalysisResultsCompanion data) {
+    return AnalysisResult(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      analysisData: data.analysisData.present
+          ? data.analysisData.value
+          : this.analysisData,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnalysisResult(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('analysisData: $analysisData, ')
+          ..write('createdAt: $createdAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, userId, analysisData, createdAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is AnalysisResult &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.analysisData == this.analysisData &&
+          other.createdAt == this.createdAt);
+}
+
+class AnalysisResultsCompanion extends UpdateCompanion<AnalysisResult> {
+  final Value<String> id;
+  final Value<String> userId;
+  final Value<String> analysisData;
+  final Value<DateTime> createdAt;
+  final Value<int> rowid;
+  const AnalysisResultsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.analysisData = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  AnalysisResultsCompanion.insert({
+    required String id,
+    required String userId,
+    required String analysisData,
+    required DateTime createdAt,
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        userId = Value(userId),
+        analysisData = Value(analysisData),
+        createdAt = Value(createdAt);
+  static Insertable<AnalysisResult> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? analysisData,
+    Expression<DateTime>? createdAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (analysisData != null) 'analysis_data': analysisData,
+      if (createdAt != null) 'created_at': createdAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  AnalysisResultsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? userId,
+      Value<String>? analysisData,
+      Value<DateTime>? createdAt,
+      Value<int>? rowid}) {
+    return AnalysisResultsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      analysisData: analysisData ?? this.analysisData,
+      createdAt: createdAt ?? this.createdAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (analysisData.present) {
+      map['analysis_data'] = Variable<String>(analysisData.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('AnalysisResultsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('analysisData: $analysisData, ')
+          ..write('createdAt: $createdAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -3382,6 +3645,22 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $FinancialGoalsTable financialGoals = $FinancialGoalsTable(this);
   late final $GoalHistoryTable goalHistory = $GoalHistoryTable(this);
   late final $UserProfilesTable userProfiles = $UserProfilesTable(this);
+  late final $AnalysisResultsTable analysisResults =
+      $AnalysisResultsTable(this);
+  late final AnalysisResultDao analysisResultDao =
+      AnalysisResultDao(this as AppDatabase);
+  late final AppSettingsDao appSettingsDao =
+      AppSettingsDao(this as AppDatabase);
+  late final ExchangeRatesDao exchangeRatesDao =
+      ExchangeRatesDao(this as AppDatabase);
+  late final UserProfilesDao userProfilesDao =
+      UserProfilesDao(this as AppDatabase);
+  late final BudgetsDao budgetsDao = BudgetsDao(this as AppDatabase);
+  late final ExpensesDao expensesDao = ExpensesDao(this as AppDatabase);
+  late final FinancialGoalsDao financialGoalsDao =
+      FinancialGoalsDao(this as AppDatabase);
+  late final GoalHistoryDao goalHistoryDao =
+      GoalHistoryDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3393,7 +3672,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         exchangeRates,
         financialGoals,
         goalHistory,
-        userProfiles
+        userProfiles,
+        analysisResults
       ];
 }
 
@@ -4725,16 +5005,15 @@ typedef $$UserProfilesTableCreateCompanionBuilder = UserProfilesCompanion
     Function({
   required String id,
   required String userId,
-  required String primaryFinancialGoal,
   required String incomeStability,
   required String spendingMentality,
   required String riskAppetite,
   required double monthlyIncome,
   required double emergencyFundTarget,
-  required String aiPreferencesJson,
-  required String categoryPreferencesJson,
+  required String financialLiteracy,
   required DateTime createdAt,
   required DateTime updatedAt,
+  Value<DateTime?> dataConsentAcceptedAt,
   required bool isComplete,
   Value<int> rowid,
 });
@@ -4742,16 +5021,15 @@ typedef $$UserProfilesTableUpdateCompanionBuilder = UserProfilesCompanion
     Function({
   Value<String> id,
   Value<String> userId,
-  Value<String> primaryFinancialGoal,
   Value<String> incomeStability,
   Value<String> spendingMentality,
   Value<String> riskAppetite,
   Value<double> monthlyIncome,
   Value<double> emergencyFundTarget,
-  Value<String> aiPreferencesJson,
-  Value<String> categoryPreferencesJson,
+  Value<String> financialLiteracy,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
+  Value<DateTime?> dataConsentAcceptedAt,
   Value<bool> isComplete,
   Value<int> rowid,
 });
@@ -4771,10 +5049,6 @@ class $$UserProfilesTableFilterComposer
   ColumnFilters<String> get userId => $composableBuilder(
       column: $table.userId, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get primaryFinancialGoal => $composableBuilder(
-      column: $table.primaryFinancialGoal,
-      builder: (column) => ColumnFilters(column));
-
   ColumnFilters<String> get incomeStability => $composableBuilder(
       column: $table.incomeStability,
       builder: (column) => ColumnFilters(column));
@@ -4793,12 +5067,8 @@ class $$UserProfilesTableFilterComposer
       column: $table.emergencyFundTarget,
       builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get aiPreferencesJson => $composableBuilder(
-      column: $table.aiPreferencesJson,
-      builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get categoryPreferencesJson => $composableBuilder(
-      column: $table.categoryPreferencesJson,
+  ColumnFilters<String> get financialLiteracy => $composableBuilder(
+      column: $table.financialLiteracy,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
@@ -4806,6 +5076,10 @@ class $$UserProfilesTableFilterComposer
 
   ColumnFilters<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get dataConsentAcceptedAt => $composableBuilder(
+      column: $table.dataConsentAcceptedAt,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isComplete => $composableBuilder(
       column: $table.isComplete, builder: (column) => ColumnFilters(column));
@@ -4825,10 +5099,6 @@ class $$UserProfilesTableOrderingComposer
 
   ColumnOrderings<String> get userId => $composableBuilder(
       column: $table.userId, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get primaryFinancialGoal => $composableBuilder(
-      column: $table.primaryFinancialGoal,
-      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get incomeStability => $composableBuilder(
       column: $table.incomeStability,
@@ -4850,12 +5120,8 @@ class $$UserProfilesTableOrderingComposer
       column: $table.emergencyFundTarget,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get aiPreferencesJson => $composableBuilder(
-      column: $table.aiPreferencesJson,
-      builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get categoryPreferencesJson => $composableBuilder(
-      column: $table.categoryPreferencesJson,
+  ColumnOrderings<String> get financialLiteracy => $composableBuilder(
+      column: $table.financialLiteracy,
       builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
@@ -4863,6 +5129,10 @@ class $$UserProfilesTableOrderingComposer
 
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
       column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get dataConsentAcceptedAt => $composableBuilder(
+      column: $table.dataConsentAcceptedAt,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get isComplete => $composableBuilder(
       column: $table.isComplete, builder: (column) => ColumnOrderings(column));
@@ -4883,9 +5153,6 @@ class $$UserProfilesTableAnnotationComposer
   GeneratedColumn<String> get userId =>
       $composableBuilder(column: $table.userId, builder: (column) => column);
 
-  GeneratedColumn<String> get primaryFinancialGoal => $composableBuilder(
-      column: $table.primaryFinancialGoal, builder: (column) => column);
-
   GeneratedColumn<String> get incomeStability => $composableBuilder(
       column: $table.incomeStability, builder: (column) => column);
 
@@ -4901,17 +5168,17 @@ class $$UserProfilesTableAnnotationComposer
   GeneratedColumn<double> get emergencyFundTarget => $composableBuilder(
       column: $table.emergencyFundTarget, builder: (column) => column);
 
-  GeneratedColumn<String> get aiPreferencesJson => $composableBuilder(
-      column: $table.aiPreferencesJson, builder: (column) => column);
-
-  GeneratedColumn<String> get categoryPreferencesJson => $composableBuilder(
-      column: $table.categoryPreferencesJson, builder: (column) => column);
+  GeneratedColumn<String> get financialLiteracy => $composableBuilder(
+      column: $table.financialLiteracy, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
 
   GeneratedColumn<DateTime> get updatedAt =>
       $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get dataConsentAcceptedAt => $composableBuilder(
+      column: $table.dataConsentAcceptedAt, builder: (column) => column);
 
   GeneratedColumn<bool> get isComplete => $composableBuilder(
       column: $table.isComplete, builder: (column) => column);
@@ -4945,64 +5212,60 @@ class $$UserProfilesTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
             Value<String> userId = const Value.absent(),
-            Value<String> primaryFinancialGoal = const Value.absent(),
             Value<String> incomeStability = const Value.absent(),
             Value<String> spendingMentality = const Value.absent(),
             Value<String> riskAppetite = const Value.absent(),
             Value<double> monthlyIncome = const Value.absent(),
             Value<double> emergencyFundTarget = const Value.absent(),
-            Value<String> aiPreferencesJson = const Value.absent(),
-            Value<String> categoryPreferencesJson = const Value.absent(),
+            Value<String> financialLiteracy = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
+            Value<DateTime?> dataConsentAcceptedAt = const Value.absent(),
             Value<bool> isComplete = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               UserProfilesCompanion(
             id: id,
             userId: userId,
-            primaryFinancialGoal: primaryFinancialGoal,
             incomeStability: incomeStability,
             spendingMentality: spendingMentality,
             riskAppetite: riskAppetite,
             monthlyIncome: monthlyIncome,
             emergencyFundTarget: emergencyFundTarget,
-            aiPreferencesJson: aiPreferencesJson,
-            categoryPreferencesJson: categoryPreferencesJson,
+            financialLiteracy: financialLiteracy,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            dataConsentAcceptedAt: dataConsentAcceptedAt,
             isComplete: isComplete,
             rowid: rowid,
           ),
           createCompanionCallback: ({
             required String id,
             required String userId,
-            required String primaryFinancialGoal,
             required String incomeStability,
             required String spendingMentality,
             required String riskAppetite,
             required double monthlyIncome,
             required double emergencyFundTarget,
-            required String aiPreferencesJson,
-            required String categoryPreferencesJson,
+            required String financialLiteracy,
             required DateTime createdAt,
             required DateTime updatedAt,
+            Value<DateTime?> dataConsentAcceptedAt = const Value.absent(),
             required bool isComplete,
             Value<int> rowid = const Value.absent(),
           }) =>
               UserProfilesCompanion.insert(
             id: id,
             userId: userId,
-            primaryFinancialGoal: primaryFinancialGoal,
             incomeStability: incomeStability,
             spendingMentality: spendingMentality,
             riskAppetite: riskAppetite,
             monthlyIncome: monthlyIncome,
             emergencyFundTarget: emergencyFundTarget,
-            aiPreferencesJson: aiPreferencesJson,
-            categoryPreferencesJson: categoryPreferencesJson,
+            financialLiteracy: financialLiteracy,
             createdAt: createdAt,
             updatedAt: updatedAt,
+            dataConsentAcceptedAt: dataConsentAcceptedAt,
             isComplete: isComplete,
             rowid: rowid,
           ),
@@ -5028,6 +5291,166 @@ typedef $$UserProfilesTableProcessedTableManager = ProcessedTableManager<
     ),
     UserProfile,
     PrefetchHooks Function()>;
+typedef $$AnalysisResultsTableCreateCompanionBuilder = AnalysisResultsCompanion
+    Function({
+  required String id,
+  required String userId,
+  required String analysisData,
+  required DateTime createdAt,
+  Value<int> rowid,
+});
+typedef $$AnalysisResultsTableUpdateCompanionBuilder = AnalysisResultsCompanion
+    Function({
+  Value<String> id,
+  Value<String> userId,
+  Value<String> analysisData,
+  Value<DateTime> createdAt,
+  Value<int> rowid,
+});
+
+class $$AnalysisResultsTableFilterComposer
+    extends Composer<_$AppDatabase, $AnalysisResultsTable> {
+  $$AnalysisResultsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get analysisData => $composableBuilder(
+      column: $table.analysisData, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnFilters(column));
+}
+
+class $$AnalysisResultsTableOrderingComposer
+    extends Composer<_$AppDatabase, $AnalysisResultsTable> {
+  $$AnalysisResultsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+      column: $table.userId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get analysisData => $composableBuilder(
+      column: $table.analysisData,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+      column: $table.createdAt, builder: (column) => ColumnOrderings(column));
+}
+
+class $$AnalysisResultsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $AnalysisResultsTable> {
+  $$AnalysisResultsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get analysisData => $composableBuilder(
+      column: $table.analysisData, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+}
+
+class $$AnalysisResultsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $AnalysisResultsTable,
+    AnalysisResult,
+    $$AnalysisResultsTableFilterComposer,
+    $$AnalysisResultsTableOrderingComposer,
+    $$AnalysisResultsTableAnnotationComposer,
+    $$AnalysisResultsTableCreateCompanionBuilder,
+    $$AnalysisResultsTableUpdateCompanionBuilder,
+    (
+      AnalysisResult,
+      BaseReferences<_$AppDatabase, $AnalysisResultsTable, AnalysisResult>
+    ),
+    AnalysisResult,
+    PrefetchHooks Function()> {
+  $$AnalysisResultsTableTableManager(
+      _$AppDatabase db, $AnalysisResultsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$AnalysisResultsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$AnalysisResultsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$AnalysisResultsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> userId = const Value.absent(),
+            Value<String> analysisData = const Value.absent(),
+            Value<DateTime> createdAt = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AnalysisResultsCompanion(
+            id: id,
+            userId: userId,
+            analysisData: analysisData,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String userId,
+            required String analysisData,
+            required DateTime createdAt,
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              AnalysisResultsCompanion.insert(
+            id: id,
+            userId: userId,
+            analysisData: analysisData,
+            createdAt: createdAt,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$AnalysisResultsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $AnalysisResultsTable,
+    AnalysisResult,
+    $$AnalysisResultsTableFilterComposer,
+    $$AnalysisResultsTableOrderingComposer,
+    $$AnalysisResultsTableAnnotationComposer,
+    $$AnalysisResultsTableCreateCompanionBuilder,
+    $$AnalysisResultsTableUpdateCompanionBuilder,
+    (
+      AnalysisResult,
+      BaseReferences<_$AppDatabase, $AnalysisResultsTable, AnalysisResult>
+    ),
+    AnalysisResult,
+    PrefetchHooks Function()>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -5046,4 +5469,6 @@ class $AppDatabaseManager {
       $$GoalHistoryTableTableManager(_db, _db.goalHistory);
   $$UserProfilesTableTableManager get userProfiles =>
       $$UserProfilesTableTableManager(_db, _db.userProfiles);
+  $$AnalysisResultsTableTableManager get analysisResults =>
+      $$AnalysisResultsTableTableManager(_db, _db.analysisResults);
 }

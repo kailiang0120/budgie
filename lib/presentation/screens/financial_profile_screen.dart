@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:provider/provider.dart';
 
 import '../../domain/entities/user_behavior_profile.dart';
+import '../../domain/repositories/user_behavior_repository.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/custom_dropdown_field.dart';
 import '../widgets/custom_text_field.dart';
@@ -12,10 +14,12 @@ import '../utils/currency_formatter.dart';
 
 class FinancialProfileScreen extends StatefulWidget {
   final UserBehaviorProfile? existingProfile;
+  final UserBehaviorRepository userBehaviorRepository;
 
   const FinancialProfileScreen({
     Key? key,
     this.existingProfile,
+    required this.userBehaviorRepository,
   }) : super(key: key);
 
   @override
@@ -27,25 +31,20 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
   final _pageController = PageController();
   bool _isSubmitting = false;
   int _currentStep = 0;
-  final int _totalSteps = 4;
+  final int _totalSteps = 3;
 
   // Form controllers and state
   final _monthlyIncomeController = TextEditingController();
   final _emergencyFundController = TextEditingController();
 
-  FinancialGoalType _selectedFinancialGoal = FinancialGoalType.balancedGrowth;
   IncomeStability _selectedIncomeStability = IncomeStability.stable;
   SpendingMentality _selectedSpendingMentality = SpendingMentality.balanced;
   RiskAppetite _selectedRiskAppetite = RiskAppetite.medium;
+  FinancialLiteracyLevel _selectedFinancialLiteracy =
+      FinancialLiteracyLevel.intermediate;
 
-  // AI Automation preferences
-  bool _enableBudgetReallocation = true;
-  bool _enableSpendingAlerts = true;
-  bool _enableGoalRecommendations = true;
-  bool _enableExpenseClassification = true;
-  bool _enableSavingsOptimization = true;
-  double _automationAggressiveness = 0.5;
-  double _alertSensitivity = 0.5;
+  // Data consent preferences
+  bool _dataConsentAccepted = false;
 
   @override
   void initState() {
@@ -66,23 +65,26 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
       final profile = widget.existingProfile!;
       _monthlyIncomeController.text = profile.monthlyIncome.toString();
       _emergencyFundController.text = profile.emergencyFundTarget.toString();
-      _selectedFinancialGoal = profile.primaryFinancialGoal;
       _selectedIncomeStability = profile.incomeStability;
       _selectedSpendingMentality = profile.spendingMentality;
       _selectedRiskAppetite = profile.riskAppetite;
-
-      final aiPrefs = profile.aiPreferences;
-      _enableBudgetReallocation = aiPrefs.enableBudgetReallocation;
-      _enableSpendingAlerts = aiPrefs.enableSpendingAlerts;
-      _enableGoalRecommendations = aiPrefs.enableGoalRecommendations;
-      _enableExpenseClassification = aiPrefs.enableExpenseClassification;
-      _enableSavingsOptimization = aiPrefs.enableSavingsOptimization;
-      _automationAggressiveness = aiPrefs.automationAggressiveness;
-      _alertSensitivity = aiPrefs.alertSensitivity;
+      _selectedFinancialLiteracy = profile.financialLiteracyLevel;
+      _dataConsentAccepted = profile.hasDataConsent;
     }
   }
 
   void _nextStep() {
+    // Validate data consent on the last step
+    if (_currentStep == _totalSteps - 1 && !_dataConsentAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please accept the data usage policy to continue.'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+      return;
+    }
+
     if (_currentStep < _totalSteps - 1) {
       setState(() {
         _currentStep++;
@@ -109,40 +111,44 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (!_dataConsentAccepted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Please accept the data usage policy to save your profile.'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
     });
 
     try {
-      // TODO: Implement actual save logic through repository/service
-      await Future.delayed(const Duration(seconds: 2)); // Simulate save
+      // First, clean up any duplicate profiles for this user
+      await widget.userBehaviorRepository
+          .cleanupDuplicateProfiles('guest_user');
 
       final profile = UserBehaviorProfile(
-        id: widget.existingProfile?.id ?? '',
-        userId: 'current_user_id', // TODO: Get from auth service
-        primaryFinancialGoal: _selectedFinancialGoal,
+        id: widget.existingProfile?.id ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
+        userId: 'guest_user', // Use guest user ID
         incomeStability: _selectedIncomeStability,
         spendingMentality: _selectedSpendingMentality,
         riskAppetite: _selectedRiskAppetite,
-        monthlyIncome: double.parse(_monthlyIncomeController.text),
-        emergencyFundTarget: double.parse(_emergencyFundController.text),
-        aiPreferences: AIAutomationPreferences(
-          enableBudgetReallocation: _enableBudgetReallocation,
-          enableSpendingAlerts: _enableSpendingAlerts,
-          enableGoalRecommendations: _enableGoalRecommendations,
-          enableExpenseClassification: _enableExpenseClassification,
-          enableSavingsOptimization: _enableSavingsOptimization,
-          automationAggressiveness: _automationAggressiveness,
-          alertSensitivity: _alertSensitivity,
-        ),
-        categoryPreferences:
-            const CategoryPreferences(), // TODO: Implement category preferences
+        monthlyIncome: double.tryParse(_monthlyIncomeController.text) ?? 0.0,
+        emergencyFundTarget:
+            double.tryParse(_emergencyFundController.text) ?? 0.0,
+        financialLiteracyLevel: _selectedFinancialLiteracy,
         createdAt: widget.existingProfile?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
+        dataConsentAcceptedAt: _dataConsentAccepted ? DateTime.now() : null,
         isComplete: true,
       );
 
-      print('Saving financial profile: ${profile.toMap()}');
+      await widget.userBehaviorRepository.saveUserBehaviorProfile(profile);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -241,10 +247,9 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
           controller: _pageController,
           physics: const NeverScrollableScrollPhysics(),
           children: [
-            _buildFinancialGoalsStep(),
             _buildIncomeAndRiskStep(),
             _buildBehaviorStep(),
-            _buildAutomationStep(),
+            _buildFinancialLiteracyStep(),
           ],
         ),
       ),
@@ -252,58 +257,18 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
     );
   }
 
-  Widget _buildFinancialGoalsStep() {
+  Widget _buildIncomeAndRiskStep() {
     return SingleChildScrollView(
       padding: AppConstants.screenPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildStepHeader(
-            'Financial Goals & Income',
-            'Tell us about your financial priorities and monthly income',
-            Icons.account_balance_wallet_rounded,
+            'Income & Financial Profile',
+            'Tell us about your income and financial situation',
+            Icons.trending_up_rounded,
           ),
           SizedBox(height: AppConstants.spacingXLarge.h),
-          CustomCard.withTitle(
-            title: 'Primary Financial Goal',
-            icon: Icons.flag_rounded,
-            iconColor: AppTheme.primaryColor,
-            child: Column(
-              children: [
-                CustomDropdownField<FinancialGoalType>(
-                  value: _selectedFinancialGoal,
-                  items: FinancialGoalType.values,
-                  labelText: 'What\'s your main financial priority?',
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _selectedFinancialGoal = value;
-                      });
-                    }
-                  },
-                  itemLabelBuilder: (item) => item.displayName,
-                ),
-                SizedBox(height: AppConstants.spacingMedium.h),
-                Container(
-                  padding: AppConstants.containerPaddingMedium,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(
-                        AppConstants.borderRadiusMedium.r),
-                  ),
-                  child: Text(
-                    _selectedFinancialGoal.description,
-                    style: TextStyle(
-                      fontSize: AppConstants.textSizeSmall.sp,
-                      color: AppTheme.greyTextDark,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: AppConstants.spacingLarge.h),
           CustomCard.withTitle(
             title: 'Monthly Income',
             icon: Icons.payments_rounded,
@@ -348,23 +313,7 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildIncomeAndRiskStep() {
-    return SingleChildScrollView(
-      padding: AppConstants.screenPadding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildStepHeader(
-            'Income & Risk Profile',
-            'Help us understand your income patterns and risk tolerance',
-            Icons.trending_up_rounded,
-          ),
-          SizedBox(height: AppConstants.spacingXLarge.h),
+          SizedBox(height: AppConstants.spacingLarge.h),
           CustomCard.withTitle(
             title: 'Income Stability',
             icon: Icons.work_rounded,
@@ -505,79 +454,96 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
     );
   }
 
-  Widget _buildAutomationStep() {
+  Widget _buildFinancialLiteracyStep() {
     return SingleChildScrollView(
       padding: AppConstants.screenPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildStepHeader(
-            'AI Automation Preferences',
-            'Configure how our AI should help manage your finances',
-            Icons.smart_toy_rounded,
+            'Financial Literacy & Data Consent',
+            'Help us personalize your experience and protect your privacy',
+            Icons.psychology_rounded,
           ),
           SizedBox(height: AppConstants.spacingXLarge.h),
           CustomCard.withTitle(
-            title: 'AI Features',
-            icon: Icons.auto_awesome_rounded,
+            title: 'Financial Knowledge Level',
+            icon: Icons.school_rounded,
             iconColor: AppTheme.primaryColor,
             child: Column(
               children: [
-                _buildSwitchTile(
-                  'Budget Reallocation',
-                  'Automatically suggest budget adjustments based on spending patterns',
-                  _enableBudgetReallocation,
-                  (value) => setState(() => _enableBudgetReallocation = value),
+                CustomDropdownField<FinancialLiteracyLevel>(
+                  value: _selectedFinancialLiteracy,
+                  items: FinancialLiteracyLevel.values,
+                  labelText: 'How would you rate your financial knowledge?',
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedFinancialLiteracy = value;
+                      });
+                    }
+                  },
+                  itemLabelBuilder: (item) => item.displayName,
                 ),
-                _buildSwitchTile(
-                  'Spending Alerts',
-                  'Get notified when spending exceeds normal patterns',
-                  _enableSpendingAlerts,
-                  (value) => setState(() => _enableSpendingAlerts = value),
-                ),
-                _buildSwitchTile(
-                  'Goal Recommendations',
-                  'Receive personalized financial goal suggestions',
-                  _enableGoalRecommendations,
-                  (value) => setState(() => _enableGoalRecommendations = value),
-                ),
-                _buildSwitchTile(
-                  'Expense Classification',
-                  'Automatically categorize expenses from notifications',
-                  _enableExpenseClassification,
-                  (value) =>
-                      setState(() => _enableExpenseClassification = value),
-                ),
-                _buildSwitchTile(
-                  'Savings Optimization',
-                  'Get suggestions for optimizing your savings allocation',
-                  _enableSavingsOptimization,
-                  (value) => setState(() => _enableSavingsOptimization = value),
+                SizedBox(height: AppConstants.spacingMedium.h),
+                Container(
+                  padding: AppConstants.containerPaddingMedium,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadiusMedium.r),
+                  ),
+                  child: Text(
+                    _selectedFinancialLiteracy.description,
+                    style: TextStyle(
+                      fontSize: AppConstants.textSizeSmall.sp,
+                      color: AppTheme.greyTextDark,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
           SizedBox(height: AppConstants.spacingLarge.h),
           CustomCard.withTitle(
-            title: 'Automation Settings',
-            icon: Icons.tune_rounded,
+            title: 'Data Privacy & Consent',
+            icon: Icons.privacy_tip_rounded,
             iconColor: AppTheme.warningColor,
             child: Column(
               children: [
-                _buildSliderSetting(
-                  'Automation Aggressiveness',
-                  'How proactive should AI recommendations be?',
-                  _automationAggressiveness,
-                  (value) => setState(() => _automationAggressiveness = value),
-                  ['Conservative', 'Balanced', 'Aggressive'],
+                Container(
+                  padding: AppConstants.containerPaddingMedium,
+                  decoration: BoxDecoration(
+                    color: AppTheme.warningColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadiusMedium.r),
+                  ),
+                  child: Text(
+                    'We collect your financial data to provide personalized insights and recommendations. Your data is encrypted, never sold to third parties, and you can delete it anytime. By continuing, you consent to our data collection and usage practices.',
+                    style: TextStyle(
+                      fontSize: AppConstants.textSizeSmall.sp,
+                      color: AppTheme.greyTextDark,
+                    ),
+                  ),
                 ),
-                SizedBox(height: AppConstants.spacingLarge.h),
-                _buildSliderSetting(
-                  'Alert Sensitivity',
-                  'How sensitive should spending alerts be?',
-                  _alertSensitivity,
-                  (value) => setState(() => _alertSensitivity = value),
-                  ['Low', 'Medium', 'High'],
+                SizedBox(height: AppConstants.spacingMedium.h),
+                CheckboxListTile(
+                  title: Text(
+                    'I agree to the data usage policy and consent to data collection',
+                    style: TextStyle(
+                      fontSize: AppConstants.textSizeMedium.sp,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  value: _dataConsentAccepted,
+                  onChanged: (value) {
+                    setState(() {
+                      _dataConsentAccepted = value ?? false;
+                    });
+                  },
+                  activeColor: AppTheme.primaryColor,
+                  contentPadding: EdgeInsets.zero,
                 ),
               ],
             ),
@@ -630,85 +596,6 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
               ),
             ),
           ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSwitchTile(
-      String title, String subtitle, bool value, ValueChanged<bool> onChanged) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: AppConstants.spacingMedium.h),
-      child: SwitchListTile(
-        title: Text(
-          title,
-          style: TextStyle(
-            fontSize: AppConstants.textSizeMedium.sp,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: AppConstants.textSizeSmall.sp,
-            color: AppTheme.greyTextLight,
-          ),
-        ),
-        value: value,
-        onChanged: onChanged,
-        activeColor: AppTheme.primaryColor,
-        contentPadding: EdgeInsets.zero,
-      ),
-    );
-  }
-
-  Widget _buildSliderSetting(String title, String subtitle, double value,
-      ValueChanged<double> onChanged, List<String> labels) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: AppConstants.textSizeMedium.sp,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        SizedBox(height: AppConstants.spacingXSmall.h),
-        Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: AppConstants.textSizeSmall.sp,
-            color: AppTheme.greyTextLight,
-          ),
-        ),
-        SizedBox(height: AppConstants.spacingMedium.h),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: AppTheme.primaryColor,
-            inactiveTrackColor: AppTheme.primaryColor.withOpacity(0.3),
-            thumbColor: AppTheme.primaryColor,
-            overlayColor: AppTheme.primaryColor.withOpacity(0.2),
-          ),
-          child: Slider(
-            value: value,
-            onChanged: onChanged,
-            min: 0.0,
-            max: 1.0,
-            divisions: 10,
-          ),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: labels
-              .map((label) => Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: AppConstants.textSizeXSmall.sp,
-                      color: AppTheme.greyTextLight,
-                    ),
-                  ))
-              .toList(),
         ),
       ],
     );

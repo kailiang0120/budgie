@@ -3,22 +3,6 @@ import '../../domain/entities/expense.dart';
 
 /// Abstract interface for local data source operations
 abstract class LocalDataSource {
-  // App Settings operations
-  Future<Map<String, dynamic>> getAppSettings();
-  Future<void> saveAppSettings(Map<String, dynamic> settings);
-  Future<String> getAppTheme();
-  Future<void> updateAppTheme(String theme);
-  Future<String> getAppCurrency();
-  Future<void> updateAppCurrency(String currency);
-  Future<bool> getNotificationsEnabled();
-  Future<void> updateNotificationsEnabled(bool enabled);
-  Future<bool> getAutoBudgetEnabled();
-  Future<void> updateAutoBudgetEnabled(bool enabled);
-  Future<bool> getImproveAccuracyEnabled();
-  Future<void> updateImproveAccuracyEnabled(bool enabled);
-  Future<bool> getSyncEnabled();
-  Future<void> updateSyncEnabled(bool enabled);
-
   // Expenses operations
   Future<List<Expense>> getExpenses();
   Future<void> saveExpense(Expense expense);

@@ -18,6 +18,7 @@ import 'domain/usecase/expense/process_recurring_expenses_usecase.dart';
 import 'presentation/viewmodels/expenses_viewmodel.dart';
 import 'presentation/viewmodels/budget_viewmodel.dart';
 import 'presentation/viewmodels/theme_viewmodel.dart';
+import 'presentation/viewmodels/analysis_viewmodel.dart';
 import 'presentation/utils/app_theme.dart';
 import 'di/injection_container.dart' as di;
 import 'di/performance_tracker.dart';
@@ -326,6 +327,7 @@ class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
       ChangeNotifierProvider(create: (_) => di.sl<ThemeViewModel>()),
       ChangeNotifierProvider(create: (_) => di.sl<ExpensesViewModel>()),
       ChangeNotifierProvider(create: (_) => di.sl<BudgetViewModel>()),
+      ChangeNotifierProvider(create: (_) => di.sl<AnalysisViewModel>()),
     ];
   }
 

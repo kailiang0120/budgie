@@ -110,21 +110,102 @@ class ExchangeRates extends Table {
 class UserProfiles extends Table {
   TextColumn get id => text()();
   TextColumn get userId => text()();
-  TextColumn get primaryFinancialGoal => text()();
   TextColumn get incomeStability => text()();
   TextColumn get spendingMentality => text()();
   TextColumn get riskAppetite => text()();
   RealColumn get monthlyIncome => real()();
   RealColumn get emergencyFundTarget => real()();
-  TextColumn get aiPreferencesJson => text().named('ai_preferences')();
-  TextColumn get categoryPreferencesJson =>
-      text().named('category_preferences')();
+  TextColumn get financialLiteracy => text()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
+  DateTimeColumn get dataConsentAcceptedAt => dateTime().nullable()();
   BoolColumn get isComplete => boolean()();
 
   @override
   Set<Column> get primaryKey => {id};
+}
+
+/// Table to store spending behavior analysis results.
+///
+/// This table holds the serialized JSON response from the comprehensive
+/// analysis endpoint. Storing the full response allows for historical review
+/// and reprocessing without needing to call the API again.
+@DataClassName('AnalysisResult')
+class AnalysisResults extends Table {
+  /// A unique identifier for each analysis record.
+  TextColumn get id => text()();
+
+  /// The ID of the user this analysis belongs to.
+  TextColumn get userId => text()();
+
+  /// The full analysis response, stored as a serialized JSON string.
+  TextColumn get analysisData => text()();
+
+  /// The timestamp when the analysis was performed and stored.
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftAccessor(tables: [AnalysisResults])
+class AnalysisResultDao extends DatabaseAccessor<AppDatabase>
+    with _$AnalysisResultDaoMixin {
+  AnalysisResultDao(AppDatabase db) : super(db);
+
+  /// Saves a new analysis result to the database.
+  Future<void> saveAnalysisResult(AnalysisResult result) =>
+      into(analysisResults).insert(result);
+
+  /// Retrieves the most recent analysis result for a given user.
+  Future<AnalysisResult?> getLatestAnalysisResult(String userId) {
+    return (select(analysisResults)
+          ..where((tbl) => tbl.userId.equals(userId))
+          ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)])
+          ..limit(1))
+        .getSingleOrNull();
+  }
+}
+
+@DriftAccessor(tables: [AppSettings])
+class AppSettingsDao extends DatabaseAccessor<AppDatabase>
+    with _$AppSettingsDaoMixin {
+  AppSettingsDao(AppDatabase db) : super(db);
+}
+
+@DriftAccessor(tables: [ExchangeRates])
+class ExchangeRatesDao extends DatabaseAccessor<AppDatabase>
+    with _$ExchangeRatesDaoMixin {
+  ExchangeRatesDao(AppDatabase db) : super(db);
+}
+
+@DriftAccessor(tables: [UserProfiles])
+class UserProfilesDao extends DatabaseAccessor<AppDatabase>
+    with _$UserProfilesDaoMixin {
+  UserProfilesDao(AppDatabase db) : super(db);
+}
+
+@DriftAccessor(tables: [Budgets])
+class BudgetsDao extends DatabaseAccessor<AppDatabase> with _$BudgetsDaoMixin {
+  BudgetsDao(AppDatabase db) : super(db);
+}
+
+@DriftAccessor(tables: [Expenses])
+class ExpensesDao extends DatabaseAccessor<AppDatabase>
+    with _$ExpensesDaoMixin {
+  ExpensesDao(AppDatabase db) : super(db);
+}
+
+@DriftAccessor(tables: [FinancialGoals])
+class FinancialGoalsDao extends DatabaseAccessor<AppDatabase>
+    with _$FinancialGoalsDaoMixin {
+  FinancialGoalsDao(AppDatabase db) : super(db);
+}
+
+@DriftAccessor(tables: [GoalHistory])
+class GoalHistoryDao extends DatabaseAccessor<AppDatabase>
+    with _$GoalHistoryDaoMixin {
+  GoalHistoryDao(AppDatabase db) : super(db);
 }
 
 /// Create database connection
@@ -146,13 +227,34 @@ LazyDatabase _openConnection() {
     FinancialGoals,
     GoalHistory,
     UserProfiles,
+    AnalysisResults,
+  ],
+  daos: [
+    AnalysisResultDao,
+    AppSettingsDao,
+    ExchangeRatesDao,
+    UserProfilesDao,
+    BudgetsDao,
+    ExpensesDao,
+    FinancialGoalsDao,
+    GoalHistoryDao
   ],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
+  // Add getters for all DAOs
+  AnalysisResultDao get analysisResultDao => AnalysisResultDao(this);
+  AppSettingsDao get appSettingsDao => AppSettingsDao(this);
+  ExchangeRatesDao get exchangeRatesDao => ExchangeRatesDao(this);
+  UserProfilesDao get userProfilesDao => UserProfilesDao(this);
+  BudgetsDao get budgetsDao => BudgetsDao(this);
+  ExpensesDao get expensesDao => ExpensesDao(this);
+  FinancialGoalsDao get financialGoalsDao => FinancialGoalsDao(this);
+  GoalHistoryDao get goalHistoryDao => GoalHistoryDao(this);
+
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 16;
 
   /// Create performance indexes for better query performance
   Future<void> _createPerformanceIndexes() async {
@@ -189,6 +291,111 @@ class AppDatabase extends _$AppDatabase {
         ''');
       },
       onUpgrade: (Migrator m, int from, int to) async {
+        if (from < 14) {
+          await m.createTable(analysisResults);
+        }
+        if (from < 15) {
+          // Migrate user profiles from AI preferences to financial literacy
+          await customStatement('''
+            ALTER TABLE user_profiles 
+            ADD COLUMN financial_literacy TEXT DEFAULT 'intermediate'
+          ''');
+
+          await customStatement('''
+            ALTER TABLE user_profiles 
+            ADD COLUMN data_consent_accepted_at INTEGER
+          ''');
+
+          // Remove old AI preferences column if it exists
+          try {
+            await customStatement('''
+              CREATE TABLE user_profiles_new (
+                id TEXT PRIMARY KEY NOT NULL,
+                user_id TEXT NOT NULL,
+                primary_financial_goal TEXT NOT NULL,
+                income_stability TEXT NOT NULL,
+                spending_mentality TEXT NOT NULL,
+                risk_appetite TEXT NOT NULL,
+                monthly_income REAL NOT NULL,
+                emergency_fund_target REAL NOT NULL,
+                financial_literacy TEXT NOT NULL DEFAULT 'intermediate',
+                category_preferences TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                data_consent_accepted_at INTEGER,
+                is_complete INTEGER NOT NULL
+              )
+            ''');
+
+            // Copy data from old table to new table, mapping AI preferences to default literacy
+            await customStatement('''
+              INSERT INTO user_profiles_new (
+                id, user_id, primary_financial_goal, income_stability,
+                spending_mentality, risk_appetite, monthly_income,
+                emergency_fund_target, financial_literacy, category_preferences,
+                created_at, updated_at, data_consent_accepted_at, is_complete
+              )
+              SELECT 
+                id, user_id, primary_financial_goal, income_stability,
+                spending_mentality, risk_appetite, monthly_income,
+                emergency_fund_target, 'intermediate', category_preferences,
+                created_at, updated_at, NULL, is_complete
+              FROM user_profiles
+            ''');
+
+            // Drop old table and rename new table
+            await customStatement('DROP TABLE user_profiles');
+            await customStatement(
+                'ALTER TABLE user_profiles_new RENAME TO user_profiles');
+          } catch (e) {
+            debugPrint('Error migrating user profiles schema: $e');
+          }
+        }
+        if (from < 16) {
+          // Remove unnecessary columns: primary_financial_goal and category_preferences
+          try {
+            await customStatement('''
+              CREATE TABLE user_profiles_new (
+                id TEXT PRIMARY KEY NOT NULL,
+                user_id TEXT NOT NULL,
+                income_stability TEXT NOT NULL,
+                spending_mentality TEXT NOT NULL,
+                risk_appetite TEXT NOT NULL,
+                monthly_income REAL NOT NULL,
+                emergency_fund_target REAL NOT NULL,
+                financial_literacy TEXT NOT NULL DEFAULT 'intermediate',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                data_consent_accepted_at INTEGER,
+                is_complete INTEGER NOT NULL
+              )
+            ''');
+
+            // Copy data from old table to new table, excluding removed columns
+            await customStatement('''
+              INSERT INTO user_profiles_new (
+                id, user_id, income_stability, spending_mentality, 
+                risk_appetite, monthly_income, emergency_fund_target, 
+                financial_literacy, created_at, updated_at, 
+                data_consent_accepted_at, is_complete
+              )
+              SELECT 
+                id, user_id, income_stability, spending_mentality,
+                risk_appetite, monthly_income, emergency_fund_target,
+                financial_literacy, created_at, updated_at,
+                data_consent_accepted_at, is_complete
+              FROM user_profiles
+            ''');
+
+            // Drop old table and rename new table
+            await customStatement('DROP TABLE user_profiles');
+            await customStatement(
+                'ALTER TABLE user_profiles_new RENAME TO user_profiles');
+          } catch (e) {
+            debugPrint(
+                'Error removing unnecessary columns from user profiles: $e');
+          }
+        }
         if (from < 12) {
           // Handle migration from previous versions
 
