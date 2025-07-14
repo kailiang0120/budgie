@@ -88,25 +88,24 @@ class _ExchangeRateStatusWidgetState extends State<ExchangeRateStatusWidget> {
       }
     } catch (e) {
       debugPrint('Error refreshing rates: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to refresh exchange rates',
-                style: TextStyle(
-                  fontFamily: AppTheme.fontFamily,
-                  fontSize: AppConstants.textSizeSmall.sp,
-                  color: Colors.white,
-                )),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to refresh exchange rates',
+              style: TextStyle(
+                fontFamily: AppTheme.fontFamily,
+                fontSize: AppConstants.textSizeSmall.sp,
+                color: Colors.white,
+              )),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
-        );
-      }
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -302,19 +301,16 @@ class _CompactExchangeRateStatusWidgetState
       );
       if (success) {
         await _checkStatus();
-      }
-    } catch (e) {
-      debugPrint('Error refreshing rates: $e');
-      if (context.mounted) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to refresh exchange rates',
+            content: Text('Exchange rates updated successfully',
                 style: TextStyle(
                   fontFamily: AppTheme.fontFamily,
                   fontSize: AppConstants.textSizeSmall.sp,
                   color: Colors.white,
                 )),
-            backgroundColor: Colors.red,
+            backgroundColor: Colors.green,
             duration: const Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
             margin: const EdgeInsets.all(16),
@@ -324,6 +320,26 @@ class _CompactExchangeRateStatusWidgetState
           ),
         );
       }
+    } catch (e) {
+      debugPrint('Error refreshing rates: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to refresh exchange rates',
+              style: TextStyle(
+                fontFamily: AppTheme.fontFamily,
+                fontSize: AppConstants.textSizeSmall.sp,
+                color: Colors.white,
+              )),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {

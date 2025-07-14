@@ -31,7 +31,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   bool _isPermissionRequesting = false;
 
   // Permission status tracking with descriptions
-  Map<String, Map<String, dynamic>> _permissionStatus = {
+  final Map<String, Map<String, dynamic>> _permissionStatus = {
     'Notifications': {
       'granted': false,
       'description': 'Detect expenses from SMS and notifications',
@@ -174,59 +174,54 @@ class _WelcomeScreenState extends State<WelcomeScreen>
 
       // Request storage permission
       if (!_permissionStatus['Storage']!['granted']) {
-        if (context.mounted) {
-          final requestStorage = await DialogUtils.showConfirmationDialog(
-            context,
-            title: 'Storage Permission',
-            content:
-                'Budgie needs storage access to save receipts and export your data.',
-            confirmText: 'Allow',
-            cancelText: 'Skip',
-          );
+        if (!mounted) return;
+        final requestStorage = await DialogUtils.showConfirmationDialog(
+          context,
+          title: 'Storage Permission',
+          content:
+              'Budgie needs storage access to save receipts and export your data.',
+          confirmText: 'Allow',
+          cancelText: 'Skip',
+        );
 
-          if (requestStorage == true) {
-            final storage = await permissionService.requestStoragePermission();
-            _permissionStatus['Storage']!['granted'] = storage;
-          }
+        if (requestStorage == true) {
+          final storage = await permissionService.requestStoragePermission();
+          _permissionStatus['Storage']!['granted'] = storage;
         }
       }
 
       // Request camera permission
       if (!_permissionStatus['Camera']!['granted']) {
-        if (context.mounted) {
-          final requestCamera = await DialogUtils.showConfirmationDialog(
-            context,
-            title: 'Camera Permission',
-            content:
-                'Budgie needs camera access to scan receipts and documents.',
-            confirmText: 'Allow',
-            cancelText: 'Skip',
-          );
+        if (!mounted) return;
+        final requestCamera = await DialogUtils.showConfirmationDialog(
+          context,
+          title: 'Camera Permission',
+          content: 'Budgie needs camera access to scan receipts and documents.',
+          confirmText: 'Allow',
+          cancelText: 'Skip',
+        );
 
-          if (requestCamera == true) {
-            final camera = await permissionService.requestCameraPermission();
-            _permissionStatus['Camera']!['granted'] = camera;
-          }
+        if (requestCamera == true) {
+          final camera = await permissionService.requestCameraPermission();
+          _permissionStatus['Camera']!['granted'] = camera;
         }
       }
 
       // Request location permission (optional)
       if (!_permissionStatus['Location']!['granted']) {
-        if (context.mounted) {
-          final requestLocation = await DialogUtils.showConfirmationDialog(
-            context,
-            title: 'Location Permission (Optional)',
-            content:
-                'Allow Budgie to access your location for location-based expense tracking?',
-            confirmText: 'Allow',
-            cancelText: 'Skip',
-          );
+        if (!mounted) return;
+        final requestLocation = await DialogUtils.showConfirmationDialog(
+          context,
+          title: 'Location Permission (Optional)',
+          content:
+              'Allow Budgie to access your location for location-based expense tracking?',
+          confirmText: 'Allow',
+          cancelText: 'Skip',
+        );
 
-          if (requestLocation == true) {
-            final location =
-                await permissionService.requestLocationPermission();
-            _permissionStatus['Location']!['granted'] = location;
-          }
+        if (requestLocation == true) {
+          final location = await permissionService.requestLocationPermission();
+          _permissionStatus['Location']!['granted'] = location;
         }
       }
 
@@ -834,7 +829,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               child: OutlinedButton(
                 onPressed: _previousPage,
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: AppTheme.primaryColorDark),
+                  side: const BorderSide(color: AppTheme.primaryColorDark),
                   padding: EdgeInsets.symmetric(
                       vertical: AppConstants.spacingLarge.h),
                   shape: RoundedRectangleBorder(

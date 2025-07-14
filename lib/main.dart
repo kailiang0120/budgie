@@ -269,7 +269,7 @@ Future<void> _checkWelcomeStatus() async {
 
 /// Main app widget with providers and UI configuration
 class BudgieApp extends StatefulWidget {
-  const BudgieApp({Key? key}) : super(key: key);
+  const BudgieApp({super.key});
 
   @override
   State<BudgieApp> createState() => _BudgieAppState();

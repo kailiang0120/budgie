@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
 
 import '../../domain/entities/user_behavior_profile.dart';
 import '../../domain/repositories/user_behavior_repository.dart';
@@ -17,10 +16,10 @@ class FinancialProfileScreen extends StatefulWidget {
   final UserBehaviorRepository userBehaviorRepository;
 
   const FinancialProfileScreen({
-    Key? key,
+    super.key,
     this.existingProfile,
     required this.userBehaviorRepository,
-  }) : super(key: key);
+  });
 
   @override
   State<FinancialProfileScreen> createState() => _FinancialProfileScreenState();

@@ -6,7 +6,7 @@ import '../widgets/responsive_logo.dart';
 import '../utils/app_constants.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -59,12 +59,12 @@ class _SplashScreenState extends State<SplashScreen>
   Future<void> _navigateToHome() async {
     try {
       await Future.delayed(const Duration(seconds: 2));
-      if (!mounted) return;
 
       // Check if this is the first time the user is opening the app
       final prefs = await SharedPreferences.getInstance();
       final bool welcomeCompleted = prefs.getBool('welcome_completed') ?? false;
 
+      if (!mounted) return;
       if (!welcomeCompleted) {
         // First time user - navigate to welcome screen
         Navigator.of(context).pushReplacementNamed(Routes.welcome);

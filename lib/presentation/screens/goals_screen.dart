@@ -921,6 +921,7 @@ class _GoalsScreenState extends State<GoalsScreen>
     }
 
     // Show enhanced funding preview dialog
+    if (!mounted) return;
     showFundingPreviewDialog(
       context: context,
       availableSavings: amount,
@@ -939,6 +940,7 @@ class _GoalsScreenState extends State<GoalsScreen>
 
   void _showFundingResult(
       BuildContext context, bool success, double amount, String? errorMessage) {
+    if (!mounted) return;
     if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

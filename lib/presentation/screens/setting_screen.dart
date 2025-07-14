@@ -24,7 +24,7 @@ import 'financial_profile_screen.dart';
 import '../../domain/repositories/user_behavior_repository.dart';
 
 class SettingScreen extends StatefulWidget {
-  const SettingScreen({Key? key}) : super(key: key);
+  const SettingScreen({super.key});
 
   @override
   State<SettingScreen> createState() => _SettingScreenState();

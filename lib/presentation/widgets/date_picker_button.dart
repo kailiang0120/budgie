@@ -407,7 +407,6 @@ class _MonthYearPickerDialog extends StatefulWidget {
   final Color themeColor;
 
   const _MonthYearPickerDialog({
-    super.key,
     required this.initialDate,
     required this.firstDate,
     required this.lastDate,
@@ -606,7 +605,6 @@ class _YearPickerDialog extends StatefulWidget {
   final Color themeColor;
 
   const _YearPickerDialog({
-    super.key,
     required this.initialDate,
     required this.firstDate,
     required this.lastDate,

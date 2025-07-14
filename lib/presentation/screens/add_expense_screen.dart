@@ -23,7 +23,7 @@ import '../../data/infrastructure/errors/app_error.dart';
 class AddExpenseScreen extends StatefulWidget {
   final Map<String, dynamic>? prefilledData;
 
-  const AddExpenseScreen({Key? key, this.prefilledData}) : super(key: key);
+  const AddExpenseScreen({super.key, this.prefilledData});
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();

@@ -235,13 +235,11 @@ class CategoryDistributionCard extends StatelessWidget {
           color: CategoryManager.getColorFromId(categoryId),
           value: amount,
           title: '${(percentage * 100).toStringAsFixed(0)}%',
-          radius: 100.r,
+          radius: 115.r,
           titleStyle: TextStyle(
             fontFamily: AppTheme.fontFamily,
             fontSize: AppConstants.textSizeSmall.sp,
             fontWeight: FontWeight.bold,
-            color:
-                Colors.white.withAlpha((255 * AppConstants.opacityLow).toInt()),
           ),
           badgeWidget: _Badge(
             CategoryManager.getIconFromId(categoryId),

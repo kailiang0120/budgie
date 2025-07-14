@@ -217,17 +217,10 @@ class PermissionHandlerService with WidgetsBindingObserver {
         final completer = Completer<bool>();
         _pendingPermissions[Permission.notification] = completer;
         _isWaitingForPermission = true;
-      }
 
-      // Open settings for user to grant permission manually
-      await platform.invokeMethod('requestNotificationAccess');
-
-      // If we're tracking this permission with a completer, wait for result
-      if (_pendingPermissions.containsKey(Permission.notification)) {
-        // Wait for the user to return from settings with a timeout
-        return await _pendingPermissions[Permission.notification]!
-            .future
-            .timeout(
+        // Open settings for user to grant permission manually
+        await platform.invokeMethod('requestNotificationAccess');
+        return await completer.future.timeout(
           const Duration(minutes: 2),
           onTimeout: () {
             debugPrint('⏱️ Permission request timed out');
@@ -237,8 +230,9 @@ class PermissionHandlerService with WidgetsBindingObserver {
         );
       }
 
-      // Default case - we can't know the result yet
-      return true;
+      // If context is null or not mounted, we can still request
+      await platform.invokeMethod('requestNotificationAccess');
+      return true; // We can't know the result without context, assume success
     } catch (e) {
       debugPrint(
           '❌ PermissionHandlerService: Failed to request notification listener permission: $e');
@@ -503,46 +497,122 @@ class PermissionHandlerService with WidgetsBindingObserver {
 
   /// Check pending permissions after returning from settings
   Future<void> _checkPendingPermissions() async {
-    if (_pendingPermissions.isEmpty) return;
+    _isWaitingForPermission = false;
+    final permissionsToCheck =
+        Map<Permission, Completer<bool>>.from(_pendingPermissions);
+    _pendingPermissions.clear();
 
-    debugPrint('🔄 Checking permissions after returning from settings...');
+    for (var entry in permissionsToCheck.entries) {
+      final permission = entry.key;
+      final completer = entry.value;
 
-    // Small delay to ensure system has updated permissions
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // Check notification listener permission if it's pending
-    if (_pendingPermissions.containsKey(Permission.notification)) {
-      final hasListener = await hasNotificationListenerPermission();
-
-      debugPrint('🔐 Notification listener permission check: $hasListener');
-
-      // For Android, also check if the service is actually enabled
-      bool isServiceEnabled = true;
-      if (Platform.isAndroid) {
-        isServiceEnabled = await _checkNotificationListenerServiceEnabled();
-        debugPrint(
-            '🔐 Notification service enabled at system level: $isServiceEnabled');
-      }
-
-      // Complete the pending permission request
-      final completer = _pendingPermissions[Permission.notification]!;
       if (!completer.isCompleted) {
-        final granted = hasListener && isServiceEnabled;
-
-        // Update settings based on permission result
-        if (_settingsService.allowNotification != granted) {
-          await _settingsService.updateNotificationSetting(granted);
-        }
-
-        completer.complete(granted);
+        final status = await permission.status;
+        completer.complete(status.isGranted);
+        debugPrint(
+            '📱 Resumed and completed permission check for $permission: ${status.isGranted}');
       }
+    }
+  }
 
-      _pendingPermissions.remove(Permission.notification);
+  /// Unified permission request logic
+  Future<bool> _handlePermissionRequest(
+      BuildContext context, Permission permission) async {
+    final status = await permission.request();
+
+    if (status.isGranted) {
+      return true;
     }
 
-    // Reset waiting state if all permissions are processed
-    if (_pendingPermissions.isEmpty) {
-      _isWaitingForPermission = false;
+    if (status.isPermanentlyDenied) {
+      if (!context.mounted) return false;
+      await showPermissionPermanentlyDeniedDialog(context, permission);
+      return false;
+    }
+
+    if (status.isDenied) {
+      if (!context.mounted) return false;
+      await showPermissionDeniedDialog(context, permission);
+    }
+
+    return false;
+  }
+
+  /// Show a dialog explaining why the permission is needed (for permanently denied)
+  Future<void> showPermissionPermanentlyDeniedDialog(
+      BuildContext context, Permission permission) async {
+    final permissionName = permission.toString().split('.').last;
+    final message =
+        'Permission for $permissionName is permanently denied. Please enable it from the app settings to use this feature.';
+
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Permission Required'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            child: const Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          TextButton(
+            child: const Text('Open Settings'),
+            onPressed: () async {
+              await openAppSettings();
+              if (!context.mounted) return;
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show a dialog explaining why the permission is needed (for denied)
+  Future<void> showPermissionDeniedDialog(
+      BuildContext context, Permission permission) async {
+    final permissionName = permission.toString().split('.').last;
+    final message =
+        'Permission for $permissionName is required for this feature to work correctly. Please grant the permission when prompted.';
+
+    return showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Permission Denied'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            child: const Text('OK'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Request a single permission and handle the UI flow
+  Future<bool> _requestPermission(
+      BuildContext context, Permission permission) async {
+    try {
+      debugPrint(
+          '🔐 PermissionHandlerService: Requesting ${permission.toString()} permission...');
+
+      if (!context.mounted) return false;
+      final bool isGranted =
+          await _handlePermissionRequest(context, permission);
+
+      if (isGranted) {
+        debugPrint(
+            '🔐 PermissionHandlerService: ${permission.toString()} permission granted');
+      } else {
+        debugPrint(
+            '🔐 PermissionHandlerService: ${permission.toString()} permission denied');
+      }
+      return isGranted;
+    } catch (e) {
+      debugPrint(
+          '❌ PermissionHandlerService: Failed to request ${permission.toString()} permission: $e');
+      return false;
     }
   }
 

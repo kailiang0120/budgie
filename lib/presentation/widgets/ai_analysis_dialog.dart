@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
@@ -14,10 +13,10 @@ class AIAnalysisDialog extends StatefulWidget {
   final AnalysisViewModel analysisViewModel;
 
   const AIAnalysisDialog({
-    Key? key,
+    super.key,
     required this.selectedDate,
     required this.analysisViewModel,
-  }) : super(key: key);
+  });
 
   @override
   State<AIAnalysisDialog> createState() => _AIAnalysisDialogState();
@@ -122,7 +121,7 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
         width: MediaQuery.of(context).size.width * 0.95,
         height: MediaQuery.of(context).size.height * 0.9,
         decoration: BoxDecoration(
-          color: Theme.of(context).dialogBackgroundColor,
+          color: Theme.of(context).dialogBackgroundColor.withValues(alpha: 1),
           borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge.r),
         ),
         child: Column(
@@ -787,8 +786,7 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
                 ),
                 SizedBox(height: AppConstants.spacingLarge.h),
                 ...result.suggestions
-                    .map((suggestion) => _buildSuggestionItem(suggestion))
-                    .toList(),
+                    .map((suggestion) => _buildSuggestionItem(suggestion)),
               ],
             ),
           ),

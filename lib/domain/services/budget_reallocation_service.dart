@@ -12,7 +12,6 @@ import '../../data/models/spending_behavior_models.dart';
 import '../../data/infrastructure/errors/app_error.dart';
 import '../../data/infrastructure/services/gemini_api_client.dart';
 import '../../data/infrastructure/services/settings_service.dart';
-import 'dart:convert'; // Added for JsonEncoder
 
 /// Service for intelligent budget reallocation using AI analysis.
 ///

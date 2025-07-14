@@ -617,7 +617,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                 borderRadius:
                     BorderRadius.circular(AppConstants.borderRadiusMedium.r),
                 border: Border.all(
-                  color: Theme.of(context).dividerColor.withOpacity(0.5),
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.5),
                   width: 1,
                 ),
               ),
