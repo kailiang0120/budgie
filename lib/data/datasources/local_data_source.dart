@@ -1,5 +1,6 @@
 import '../../domain/entities/budget.dart';
 import '../../domain/entities/expense.dart';
+import '../../domain/repositories/budget_repository.dart';
 
 /// Abstract interface for local data source operations
 abstract class LocalDataSource {
@@ -13,6 +14,9 @@ abstract class LocalDataSource {
   Future<Budget?> getBudget(String monthId);
   Future<void> saveBudget(String monthId, Budget budget);
   Future<void> deleteBudget(String monthId);
+  Future<List<BudgetWithMonth>> getBudgetsForMonths(List<String> monthIds);
+  Future<List<BudgetWithMonth>> getBudgetsWithSavings();
+  Future<List<BudgetWithMonth>> getPreviousMonthBudgetsWithSavings();
 
   // Exchange rates operations
   Future<Map<String, double>?> getExchangeRates(String baseCurrency);

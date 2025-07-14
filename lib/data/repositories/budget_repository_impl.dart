@@ -103,4 +103,43 @@ class BudgetRepositoryImpl implements BudgetRepository {
       throw Exception('Failed to delete budget: $e');
     }
   }
+
+  @override
+  Future<List<BudgetWithMonth>> getBudgetsWithSavings(
+      List<String> monthIds) async {
+    try {
+      debugPrint(
+          '🔍 BudgetRepository: Getting budgets with savings for months: $monthIds');
+      return await _localDataSource.getBudgetsForMonths(monthIds);
+    } catch (e) {
+      debugPrint('🔍 BudgetRepository: Error getting budgets with savings: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<List<BudgetWithMonth>> getBudgetsWithAvailableSavings() async {
+    try {
+      debugPrint(
+          '🔍 BudgetRepository: Getting all budgets with available savings');
+      return await _localDataSource.getBudgetsWithSavings();
+    } catch (e) {
+      debugPrint(
+          '🔍 BudgetRepository: Error getting budgets with available savings: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<List<BudgetWithMonth>> getPreviousMonthBudgetsWithSavings() async {
+    try {
+      debugPrint(
+          '🔍 BudgetRepository: Getting previous month budgets with available savings for goal funding');
+      return await _localDataSource.getPreviousMonthBudgetsWithSavings();
+    } catch (e) {
+      debugPrint(
+          '🔍 BudgetRepository: Error getting previous month budgets with savings: $e');
+      return [];
+    }
+  }
 }

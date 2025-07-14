@@ -1,5 +1,3 @@
-/// Common exception classes used throughout the application
-
 /// Exception class for AI API errors
 class AIApiException implements Exception {
   final String message;

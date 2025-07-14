@@ -278,15 +278,24 @@ class ExpenseExtractionServiceImpl implements ExpenseExtractionService {
       debugPrint(
           '✅ ExpenseExtractionServiceImpl: FastAPI response received: $response');
 
-      if (response['success'] != true ||
-          response['extraction_result'] == null) {
+      if (response['success'] != true) {
         debugPrint(
-            '❌ ExpenseExtractionServiceImpl: FastAPI extraction failed or returned no results');
+            '❌ ExpenseExtractionServiceImpl: FastAPI extraction failed - success=false');
         return null;
       }
 
-      final extractionData =
-          response['extraction_result'] as Map<String, dynamic>;
+      // Check if response has extraction_result field or if data is directly in response
+      Map<String, dynamic> extractionData;
+      if (response.containsKey('extraction_result')) {
+        // New format with extraction_result wrapper
+        extractionData = response['extraction_result'] as Map<String, dynamic>;
+      } else {
+        // Direct format - extraction data is in the response itself
+        extractionData = Map<String, dynamic>.from(response);
+        // Remove non-extraction fields
+        extractionData.remove('success');
+        extractionData.remove('errorMessage');
+      }
 
       // Convert FastAPI response to ExpenseExtractionResult
       return ExpenseExtractionResult.fromJson(extractionData);

@@ -61,16 +61,6 @@ class AppSettingsRepositoryImpl implements AppSettingsRepository {
   }
 
   @override
-  Future<bool> getImproveAccuracy() {
-    return _localDataSource.getImproveAccuracyEnabled();
-  }
-
-  @override
-  Future<void> updateImproveAccuracy(bool enabled) {
-    return _localDataSource.updateImproveAccuracyEnabled(enabled);
-  }
-
-  @override
   Future<bool> getSyncEnabled() {
     return _localDataSource.getSyncEnabled();
   }

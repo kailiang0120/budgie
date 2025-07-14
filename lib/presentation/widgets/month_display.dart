@@ -15,14 +15,14 @@ class MonthDisplay extends StatelessWidget {
   final DateFilterMode? filterMode;
 
   const MonthDisplay({
-    Key? key,
+    super.key,
     required this.date,
     this.themeColor,
     this.prefix = 'Budget for',
     this.showDay = false,
     this.showYear = false,
     this.filterMode,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

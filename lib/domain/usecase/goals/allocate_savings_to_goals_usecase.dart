@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../entities/financial_goal.dart';
 import '../../entities/expense.dart';
 import '../../entities/category.dart' as domain_category;
+import '../../entities/budget.dart' as domain;
 import '../../repositories/goals_repository.dart';
 import '../../repositories/budget_repository.dart';
 import '../../repositories/expenses_repository.dart';
@@ -43,12 +43,12 @@ class AllocateSavingsToGoalsUseCase {
         return {};
       }
 
-      // Get last month's savings (budget left over)
-      final lastMonthSavings = await _getLastMonthSavings();
+      // Get available savings from all budget months
+      final availableSavings = await _getAvailableSavings();
       debugPrint(
-          '🎯 AllocateSavingsUseCase: Last month savings: RM $lastMonthSavings');
+          '🎯 AllocateSavingsUseCase: Available savings: RM $availableSavings');
 
-      if (lastMonthSavings <= 0) {
+      if (availableSavings <= 0) {
         debugPrint(
             '🎯 AllocateSavingsUseCase: No savings available to allocate');
         return {};
@@ -57,7 +57,7 @@ class AllocateSavingsToGoalsUseCase {
       // Calculate funding distribution
       final distribution = _fundingService.calculateFundingDistribution(
         activeGoals: activeGoals,
-        availableSavings: lastMonthSavings,
+        availableSavings: availableSavings,
       );
 
       debugPrint(
@@ -85,9 +85,9 @@ class AllocateSavingsToGoalsUseCase {
         }
       }
 
-      // Create expense entry for goal funding in "Others" category
+      // Create expense entries for goal funding and update budgets
       if (totalAllocated > 0) {
-        await _createGoalFundingExpense(totalAllocated);
+        await _createGoalFundingExpensesAndUpdateBudgets(totalAllocated);
       }
 
       debugPrint(
@@ -99,28 +99,37 @@ class AllocateSavingsToGoalsUseCase {
     }
   }
 
-  /// Get the savings amount from last month's budget
-  Future<double> _getLastMonthSavings() async {
+  /// Get the savings amount from available budget months
+  Future<double> _getAvailableSavings() async {
     try {
-      // Get last month's date
-      final now = DateTime.now();
-      final lastMonth = DateTime(now.year, now.month - 1);
-      final monthId =
-          '${lastMonth.year}-${lastMonth.month.toString().padLeft(2, '0')}';
+      // Get budgets from previous months only that have available savings
+      final budgetsWithSavings =
+          await _budgetRepository.getPreviousMonthBudgetsWithSavings();
 
-      // Get last month's budget
-      final budget = await _budgetRepository.getBudget(monthId);
-
-      if (budget != null) {
-        // Return the amount left in the budget (savings)
-        return budget.left > 0 ? budget.left : 0;
+      double totalSavings = 0.0;
+      for (final budgetWithMonth in budgetsWithSavings) {
+        // Use the saving field (unallocated budget) instead of left field
+        totalSavings += budgetWithMonth.budget.saving;
       }
 
-      return 0;
+      debugPrint(
+          '🎯 AllocateSavingsUseCase: Found ${budgetsWithSavings.length} previous months with savings, total: RM $totalSavings');
+      return totalSavings;
     } catch (e) {
       debugPrint(
-          '🎯 AllocateSavingsUseCase: Error getting last month savings: $e');
+          '🎯 AllocateSavingsUseCase: Error getting available savings: $e');
       return 0;
+    }
+  }
+
+  /// Get budgets with available savings for funding
+  Future<List<BudgetWithMonth>> _getBudgetsWithSavings() async {
+    try {
+      return await _budgetRepository.getPreviousMonthBudgetsWithSavings();
+    } catch (e) {
+      debugPrint(
+          '🎯 AllocateSavingsUseCase: Error getting budgets with savings: $e');
+      return [];
     }
   }
 
@@ -128,15 +137,15 @@ class AllocateSavingsToGoalsUseCase {
   Future<Map<String, double>> previewDistribution() async {
     try {
       final activeGoals = await _goalsRepository.getActiveGoals();
-      final lastMonthSavings = await _getLastMonthSavings();
+      final availableSavings = await _getAvailableSavings();
 
-      if (activeGoals.isEmpty || lastMonthSavings <= 0) {
+      if (activeGoals.isEmpty || availableSavings <= 0) {
         return {};
       }
 
       return _fundingService.calculateFundingDistribution(
         activeGoals: activeGoals,
-        availableSavings: lastMonthSavings,
+        availableSavings: availableSavings,
       );
     } catch (e) {
       debugPrint(
@@ -150,7 +159,7 @@ class AllocateSavingsToGoalsUseCase {
       double customAmount) async {
     try {
       final activeGoals = await _goalsRepository.getActiveGoals();
-      final availableSavings = await _getLastMonthSavings();
+      final availableSavings = await _getAvailableSavings();
 
       if (activeGoals.isEmpty ||
           customAmount <= 0 ||
@@ -186,7 +195,7 @@ class AllocateSavingsToGoalsUseCase {
       }
 
       // Validate custom amount against available savings
-      final availableSavings = await _getLastMonthSavings();
+      final availableSavings = await _getAvailableSavings();
       if (customAmount <= 0 || customAmount > availableSavings) {
         debugPrint(
             '🎯 AllocateSavingsUseCase: Invalid custom amount: RM $customAmount (available: RM $availableSavings)');
@@ -224,9 +233,9 @@ class AllocateSavingsToGoalsUseCase {
         }
       }
 
-      // Create expense entry for goal funding in "Others" category
+      // Create expense entries for goal funding and update budgets
       if (totalAllocated > 0) {
-        await _createGoalFundingExpense(totalAllocated);
+        await _createGoalFundingExpensesAndUpdateBudgets(totalAllocated);
       }
 
       debugPrint(
@@ -241,30 +250,114 @@ class AllocateSavingsToGoalsUseCase {
 
   /// Get available savings amount without allocating
   Future<double> getAvailableSavings() async {
-    return await _getLastMonthSavings();
+    return await _getAvailableSavings();
   }
 
-  /// Create an expense entry for goal funding
-  Future<void> _createGoalFundingExpense(double amount) async {
+  /// Create expense entries for goal funding and update budgets
+  Future<void> _createGoalFundingExpensesAndUpdateBudgets(
+      double totalAmount) async {
     try {
-      final expense = Expense(
-        id: _uuid.v4(),
-        remark: 'Goals funding',
-        amount: amount,
-        date: DateTime.now(),
-        category: domain_category.Category.others,
-        method: PaymentMethod.other,
-        description: 'Automatic allocation of savings to financial goals',
-        currency: 'MYR',
-      );
+      // Get budgets with savings to distribute the expense across months
+      final budgetsWithSavings = await _getBudgetsWithSavings();
 
-      await _expensesRepository.addExpense(expense);
-      debugPrint(
-          '🎯 AllocateSavingsUseCase: Created goal funding expense of RM $amount');
+      if (budgetsWithSavings.isEmpty) {
+        debugPrint('🎯 AllocateSavingsUseCase: No budgets with savings found');
+        return;
+      }
+
+      // Calculate total available savings
+      double totalAvailableSavings = 0.0;
+      for (final budgetWithMonth in budgetsWithSavings) {
+        totalAvailableSavings += budgetWithMonth.budget.saving;
+      }
+
+      // Distribute expenses proportionally across months
+      for (final budgetWithMonth in budgetsWithSavings) {
+        final monthSavings = budgetWithMonth.budget.saving;
+        final proportionalAmount =
+            (monthSavings / totalAvailableSavings) * totalAmount;
+
+        if (proportionalAmount > 0) {
+          // Create expense on the last day of the savings month
+          final expenseDate = _getLastDayOfMonth(budgetWithMonth.monthId);
+
+          final expense = Expense(
+            id: _uuid.v4(),
+            remark: 'Goals funding',
+            amount: double.parse(proportionalAmount.toStringAsFixed(2)),
+            date: expenseDate,
+            category: domain_category.Category.others,
+            method: PaymentMethod.other,
+            description: 'Automatic allocation of savings to financial goals',
+            currency: 'MYR',
+          );
+
+          await _expensesRepository.addExpense(expense);
+
+          // Update budget to reallocate the savings to "others" category
+          await _reallocateBudgetToOthers(
+              budgetWithMonth.monthId, proportionalAmount);
+
+          debugPrint(
+              '🎯 AllocateSavingsUseCase: Created goal funding expense of RM ${proportionalAmount.toStringAsFixed(2)} for month ${budgetWithMonth.monthId}');
+        }
+      }
     } catch (e) {
       debugPrint(
-          '🎯 AllocateSavingsUseCase: Error creating goal funding expense: $e');
+          '🎯 AllocateSavingsUseCase: Error creating goal funding expenses: $e');
       // Don't rethrow - goal funding should still succeed even if expense creation fails
+    }
+  }
+
+  /// Get the last day of a month from monthId (format: YYYY-MM)
+  DateTime _getLastDayOfMonth(String monthId) {
+    final parts = monthId.split('-');
+    final year = int.parse(parts[0]);
+    final month = int.parse(parts[1]);
+
+    // Get the first day of the next month, then subtract one day
+    final nextMonth = DateTime(year, month + 1, 1);
+    return nextMonth.subtract(const Duration(days: 1));
+  }
+
+  /// Reallocate unallocated budget to "others" category
+  Future<void> _reallocateBudgetToOthers(String monthId, double amount) async {
+    try {
+      final budget = await _budgetRepository.getBudget(monthId);
+      if (budget == null) {
+        debugPrint(
+            '🎯 AllocateSavingsUseCase: Budget not found for month $monthId');
+        return;
+      }
+
+      // Get or create "others" category budget
+      final othersCategory = domain_category.Category.others;
+      final currentOthersAmount =
+          budget.categories[othersCategory.id]?.budget ?? 0.0;
+      final newOthersAmount = currentOthersAmount + amount;
+
+      // Update the budget
+      final updatedCategories =
+          Map<String, domain.CategoryBudget>.from(budget.categories);
+      updatedCategories[othersCategory.id] = domain.CategoryBudget(
+        budget: newOthersAmount,
+        left: budget.categories[othersCategory.id]?.left ?? 0.0,
+      );
+
+      final updatedBudget = domain.Budget(
+        total: budget.total,
+        left: budget.left, // Keep left unchanged
+        categories: updatedCategories,
+        saving: budget.saving - amount, // Reduce the saving amount
+        currency: budget.currency,
+      );
+
+      await _budgetRepository.setBudget(monthId, updatedBudget);
+      debugPrint(
+          '🎯 AllocateSavingsUseCase: Reallocated RM ${amount.toStringAsFixed(2)} to others category for month $monthId');
+    } catch (e) {
+      debugPrint(
+          '🎯 AllocateSavingsUseCase: Error reallocating budget to others: $e');
     }
   }
 }

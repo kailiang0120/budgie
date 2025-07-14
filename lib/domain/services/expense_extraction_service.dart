@@ -6,8 +6,6 @@ import '../../data/models/expense_detection_models.dart';
 import '../../di/injection_container.dart' as di;
 import '../../data/infrastructure/services/gemini_api_client.dart';
 import '../../data/infrastructure/services/notification_service.dart';
-import '../../data/infrastructure/services/data_collection_service.dart';
-import '../../domain/usecase/notification/record_notification_detection_usecase.dart';
 
 /// Abstract interface for expense detail extraction using hybrid approach
 /// Classification uses local TensorFlow models, extraction uses API backend
@@ -78,8 +76,6 @@ class ExpenseExtractionDomainService {
   // Dependencies (injected from infrastructure)
   ExpenseExtractionService? _extractionService;
   NotificationService? _notificationService;
-  RecordNotificationDetectionUseCase? _recordUseCase;
-  DataCollectionService? _dataCollectionService;
   bool _isInitialized = false;
 
   // Business rules and configuration
@@ -97,16 +93,6 @@ class ExpenseExtractionDomainService {
     _notificationService = notificationService;
   }
 
-  /// Set the record use case implementation
-  void setRecordUseCase(RecordNotificationDetectionUseCase recordUseCase) {
-    _recordUseCase = recordUseCase;
-  }
-
-  /// Set the data collection service implementation
-  void setDataCollectionService(DataCollectionService dataCollectionService) {
-    _dataCollectionService = dataCollectionService;
-  }
-
   /// Initialize the expense extraction service
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -121,14 +107,6 @@ class ExpenseExtractionDomainService {
       if (_notificationService == null) {
         throw Exception(
             'Notification service not injected. Call setNotificationService() first.');
-      }
-      if (_recordUseCase == null) {
-        throw Exception(
-            'Record use case not injected. Call setRecordUseCase() first.');
-      }
-      if (_dataCollectionService == null) {
-        throw Exception(
-            'Data collection service not injected. Call setDataCollectionService() first.');
       }
 
       // Initialize GeminiApiClient with connectivity service
@@ -285,40 +263,6 @@ class ExpenseExtractionDomainService {
         debugPrint(
             '✅ ExpenseExtractionDomainService: Extraction successful with confidence ${validatedResult.confidence}');
 
-        // Record API extraction for model improvement
-        String? recordId;
-        try {
-          final apiRequest = NotificationApiRequest(
-            title: _extractTitleFromText(title),
-            content: content,
-            timestamp: DateTime.now(),
-            source: source,
-            packageName: packageName,
-          );
-
-          final apiResponse = NotificationApiResponse(
-            amount: validatedResult.parsedAmount,
-            currency: validatedResult.currency,
-            merchant: validatedResult.merchantName,
-            paymentMethod: validatedResult.paymentMethod,
-            suggestedCategory: validatedResult.suggestedCategory,
-            confidence: validatedResult.confidence,
-            success: true,
-          );
-
-          recordId = await _dataCollectionService?.recordApiExtraction(
-            originalRequest: apiRequest,
-            apiResponse: apiResponse,
-            extractionMethod: 'api',
-          );
-
-          debugPrint(
-              '📊 ExpenseExtractionDomainService: API extraction recorded with ID: $recordId');
-        } catch (e) {
-          debugPrint(
-              '📊 ExpenseExtractionDomainService: Failed to record API extraction: $e');
-        }
-
         // Record the detection and send actionable notification
         await _recordAndNotify(
           result: validatedResult,
@@ -342,7 +286,7 @@ class ExpenseExtractionDomainService {
 
   // Private business logic methods
 
-  /// Record detection and send actionable notification
+  /// Send actionable notification for detected expense
   Future<void> _recordAndNotify({
     required ExpenseExtractionResult result,
     required String title,
@@ -351,26 +295,16 @@ class ExpenseExtractionDomainService {
     required String packageName,
   }) async {
     try {
-      final detectionId = await _recordUseCase?.recordDetectionAttempt(
-        originalNotificationText:
-            title.isNotEmpty ? '$title: $content' : content,
-        notificationSource: source,
-        packageName: packageName,
-        detectionResult: result,
-      );
+      // Generate a simple detection ID for notification payload
+      final detectionId = DateTime.now().millisecondsSinceEpoch.toString();
 
-      if (detectionId != null) {
-        await _notificationService?.sendExpenseDetectedNotification(
-          detectionId: detectionId,
-          extractionResult: result,
-        );
-      } else {
-        debugPrint(
-            '⚠️ ExpenseExtractionDomainService: Failed to record detection, skipping notification.');
-      }
+      await _notificationService?.sendExpenseDetectedNotification(
+        detectionId: detectionId,
+        extractionResult: result,
+      );
     } catch (e) {
       debugPrint(
-          '❌ ExpenseExtractionDomainService: Failed to record and notify: $e');
+          '❌ ExpenseExtractionDomainService: Failed to send notification: $e');
     }
   }
 
@@ -429,7 +363,7 @@ class ExpenseExtractionDomainService {
       return lines.first.trim();
     }
     return notificationText.length > 50
-        ? notificationText.substring(0, 50).trim() + '...'
+        ? '${notificationText.substring(0, 50).trim()}...'
         : notificationText.trim();
   }
 
@@ -447,7 +381,6 @@ class ExpenseExtractionDomainService {
   void dispose() {
     _extractionService = null;
     _notificationService = null;
-    _recordUseCase = null;
     _isInitialized = false;
     debugPrint('🤖 ExpenseExtractionDomainService: Disposed');
   }

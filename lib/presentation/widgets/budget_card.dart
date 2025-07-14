@@ -10,12 +10,11 @@ class BudgetCard extends StatelessWidget {
   final Budget? budget;
   final VoidCallback onTap;
 
-  const BudgetCard({required this.budget, required this.onTap, Key? key})
-      : super(key: key);
+  const BudgetCard({required this.budget, required this.onTap, super.key});
 
   @override
   Widget build(BuildContext context) {
-    final themeColor = AppTheme.primaryColor;
+    const themeColor = AppTheme.primaryColor;
 
     return GestureDetector(
       onTap: onTap,

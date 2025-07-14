@@ -18,7 +18,7 @@ class RecurringExpenseConfig extends StatefulWidget {
   final ValueChanged<DateTime?> onEndDateChanged;
 
   const RecurringExpenseConfig({
-    Key? key,
+    super.key,
     required this.initialFrequency,
     this.initialDayOfMonth,
     this.initialDayOfWeek,
@@ -27,7 +27,7 @@ class RecurringExpenseConfig extends StatefulWidget {
     required this.onDayOfMonthChanged,
     required this.onDayOfWeekChanged,
     required this.onEndDateChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<RecurringExpenseConfig> createState() => _RecurringExpenseConfigState();

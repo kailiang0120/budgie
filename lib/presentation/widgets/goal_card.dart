@@ -29,14 +29,14 @@ class GoalCard extends StatelessWidget {
 
   /// Creates a goal card widget
   const GoalCard({
-    Key? key,
+    super.key,
     required this.goal,
     this.onTap,
     this.onEdit,
     this.onDelete,
     this.onComplete,
     this.showActions = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -44,8 +44,6 @@ class GoalCard extends StatelessWidget {
         CurrencyFormatter.formatAmount(goal.targetAmount, 'MYR');
     final formattedCurrent =
         CurrencyFormatter.formatAmount(goal.currentAmount, 'MYR');
-    final formattedRemaining =
-        CurrencyFormatter.formatAmount(goal.amountRemaining, 'MYR');
     final deadlineFormatted = DateFormat('MMM yyyy').format(goal.deadline);
 
     // Determine status color

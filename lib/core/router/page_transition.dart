@@ -45,12 +45,11 @@ class PageTransition extends PageRouteBuilder {
     this.alignment = Alignment.center,
     this.duration = const Duration(milliseconds: 350),
     this.reverseDuration = const Duration(milliseconds: 300),
-    RouteSettings? settings,
+    super.settings,
   }) : super(
           pageBuilder: (context, animation, secondaryAnimation) => child,
           transitionDuration: duration,
           reverseTransitionDuration: reverseDuration,
-          settings: settings,
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return _buildTransition(
                 type, animation, secondaryAnimation, child, curve, alignment);

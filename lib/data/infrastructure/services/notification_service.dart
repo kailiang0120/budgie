@@ -6,11 +6,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'dart:async';
 
-import '../../../core/router/app_router.dart';
-import '../../../core/constants/routes.dart';
 import '../../models/expense_detection_models.dart';
-import '../../../domain/usecase/notification/record_notification_detection_usecase.dart';
-import '../../../di/injection_container.dart' as di;
 
 /// Data class for navigation events triggered by notifications
 class NotificationNavigationAction {
@@ -537,26 +533,14 @@ class NotificationService {
         return;
       }
 
-      final recordUseCase = di.sl<RecordNotificationDetectionUseCase>();
-
       // Handle different action types
       if (actionId == 'record_expense' || actionId == null) {
-        // Default action is to record
-        recordUseCase.recordUserConfirmation(
-          detectionId: detectionId,
-          userConfirmed: true,
-        );
-
         // Queue navigation to add expense screen with stored data
         _queueNavigationFromStoredData(detectionId);
       } else if (actionId == 'dismiss') {
-        // User dismissed - clear the stored data and record dismissal
+        // User dismissed - clear the stored data
         debugPrint(
             '📤 NotificationService: Expense notification dismissed by user.');
-        recordUseCase.recordUserDismissal(
-          detectionId: detectionId,
-          dismissalReason: 'user_dismissed',
-        );
 
         // Clear the temporary storage
         clearStoredExpenseData(detectionId);

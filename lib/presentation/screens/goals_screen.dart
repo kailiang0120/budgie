@@ -22,7 +22,7 @@ import '../utils/currency_formatter.dart';
 import 'add_expense_screen.dart';
 
 class GoalsScreen extends StatefulWidget {
-  const GoalsScreen({Key? key}) : super(key: key);
+  const GoalsScreen({super.key});
 
   @override
   State<GoalsScreen> createState() => _GoalsScreenState();
@@ -203,13 +203,13 @@ class _GoalsScreenState extends State<GoalsScreen>
             // Statistics Overview Section
             _buildStatisticsSection(context, goalsViewModel),
 
-            SizedBox(height: AppConstants.spacingLarge),
+            SizedBox(height: AppConstants.spacingMedium),
 
             // Fund Goals Section (if savings available)
             if (goalsViewModel.hasSavingsToAllocate)
               _buildFundingSection(context, goalsViewModel),
 
-            SizedBox(height: AppConstants.spacingLarge),
+            SizedBox(height: AppConstants.spacingMedium),
 
             // Financial Goals List
             _buildFinancialGoalsList(context, goalsViewModel),
@@ -391,7 +391,7 @@ class _GoalsScreenState extends State<GoalsScreen>
                           color: Theme.of(context)
                               .colorScheme
                               .primary
-                              .withOpacity(AppConstants.opacityOverlay),
+                              .withValues(alpha: AppConstants.opacityOverlay),
                           borderRadius: BorderRadius.circular(
                               AppConstants.borderRadiusLarge),
                         ),
@@ -406,7 +406,7 @@ class _GoalsScreenState extends State<GoalsScreen>
                       ),
                     ],
                   ),
-                  SizedBox(height: AppConstants.spacingLarge),
+                  SizedBox(height: AppConstants.spacingMedium),
 
                   // Progress Bar
                   Container(
@@ -429,7 +429,7 @@ class _GoalsScreenState extends State<GoalsScreen>
                               Theme.of(context)
                                   .colorScheme
                                   .primary
-                                  .withOpacity(0.8),
+                                  .withValues(alpha: 0.8),
                             ],
                           ),
                         ),
@@ -451,7 +451,7 @@ class _GoalsScreenState extends State<GoalsScreen>
             ),
           ),
 
-          SizedBox(height: AppConstants.spacingMedium),
+          SizedBox(height: AppConstants.spacingSmall),
 
           // Statistics Cards Row
           Row(
@@ -465,7 +465,7 @@ class _GoalsScreenState extends State<GoalsScreen>
                   AppTheme.successColor,
                 ),
               ),
-              SizedBox(width: AppConstants.spacingMedium),
+              SizedBox(width: AppConstants.spacingSmall),
               Expanded(
                 child: _buildStatCard(
                   context,
@@ -534,8 +534,8 @@ class _GoalsScreenState extends State<GoalsScreen>
             borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge),
             gradient: LinearGradient(
               colors: [
-                AppTheme.successColor.withOpacity(0.1),
-                AppTheme.successColor.withOpacity(0.05),
+                AppTheme.successColor.withValues(alpha: 0.1),
+                AppTheme.successColor.withValues(alpha: 0.05),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -551,7 +551,7 @@ class _GoalsScreenState extends State<GoalsScreen>
                     Container(
                       padding: EdgeInsets.all(AppConstants.spacingMedium),
                       decoration: BoxDecoration(
-                        color: AppTheme.successColor.withOpacity(0.2),
+                        color: AppTheme.successColor.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -672,7 +672,7 @@ class _GoalsScreenState extends State<GoalsScreen>
                 onComplete: () => _showCompleteConfirmation(goal),
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -762,7 +762,7 @@ class _GoalsScreenState extends State<GoalsScreen>
               Container(
                 padding: AppConstants.containerPaddingMedium,
                 decoration: BoxDecoration(
-                  color: AppTheme.successColor.withOpacity(0.1),
+                  color: AppTheme.successColor.withValues(alpha: 0.1),
                   borderRadius:
                       BorderRadius.circular(AppConstants.borderRadiusMedium),
                 ),

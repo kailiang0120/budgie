@@ -480,66 +480,63 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             textAlign: TextAlign.center,
           ),
           SizedBox(height: AppConstants.spacingXXLarge.h),
-          ...features
-              .map((feature) => Container(
-                    margin:
-                        EdgeInsets.only(bottom: AppConstants.spacingLarge.h),
-                    padding: EdgeInsets.all(AppConstants.spacingLarge.w),
-                    decoration: BoxDecoration(
-                      color: AppTheme.cardBackgroundDark,
-                      borderRadius: BorderRadius.circular(
-                          AppConstants.borderRadiusLarge.r),
-                      border: Border.all(
+          ...features.map((feature) => Container(
+                margin: EdgeInsets.only(bottom: AppConstants.spacingLarge.h),
+                padding: EdgeInsets.all(AppConstants.spacingLarge.w),
+                decoration: BoxDecoration(
+                  color: AppTheme.cardBackgroundDark,
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadiusLarge.r),
+                  border: Border.all(
+                    color: AppTheme.primaryColorDark
+                        .withAlpha((255 * AppConstants.opacityMedium).toInt()),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(AppConstants.spacingMedium.w),
+                      decoration: BoxDecoration(
                         color: AppTheme.primaryColorDark.withAlpha(
-                            (255 * AppConstants.opacityMedium).toInt()),
-                        width: 1,
+                            (255 * AppConstants.opacityOverlay).toInt()),
+                        borderRadius: BorderRadius.circular(
+                            AppConstants.borderRadiusMedium.r),
+                      ),
+                      child: Icon(
+                        feature['icon'] as IconData,
+                        size: AppConstants.iconSizeLarge.sp,
+                        color: AppTheme.primaryColorDark,
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(AppConstants.spacingMedium.w),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColorDark.withAlpha(
-                                (255 * AppConstants.opacityOverlay).toInt()),
-                            borderRadius: BorderRadius.circular(
-                                AppConstants.borderRadiusMedium.r),
+                    SizedBox(width: AppConstants.spacingLarge.w),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            feature['title'] as String,
+                            style: TextStyle(
+                              fontSize: AppConstants.textSizeLarge.sp,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.lightTextDark,
+                            ),
                           ),
-                          child: Icon(
-                            feature['icon'] as IconData,
-                            size: AppConstants.iconSizeLarge.sp,
-                            color: AppTheme.primaryColorDark,
+                          SizedBox(height: AppConstants.spacingSmall.h),
+                          Text(
+                            feature['description'] as String,
+                            style: TextStyle(
+                              fontSize: AppConstants.textSizeMedium.sp,
+                              color: AppTheme.greyTextDark,
+                              height: 1.4,
+                            ),
                           ),
-                        ),
-                        SizedBox(width: AppConstants.spacingLarge.w),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                feature['title'] as String,
-                                style: TextStyle(
-                                  fontSize: AppConstants.textSizeLarge.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppTheme.lightTextDark,
-                                ),
-                              ),
-                              SizedBox(height: AppConstants.spacingSmall.h),
-                              Text(
-                                feature['description'] as String,
-                                style: TextStyle(
-                                  fontSize: AppConstants.textSizeMedium.sp,
-                                  color: AppTheme.greyTextDark,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ))
-              .toList(),
+                  ],
+                ),
+              )),
         ],
       ),
     );

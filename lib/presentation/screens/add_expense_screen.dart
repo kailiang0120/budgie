@@ -5,7 +5,7 @@ import '../../domain/entities/category.dart';
 import '../../domain/entities/expense.dart';
 import '../../domain/entities/recurring_expense.dart';
 import '../../data/infrastructure/services/settings_service.dart';
-import '../../data/infrastructure/services/data_collection_service.dart';
+
 import '../../data/infrastructure/services/notification_service.dart';
 import '../../presentation/viewmodels/expenses_viewmodel.dart';
 import '../../presentation/widgets/recurring_expense_config.dart';
@@ -273,32 +273,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         );
 
         await viewModel.addExpense(expense);
-
-        // Record data for model improvement if user has consented
-        try {
-          final dataCollector = di.sl<DataCollectionService>();
-          await dataCollector.recordManualExpense(
-            amount: amount,
-            currency: _currency.value,
-            selectedCategory: _selectedCategory.value,
-            userRemark: remarkText,
-            entryMethod: 'manual_form',
-            additionalMetadata: {
-              'paymentMethod': _selectedPaymentMethod.value,
-              'isRecurring': _isRecurring.value,
-              'recurringFrequency':
-                  _isRecurring.value ? _recurringFrequency.value.name : null,
-              'entryTimestamp': DateTime.now().toIso8601String(),
-              'hasDescription': _descriptionController.text.trim().isNotEmpty,
-            },
-          );
-          debugPrint(
-              '📊 Model improvement data recorded successfully for manual expense');
-        } catch (modelError) {
-          // Don't fail the expense saving if model improvement fails
-          debugPrint(
-              '📊 Failed to record model improvement data for manual expense: $modelError');
-        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

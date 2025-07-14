@@ -17,10 +17,10 @@ class ExpenseCard extends StatefulWidget {
   final VoidCallback? onExpenseUpdated;
 
   const ExpenseCard({
-    Key? key,
+    super.key,
     required this.expense,
     this.onExpenseUpdated,
-  }) : super(key: key);
+  });
 
   @override
   State<ExpenseCard> createState() => _ExpenseCardState();
@@ -229,12 +229,9 @@ class _ExpenseCardState extends State<ExpenseCard>
     final dateFormatter = DateFormat(AppConstants.shortDateFormat);
     final formattedDate = dateFormatter.format(expense.date);
 
-    // Format time if available
-    String formattedTime = '';
-    if (expense.date != null) {
-      final timeFormatter = DateFormat(AppConstants.shortTimeFormat);
-      formattedTime = timeFormatter.format(expense.date!);
-    }
+    // Format time
+    final timeFormatter = DateFormat(AppConstants.shortTimeFormat);
+    final formattedTime = timeFormatter.format(expense.date);
 
     // Format amount with currency
     final viewModel = Provider.of<ExpensesViewModel>(context);

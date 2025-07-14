@@ -27,7 +27,7 @@ class CustomCard extends StatelessWidget {
   final double? height;
 
   const CustomCard({
-    Key? key,
+    super.key,
     required this.child,
     this.color,
     this.elevation = 2.0,
@@ -39,7 +39,7 @@ class CustomCard extends StatelessWidget {
     this.showSplash = true,
     this.width,
     this.height,
-  }) : super(key: key);
+  });
 
   // Default responsive padding and margin
   EdgeInsetsGeometry get _defaultPadding => AppConstants.containerPaddingLarge;

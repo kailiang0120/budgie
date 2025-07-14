@@ -5,7 +5,6 @@ import 'package:uuid/uuid.dart';
 
 import '../../domain/entities/financial_goal.dart';
 import '../utils/app_constants.dart';
-import '../utils/dialog_utils.dart';
 import 'goal_icon_selector.dart';
 
 /// Dialog for creating or editing a financial goal
@@ -18,10 +17,10 @@ class GoalFormDialog extends StatefulWidget {
 
   /// Constructor
   const GoalFormDialog({
-    Key? key,
+    super.key,
     this.goal,
     required this.onSave,
-  }) : super(key: key);
+  });
 
   @override
   State<GoalFormDialog> createState() => _GoalFormDialogState();

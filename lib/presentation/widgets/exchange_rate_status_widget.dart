@@ -7,7 +7,7 @@ import '../utils/app_theme.dart';
 
 /// Widget to display exchange rate status and allow manual refresh
 class ExchangeRateStatusWidget extends StatefulWidget {
-  const ExchangeRateStatusWidget({Key? key}) : super(key: key);
+  const ExchangeRateStatusWidget({super.key});
 
   @override
   State<ExchangeRateStatusWidget> createState() =>
@@ -55,7 +55,7 @@ class _ExchangeRateStatusWidgetState extends State<ExchangeRateStatusWidget> {
         context: context,
         onStatus: (message,
             {isError = false, isLoading = false, isSuccess = false}) {
-          if (context.mounted && message.isNotEmpty) {
+          if (mounted && message.isNotEmpty) {
             final color = isError
                 ? Colors.red
                 : isSuccess
@@ -226,7 +226,7 @@ class _ExchangeRateStatusWidgetState extends State<ExchangeRateStatusWidget> {
 
 /// Compact version for smaller spaces
 class CompactExchangeRateStatusWidget extends StatefulWidget {
-  const CompactExchangeRateStatusWidget({Key? key}) : super(key: key);
+  const CompactExchangeRateStatusWidget({super.key});
 
   @override
   State<CompactExchangeRateStatusWidget> createState() =>
@@ -272,7 +272,7 @@ class _CompactExchangeRateStatusWidgetState
         context: context,
         onStatus: (message,
             {isError = false, isLoading = false, isSuccess = false}) {
-          if (context.mounted && message.isNotEmpty) {
+          if (mounted && message.isNotEmpty) {
             final color = isError
                 ? Colors.red
                 : isSuccess

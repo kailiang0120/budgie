@@ -34,7 +34,7 @@ class AnimatedFloatButton extends StatefulWidget {
   final bool reactToRouteChange;
 
   const AnimatedFloatButton({
-    Key? key,
+    super.key,
     required this.onPressed,
     required this.backgroundColor,
     required this.child,
@@ -44,7 +44,7 @@ class AnimatedFloatButton extends StatefulWidget {
     this.curve = Curves.easeInOut,
     this.elevation,
     this.reactToRouteChange = true,
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedFloatButton> createState() => _AnimatedFloatButtonState();

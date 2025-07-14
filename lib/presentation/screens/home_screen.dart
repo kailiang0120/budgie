@@ -12,16 +12,13 @@ import '../widgets/bottom_nav_bar.dart';
 import '../widgets/date_picker_button.dart';
 import '../widgets/animated_float_button.dart';
 import '../widgets/home_budget_card.dart';
-import '../utils/currency_formatter.dart';
 import '../utils/app_constants.dart';
 // Using theme from MaterialApp
-import '../utils/category_manager.dart';
 import 'add_expense_screen.dart';
 import 'add_budget_screen.dart';
 
 import '../../core/constants/routes.dart';
 import '../../core/router/page_transition.dart';
-import '../../domain/entities/budget.dart';
 import '../../data/infrastructure/services/notification_service.dart';
 import '../../di/injection_container.dart' as di;
 
@@ -36,9 +33,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late DateTime _selectedDate;
   DateFilterMode _filterMode = DateFilterMode.month;
   StreamSubscription<NotificationNavigationAction>? _navigationSubscription;
-  // Add animation controller and animation duration
-  static const _animationDuration = Duration(milliseconds: 300);
-  static const _animationCurve = Curves.easeInOut;
 
   @override
   void initState() {

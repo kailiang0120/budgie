@@ -12,9 +12,9 @@ class CategoryDistributionCard extends StatelessWidget {
   final DateTime selectedDate;
 
   const CategoryDistributionCard({
-    Key? key,
+    super.key,
     required this.selectedDate,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -293,7 +293,8 @@ class _Badge extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(AppConstants.opacityLow),
+            color:
+                Colors.black.withAlpha((255 * AppConstants.opacityLow).toInt()),
             blurRadius: AppConstants.elevationSmall * 2,
             spreadRadius: 1,
           ),

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:dio/dio.dart';
 
 import '../../models/exceptions.dart';
 import '../network/connectivity_service.dart';
@@ -25,7 +24,7 @@ class GeminiApiClient {
       ? Platform.isAndroid
           ? 'http://10.0.2.2:8000'
           : 'http://localhost:8000'
-      : 'https://your-api-domain.com'; // Replace with your production URL
+      : 'https://budgiefastapi.onrender.com'; // Replace with your production URL
   static const String _apiVersion = 'v1';
   static final String _apiBaseUrl = '$_baseUrl/$_apiVersion';
 

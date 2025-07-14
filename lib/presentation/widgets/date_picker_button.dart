@@ -48,7 +48,7 @@ class DatePickerButton extends StatelessWidget {
   final double? width;
 
   const DatePickerButton({
-    Key? key,
+    super.key,
     required this.date,
     required this.onDateChanged,
     this.themeColor,
@@ -60,7 +60,7 @@ class DatePickerButton extends StatelessWidget {
     this.onFilterModeChanged,
     this.showFilterModeSelector = true,
     this.width,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -397,39 +397,6 @@ class DatePickerButton extends StatelessWidget {
       },
     );
   }
-
-  /// Show a custom month-only picker
-  Future<void> _showMonthPicker(BuildContext context, Color themeColor,
-      DateTime firstDate, DateTime lastDate) async {
-    try {
-      final DateTime? result = await showDialog<DateTime>(
-        context: context,
-        builder: (BuildContext context) {
-          return _MonthYearPickerDialog(
-            initialDate: date,
-            firstDate: firstDate,
-            lastDate: lastDate,
-            themeColor: themeColor,
-          );
-        },
-      );
-
-      if (result != null &&
-          (result.year != date.year || result.month != date.month)) {
-        // Preserve the day from the original date
-        final newDate = DateTime(result.year, result.month, date.day);
-        onDateChanged(newDate);
-      }
-    } catch (e) {
-      debugPrint('Error in month picker: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to open month picker: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
 }
 
 /// Custom month year picker dialog
@@ -440,12 +407,12 @@ class _MonthYearPickerDialog extends StatefulWidget {
   final Color themeColor;
 
   const _MonthYearPickerDialog({
-    Key? key,
+    super.key,
     required this.initialDate,
     required this.firstDate,
     required this.lastDate,
     required this.themeColor,
-  }) : super(key: key);
+  });
 
   @override
   _MonthYearPickerDialogState createState() => _MonthYearPickerDialogState();
@@ -639,12 +606,12 @@ class _YearPickerDialog extends StatefulWidget {
   final Color themeColor;
 
   const _YearPickerDialog({
-    Key? key,
+    super.key,
     required this.initialDate,
     required this.firstDate,
     required this.lastDate,
     required this.themeColor,
-  }) : super(key: key);
+  });
 
   @override
   _YearPickerDialogState createState() => _YearPickerDialogState();
@@ -661,7 +628,7 @@ class _YearPickerDialogState extends State<_YearPickerDialog> {
 
     // Calculate initial scroll position to center on selected year
     final yearIndex = _selectedYear - widget.firstDate.year;
-    final itemHeight = 56.0;
+    const itemHeight = 56.0;
     final initialOffset = yearIndex * itemHeight;
     _scrollController = ScrollController(initialScrollOffset: initialOffset);
   }
@@ -710,7 +677,8 @@ class _YearPickerDialogState extends State<_YearPickerDialog> {
                 textAlign: TextAlign.center,
               ),
               selected: isSelected,
-              selectedTileColor: widget.themeColor.withOpacity(0.1),
+              selectedTileColor:
+                  widget.themeColor.withAlpha((255 * 0.1).toInt()),
               onTap: () {
                 setState(() {
                   _selectedYear = year;

@@ -13,10 +13,10 @@ class SpendingTrendsCard extends StatelessWidget {
   final DateFilterMode? filterMode;
 
   const SpendingTrendsCard({
-    Key? key,
+    super.key,
     required this.selectedDate,
     this.filterMode,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -230,8 +230,8 @@ class SpendingTrendsCard extends StatelessWidget {
                           height: 12.h,
                           width: double.infinity,
                           decoration: BoxDecoration(
-                            color: Colors.grey
-                                .withOpacity(AppConstants.opacityLow),
+                            color: Colors.grey.withAlpha(
+                                (255 * AppConstants.opacityLow).toInt()),
                             borderRadius: BorderRadius.circular(
                                 AppConstants.borderRadiusSmall.r),
                           ),
@@ -253,7 +253,7 @@ class SpendingTrendsCard extends StatelessWidget {
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         );
       },

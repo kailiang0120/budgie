@@ -16,10 +16,10 @@ class GoalHistoryCard extends StatelessWidget {
 
   /// Creates a goal history card widget
   const GoalHistoryCard({
-    Key? key,
+    super.key,
     required this.history,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +29,6 @@ class GoalHistoryCard extends StatelessWidget {
         CurrencyFormatter.formatAmount(history.finalAmount, 'MYR');
     final completedDate =
         DateFormat('d MMM yyyy').format(history.completedDate);
-    final createdDate = DateFormat('d MMM yyyy').format(history.createdDate);
 
     return Card(
       elevation: AppConstants.elevationSmall,

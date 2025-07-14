@@ -6,7 +6,6 @@ import '../../domain/repositories/budget_repository.dart';
 import '../../domain/repositories/user_behavior_repository.dart';
 import '../../domain/repositories/goals_repository.dart';
 import '../../domain/repositories/analysis_repository.dart';
-import '../../domain/entities/expense.dart';
 import '../../domain/usecase/budget/reallocate_budget_usecase.dart';
 import '../../data/models/spending_behavior_models.dart';
 import '../../data/models/budget_reallocation_models.dart';
@@ -24,7 +23,6 @@ class AnalysisViewModel extends ChangeNotifier {
   final UserBehaviorRepository _userBehaviorRepository;
   final GoalsRepository _goalsRepository;
   final AnalysisRepository _analysisRepository;
-  final SettingsService _settingsService;
   final GeminiApiClient _apiClient;
   final ReallocateBudgetUseCase _reallocateBudgetUseCase;
 
@@ -60,7 +58,6 @@ class AnalysisViewModel extends ChangeNotifier {
         _userBehaviorRepository = userBehaviorRepository,
         _goalsRepository = goalsRepository,
         _analysisRepository = analysisRepository,
-        _settingsService = settingsService,
         _apiClient = apiClient,
         _reallocateBudgetUseCase = reallocateBudgetUseCase;
 
@@ -420,6 +417,55 @@ class AnalysisViewModel extends ChangeNotifier {
     }
 
     return buffer.toString();
+  }
+
+  /// Load the latest analysis result from local database
+  Future<void> loadLatestAnalysis() async {
+    try {
+      debugPrint(
+          '📊 AnalysisViewModel: Loading latest analysis from local database...');
+
+      // Use a constant guest user ID
+      const userId = _guestUserId;
+
+      // Get the latest analysis result
+      final latestAnalysis =
+          await _analysisRepository.getLatestAnalysis(userId);
+
+      if (latestAnalysis != null) {
+        _spendingAnalysisResult = latestAnalysis;
+        debugPrint('✅ AnalysisViewModel: Latest analysis loaded successfully');
+        debugPrint('📊 Analysis summary: ${latestAnalysis.summary}');
+        debugPrint(
+            '📊 Key insights: ${latestAnalysis.keyInsights.length} items');
+        debugPrint(
+            '📊 Category insights: ${latestAnalysis.categoryInsights.length} items');
+        notifyListeners();
+      } else {
+        debugPrint('📊 AnalysisViewModel: No previous analysis found');
+        _spendingAnalysisResult = null;
+      }
+    } catch (e, stackTrace) {
+      debugPrint('❌ AnalysisViewModel: Error loading latest analysis: $e');
+      debugPrint('Stack trace: $stackTrace');
+      _errorMessage = 'Failed to load previous analysis: ${e.toString()}';
+      _spendingAnalysisResult = null;
+      notifyListeners();
+    }
+  }
+
+  /// Check if there is a previous analysis available
+  Future<bool> hasPreviousAnalysis() async {
+    try {
+      const userId = _guestUserId;
+      final latestAnalysis =
+          await _analysisRepository.getLatestAnalysis(userId);
+      return latestAnalysis != null;
+    } catch (e) {
+      debugPrint(
+          '❌ AnalysisViewModel: Error checking for previous analysis: $e');
+      return false;
+    }
   }
 
   /// Clear all analysis results and reset state

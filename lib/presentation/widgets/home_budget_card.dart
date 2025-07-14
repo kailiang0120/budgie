@@ -26,13 +26,13 @@ class HomeBudgetCard extends StatelessWidget {
   final bool isLoading;
 
   const HomeBudgetCard({
-    Key? key,
+    super.key,
     required this.budget,
     required this.selectedDate,
     required this.filterMode,
     required this.onTap,
     this.isLoading = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +53,7 @@ class HomeBudgetCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge.r),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withAlpha((255 * 0.08).toInt()),
               blurRadius: 8.r,
               offset: Offset(0, 2.h),
             ),
@@ -78,7 +78,7 @@ class HomeBudgetCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge.r),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withAlpha((255 * 0.08).toInt()),
             blurRadius: 8.r,
             offset: Offset(0, 2.h),
           ),
@@ -139,7 +139,7 @@ class HomeBudgetCard extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(AppConstants.spacingMedium.w),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
+                color: AppTheme.primaryColor.withAlpha((255 * 0.1).toInt()),
                 borderRadius:
                     BorderRadius.circular(AppConstants.borderRadiusMedium.r),
               ),
@@ -235,7 +235,7 @@ class HomeBudgetCard extends StatelessWidget {
             Container(
               padding: EdgeInsets.all(AppConstants.spacingMedium.w),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
+                color: AppTheme.primaryColor.withAlpha((255 * 0.1).toInt()),
                 borderRadius:
                     BorderRadius.circular(AppConstants.borderRadiusMedium.r),
               ),
@@ -276,7 +276,7 @@ class HomeBudgetCard extends StatelessWidget {
                 vertical: AppConstants.spacingSmall.h,
               ),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.1),
+                color: statusColor.withAlpha((255 * 0.1).toInt()),
                 borderRadius:
                     BorderRadius.circular(AppConstants.borderRadiusLarge.r),
               ),

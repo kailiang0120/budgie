@@ -298,21 +298,28 @@ class BudgetReallocationService {
       return currentBudget;
     }
 
+    // Filter to only process High priority suggestions
+    final highPrioritySuggestions = response.suggestions
+        .where((suggestion) => suggestion.criticality.toLowerCase() == 'high')
+        .toList();
+
+    debugPrint(
+        '🔧 High priority suggestions: ${highPrioritySuggestions.length}');
+
+    if (highPrioritySuggestions.isEmpty) {
+      debugPrint('📊 No high priority recommendations to apply');
+      return currentBudget;
+    }
+
     final newCategories =
         Map<String, CategoryBudget>.from(currentBudget.categories);
     double totalReallocated = 0;
 
-    for (final recommendation in response.suggestions) {
-      final fromCat = newCategories[recommendation.fromCategory];
-      final toCat = newCategories[recommendation.toCategory];
-
-      if (fromCat == null || toCat == null) {
-        debugPrint(
-            '⚠️ Skipping recommendation for unknown categories: ${recommendation.fromCategory} -> ${recommendation.toCategory}');
-        continue;
-      }
-
+    for (final recommendation in highPrioritySuggestions) {
       final transferAmount = recommendation.amount;
+
+      debugPrint(
+          '🔧 Processing: ${recommendation.fromCategory} → ${recommendation.toCategory}: ${transferAmount.toStringAsFixed(2)} (${recommendation.criticality})');
 
       if (transferAmount <= 0) {
         debugPrint(
@@ -320,41 +327,122 @@ class BudgetReallocationService {
         continue;
       }
 
-      // Basic validation: Do not allow transfer to exceed available amount in a category
-      if (fromCat.left < transferAmount) {
-        debugPrint(
-            '⚠️ Transfer amount ${transferAmount.toStringAsFixed(2)} exceeds available ${fromCat.left} in ${recommendation.fromCategory}. Skipping.');
-        continue;
+      // Handle transfers to/from savings
+      if (recommendation.toCategory.toLowerCase() == 'savings' ||
+          recommendation.toCategory.toLowerCase() == 'saving') {
+        // Transfer from category to savings (unallocate budget)
+        final fromCat = newCategories[recommendation.fromCategory];
+        if (fromCat != null) {
+          // Validate: Do not allow transfer to exceed available amount in category
+          if (fromCat.left < transferAmount) {
+            debugPrint(
+                '⚠️ Transfer amount ${transferAmount.toStringAsFixed(2)} exceeds available ${fromCat.left.toStringAsFixed(2)} in ${recommendation.fromCategory}. Skipping.');
+            continue;
+          }
+
+          // Reduce budget allocation (this moves money back to savings)
+          final newBudgetAmount =
+              (fromCat.budget - transferAmount).clamp(0.0, double.infinity);
+
+          newCategories[recommendation.fromCategory] = CategoryBudget(
+            budget: newBudgetAmount,
+            left: fromCat.left, // Keep remaining amount unchanged for now
+          );
+
+          debugPrint(
+              '💰 Unallocated ${transferAmount.toStringAsFixed(2)} from ${recommendation.fromCategory} to savings');
+        } else {
+          debugPrint(
+              '⚠️ Category ${recommendation.fromCategory} not found in budget');
+        }
+      } else if (recommendation.fromCategory.toLowerCase() == 'savings' ||
+          recommendation.fromCategory.toLowerCase() == 'saving') {
+        // Transfer from savings to category (allocate budget)
+        final toCat = newCategories[recommendation.toCategory];
+        if (toCat != null) {
+          // Check if we have enough savings to allocate
+          final currentSaving = currentBudget.saving;
+          if (currentSaving < transferAmount) {
+            debugPrint(
+                '⚠️ Transfer amount ${transferAmount.toStringAsFixed(2)} exceeds available savings ${currentSaving.toStringAsFixed(2)}. Skipping.');
+            continue;
+          }
+
+          newCategories[recommendation.toCategory] = CategoryBudget(
+            budget: toCat.budget + transferAmount,
+            left: toCat.left + transferAmount, // Increase available amount
+          );
+
+          debugPrint(
+              '💰 Allocated ${transferAmount.toStringAsFixed(2)} from savings to ${recommendation.toCategory}');
+        } else {
+          debugPrint(
+              '⚠️ Category ${recommendation.toCategory} not found in budget');
+        }
+      } else {
+        // Transfer between categories
+        final fromCat = newCategories[recommendation.fromCategory];
+        final toCat = newCategories[recommendation.toCategory];
+
+        if (fromCat != null && toCat != null) {
+          // Validate: Do not allow transfer to exceed available amount in category
+          if (fromCat.left < transferAmount) {
+            debugPrint(
+                '⚠️ Transfer amount ${transferAmount.toStringAsFixed(2)} exceeds available ${fromCat.left.toStringAsFixed(2)} in ${recommendation.fromCategory}. Skipping.');
+            continue;
+          }
+
+          // Ensure we don't reduce budget below zero
+          final actualTransferAmount =
+              transferAmount.clamp(0.0, fromCat.budget);
+
+          newCategories[recommendation.fromCategory] = CategoryBudget(
+            budget: fromCat.budget - actualTransferAmount,
+            left:
+                fromCat.left - actualTransferAmount, // Reduce available amount
+          );
+
+          newCategories[recommendation.toCategory] = CategoryBudget(
+            budget: toCat.budget + actualTransferAmount,
+            left:
+                toCat.left + actualTransferAmount, // Increase available amount
+          );
+
+          debugPrint(
+              '💸 Transferred ${actualTransferAmount.toStringAsFixed(2)} from ${recommendation.fromCategory} to ${recommendation.toCategory}');
+        } else {
+          debugPrint(
+              '⚠️ Skipping recommendation for unknown categories: ${recommendation.fromCategory} -> ${recommendation.toCategory}');
+          continue;
+        }
       }
 
-      // Apply reallocation
-      newCategories[recommendation.fromCategory] = CategoryBudget(
-        budget: fromCat.budget, // Keep original budget amount
-        left: fromCat.left - transferAmount,
-      );
-
-      newCategories[recommendation.toCategory] = CategoryBudget(
-        budget: toCat.budget, // Keep original budget amount
-        left: toCat.left + transferAmount,
-      );
-
       totalReallocated += transferAmount;
-      debugPrint(
-          '💸 Reallocated ${transferAmount.toStringAsFixed(2)} from ${recommendation.fromCategory} to ${recommendation.toCategory}');
     }
 
     if (totalReallocated == 0) {
+      debugPrint('🔧 No reallocations applied');
       return currentBudget;
     }
 
+    // Calculate new saving amount (total budget - sum of category budgets)
+    final totalCategoryBudgets = newCategories.values
+        .fold(0.0, (sum, category) => sum + category.budget);
+    final newSaving = currentBudget.total - totalCategoryBudgets;
+
     final optimizedBudget = currentBudget.copyWith(
       categories: newCategories,
+      saving: newSaving,
     );
 
+    // Save the updated budget to ensure persistence
     await _budgetRepository.setBudget(monthId, optimizedBudget);
 
     debugPrint(
         '✅ Applied reallocations totaling ${totalReallocated.toStringAsFixed(2)} ${currentBudget.currency}');
+    debugPrint(
+        '💰 Savings changed from ${currentBudget.saving.toStringAsFixed(2)} to ${newSaving.toStringAsFixed(2)} ${currentBudget.currency}');
+
     return optimizedBudget;
   }
 

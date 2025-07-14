@@ -12,7 +12,7 @@ class SettingsService extends ChangeNotifier {
   final String _themeKey = 'app_theme';
   final String _allowNotificationKey = 'allow_notification';
   final String _autoBudgetKey = 'auto_budget';
-  final String _improveAccuracyKey = 'improve_accuracy';
+
   final String _syncEnabledKey = 'sync_enabled';
   final String _currencyKey = 'user_currency';
   final String _locationEnabledKey = 'location_enabled';
@@ -24,7 +24,7 @@ class SettingsService extends ChangeNotifier {
   String _theme = 'light';
   bool _allowNotification = false;
   bool _autoBudget = false;
-  bool _improveAccuracy = false;
+
   bool _syncEnabled = false;
   String _currency = 'MYR';
   bool _locationEnabled = false;
@@ -39,7 +39,7 @@ class SettingsService extends ChangeNotifier {
   String get theme => _theme;
   bool get allowNotification => _allowNotification;
   bool get autoBudget => _autoBudget;
-  bool get improveAccuracy => _improveAccuracy;
+
   bool get syncEnabled => _syncEnabled;
   String get currency => _currency;
   bool get locationEnabled => _locationEnabled;
@@ -49,7 +49,8 @@ class SettingsService extends ChangeNotifier {
 
   SettingsService() {
     _instance = this;
-    _loadSettings();
+    // Remove immediate call to _loadSettings() from constructor
+    // This will be called explicitly during app initialization
   }
 
   // Static getter to access the current instance
@@ -62,7 +63,6 @@ class SettingsService extends ChangeNotifier {
         'settings': {
           'allowNotification': _allowNotification,
           'autoBudget': _autoBudget,
-          'improveAccuracy': _improveAccuracy,
           'syncEnabled': _syncEnabled,
           'locationEnabled': _locationEnabled,
           'cameraEnabled': _cameraEnabled,
@@ -76,14 +76,14 @@ class SettingsService extends ChangeNotifier {
     try {
       debugPrint('🔧 SettingsService: Initializing settings');
 
+      // Load settings from shared preferences FIRST
+      await _loadSettings();
+
       // Set permission handler if provided
       if (permissionHandler != null) {
         _permissionHandler = permissionHandler;
         await permissionHandler.initialize(this);
       }
-
-      // Load settings from shared preferences
-      await _loadSettings();
 
       // Verify permission settings match actual permissions
       await _verifyPermissionSettings();
@@ -106,7 +106,7 @@ class SettingsService extends ChangeNotifier {
       _theme = prefs.getString(_themeKey) ?? 'light';
       _allowNotification = prefs.getBool(_allowNotificationKey) ?? false;
       _autoBudget = prefs.getBool(_autoBudgetKey) ?? false;
-      _improveAccuracy = prefs.getBool(_improveAccuracyKey) ?? false;
+
       _syncEnabled = prefs.getBool(_syncEnabledKey) ?? false;
       _currency = prefs.getString(_currencyKey) ?? 'MYR';
       _locationEnabled = prefs.getBool(_locationEnabledKey) ?? false;
@@ -117,7 +117,7 @@ class SettingsService extends ChangeNotifier {
       debugPrint(
           '🔧 SettingsService: Loaded settings - theme=$_theme, currency=$_currency, '
           'allowNotification=$_allowNotification, autoBudget=$_autoBudget, '
-          'improveAccuracy=$_improveAccuracy, syncEnabled=$_syncEnabled, '
+          'syncEnabled=$_syncEnabled, '
           'locationEnabled=$_locationEnabled, cameraEnabled=$_cameraEnabled, '
           'storageEnabled=$_storageEnabled, biometricEnabled=$_biometricEnabled');
     } catch (e) {
@@ -183,7 +183,7 @@ class SettingsService extends ChangeNotifier {
       const defaultCurrency = 'MYR';
       const defaultAllowNotification = false;
       const defaultAutoBudget = false;
-      const defaultImproveAccuracy = false;
+
       const defaultSyncEnabled = false;
       const defaultLocationEnabled = false;
       const defaultCameraEnabled = false;
@@ -195,7 +195,7 @@ class SettingsService extends ChangeNotifier {
       _currency = defaultCurrency;
       _allowNotification = defaultAllowNotification;
       _autoBudget = defaultAutoBudget;
-      _improveAccuracy = defaultImproveAccuracy;
+
       _syncEnabled = defaultSyncEnabled;
       _locationEnabled = defaultLocationEnabled;
       _cameraEnabled = defaultCameraEnabled;
@@ -208,7 +208,7 @@ class SettingsService extends ChangeNotifier {
       await prefs.setString(_currencyKey, defaultCurrency);
       await prefs.setBool(_allowNotificationKey, defaultAllowNotification);
       await prefs.setBool(_autoBudgetKey, defaultAutoBudget);
-      await prefs.setBool(_improveAccuracyKey, defaultImproveAccuracy);
+
       await prefs.setBool(_syncEnabledKey, defaultSyncEnabled);
       await prefs.setBool(_locationEnabledKey, defaultLocationEnabled);
       await prefs.setBool(_cameraEnabledKey, defaultCameraEnabled);
@@ -305,24 +305,6 @@ class SettingsService extends ChangeNotifier {
           '🔧 SettingsService: Auto budget setting updated to: $enabled');
     } catch (e) {
       debugPrint('🔧 SettingsService: Error updating auto budget setting: $e');
-    }
-  }
-
-  // Update improve accuracy setting
-  Future<void> updateImproveAccuracySetting(bool enabled) async {
-    try {
-      _improveAccuracy = enabled;
-
-      // Save to shared preferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_improveAccuracyKey, enabled);
-
-      notifyListeners();
-      debugPrint(
-          '🔧 SettingsService: Improve accuracy setting updated to: $enabled');
-    } catch (e) {
-      debugPrint(
-          '🔧 SettingsService: Error updating improve accuracy setting: $e');
     }
   }
 

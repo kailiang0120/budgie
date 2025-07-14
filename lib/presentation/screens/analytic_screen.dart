@@ -23,7 +23,7 @@ String formatMonthId(DateTime date) {
 }
 
 class AnalyticScreen extends StatefulWidget {
-  const AnalyticScreen({Key? key}) : super(key: key);
+  const AnalyticScreen({super.key});
 
   @override
   State<AnalyticScreen> createState() => _AnalyticScreenState();

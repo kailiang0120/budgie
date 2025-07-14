@@ -1,14 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
-
-import '../../core/constants/routes.dart';
-import '../../presentation/utils/app_theme.dart';
-import '../../presentation/widgets/custom_card.dart';
-import '../../presentation/widgets/custom_text_field.dart';
-import '../../presentation/widgets/submit_button.dart';
 
 import '../../data/infrastructure/services/notification_service.dart';
 import '../../data/infrastructure/services/notification_listener_service.dart';
@@ -18,7 +10,6 @@ import '../../data/models/expense_detection_models.dart';
 import '../../di/injection_container.dart' as di;
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
-import '../../domain/usecase/notification/record_notification_detection_usecase.dart';
 
 /// Test screen for notification processing and expense detection
 class NotificationTestScreen extends StatefulWidget {
@@ -34,12 +25,6 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
   final _listenerService = NotificationListenerService();
   final _permissionHandler = di.sl<PermissionHandlerService>();
   late final ExpenseExtractionDomainService _extractionService;
-  late final RecordNotificationDetectionUseCase _recordUseCase;
-
-  // Controllers
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _messageController = TextEditingController();
-  final TextEditingController _delayController = TextEditingController();
 
   // State
   bool _isLoading = false;
@@ -54,27 +39,20 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
   @override
   void initState() {
     super.initState();
-    _extractionService = di.sl<ExpenseExtractionDomainService>();
-    _recordUseCase = di.sl<RecordNotificationDetectionUseCase>();
-    _initializeDefaults();
+    try {
+      _extractionService = di.sl<ExpenseExtractionDomainService>();
+    } catch (e) {
+      debugPrint('❌ NotificationTestScreen: Failed to initialize services: $e');
+      _addLog('❌ Service initialization failed: $e');
+    }
     _checkServiceHealth();
     _setupNotificationListener();
   }
 
   @override
   void dispose() {
-    _titleController.dispose();
-    _messageController.dispose();
-    _delayController.dispose();
     _logScrollController.dispose();
     super.dispose();
-  }
-
-  void _initializeDefaults() {
-    _titleController.text = 'Maybank2u: Card Transaction';
-    _messageController.text =
-        "You've just spent RM 19.60 at HORIZON MIRACLES SDN BHD with your Maybank Debit Card Visa ending 9857. View your receipt now.";
-    _delayController.text = '3';
   }
 
   Future<void> _setupNotificationListener() async {
@@ -91,7 +69,6 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
       String notifTitle, String notifContent, String? packageName) async {
     try {
       _addLog('🔍 Starting expense detection pipeline...');
-      final notificationText = '$notifTitle: $notifContent';
       final source = packageName ?? 'test_notification';
 
       final isExpense = await _extractionService.classifyNotification(
@@ -129,63 +106,6 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
     }
   }
 
-  /// Test expense detection directly on the input text
-  Future<void> _testExpenseDetection() async {
-    setState(() => _isLoading = true);
-    _addLog('🔍 Testing expense detection on input text...');
-
-    try {
-      final title = _titleController.text.trim();
-      final content = _messageController.text.trim();
-      final notificationText = '$title: $content';
-
-      if (title.isEmpty || content.isEmpty) {
-        _addLog('❌ Please enter both title and message for testing');
-        setState(() => _isLoading = false);
-        return;
-      }
-
-      final isExpense = await _extractionService.classifyNotification(
-        title: title,
-        content: content,
-        source: 'manual_test',
-        packageName: 'test_app',
-      );
-
-      if (!isExpense) {
-        _addLog('ℹ️ Not classified as expense');
-        setState(() => _status = 'Not classified as an expense.');
-        return;
-      }
-
-      _addLog('✅ Classified as an expense. Extracting details...');
-      final result = await _extractionService.extractExpenseDetails(
-        title: title,
-        content: content,
-        source: 'manual_test',
-        packageName: 'test_app',
-      );
-
-      if (result != null) {
-        await _logAndRecordExtraction(
-          result: result,
-          title: title,
-          content: content,
-          source: 'manual_test',
-          packageName: 'test_app',
-        );
-      } else {
-        _addLog('ℹ️ No expense details extracted from text.');
-        setState(() => _status = 'No expense details extracted.');
-      }
-    } catch (e) {
-      _addLog('❌ Detection test failed: $e');
-      setState(() => _status = 'Detection test error: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
   /// Log the TFLite extraction result with detailed information
   Future<void> _logAndRecordExtraction({
     required ExpenseExtractionResult result,
@@ -203,20 +123,10 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
 
     setState(() => _status = 'Expense extracted successfully!');
 
-    // Record detection attempt and send actionable notification
-    final detectionId = await _recordUseCase.recordDetectionAttempt(
-      originalNotificationText: '$title: $content',
-      notificationSource: source,
-      packageName: packageName,
-      detectionResult: result,
-    );
-
-    if (detectionId != null) {
-      _addLog('📊 Detection attempt recorded with ID: $detectionId');
-      await _sendActionableNotification(result, detectionId);
-    } else {
-      _addLog('⚠️ Failed to record detection attempt. Notification not sent.');
-    }
+    // Generate detection ID and send actionable notification
+    final detectionId = DateTime.now().millisecondsSinceEpoch.toString();
+    _addLog('📊 Generated detection ID: $detectionId');
+    await _sendActionableNotification(result, detectionId);
   }
 
   /// Send actionable notification with extracted expense details
@@ -245,87 +155,45 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
     try {
       _addLog('Checking service health...');
 
+      // Check if extraction service is available
+      bool extractionServiceHealthy = false;
+      try {
+        await _extractionService.initialize();
+        extractionServiceHealthy = _extractionService.isInitialized;
+        _addLog(
+            'ExpenseExtractionDomainService: ${extractionServiceHealthy ? '✅ Ready' : '❌ Failed'}');
+      } catch (e) {
+        _addLog('❌ ExpenseExtractionDomainService initialization failed: $e');
+      }
+
       // Check notification service
-      await _notificationService.initialize();
+      try {
+        await _notificationService.initialize();
+        _addLog('Notification Service: ✅ Initialized');
+      } catch (e) {
+        _addLog('❌ Notification Service failed: $e');
+      }
 
       // Check listener service
-      await _listenerService.initialize();
-
-      // Check if TFLite extraction service is initialized
-      final isHealthy = true; // Assume healthy if no errors thrown
+      try {
+        await _listenerService.initialize();
+        _addLog('Listener Service: ✅ Initialized');
+      } catch (e) {
+        _addLog('❌ Listener Service failed: $e');
+      }
 
       setState(() {
-        _isServiceHealthy = isHealthy;
+        _isServiceHealthy = extractionServiceHealthy;
         _isListening = _listenerService.isListening;
-        _status =
-            'Services initialized. Pipeline: ${isHealthy ? 'Ready' : 'Unavailable'}';
+        _status = extractionServiceHealthy
+            ? 'Services initialized. Pipeline: Ready'
+            : 'Pipeline unavailable - check service initialization';
       });
 
       _addLog('Service health check completed');
-      _addLog('Notification Service: ✅ Initialized');
-      _addLog('Listener Service: ✅ Initialized');
-      _addLog(
-          'Expense Detection Pipeline: ${isHealthy ? '✅ Ready' : '❌ Unavailable'}');
-      _addLog('TFLite classification + Gemini extraction services loaded');
     } catch (e) {
       _addLog('Error checking service health: $e');
       setState(() => _status = 'Error initializing services: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _sendTestNotification() async {
-    setState(() => _isLoading = true);
-
-    try {
-      _addLog('Sending test notification...');
-
-      final success = await _notificationService.sendNotification(
-        title: _titleController.text.trim(),
-        content: _messageController.text.trim(),
-      );
-
-      if (success) {
-        setState(() => _status = 'Test notification sent successfully');
-        _addLog('Test notification sent successfully');
-      } else {
-        setState(() => _status = 'Failed to send test notification');
-        _addLog('Failed to send test notification');
-      }
-    } catch (e) {
-      _addLog('Error sending test notification: $e');
-      setState(() => _status = 'Error: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _scheduleNotification() async {
-    final delaySeconds = int.tryParse(_delayController.text) ?? 3;
-
-    setState(() => _isLoading = true);
-
-    try {
-      _addLog('Scheduling notification for $delaySeconds seconds...');
-
-      final success = await _notificationService.scheduleNotification(
-        title: _titleController.text.trim(),
-        content: _messageController.text.trim(),
-        delay: Duration(seconds: delaySeconds),
-      );
-
-      if (success) {
-        setState(
-            () => _status = 'Notification scheduled for $delaySeconds seconds');
-        _addLog('Notification scheduled successfully');
-      } else {
-        setState(() => _status = 'Failed to schedule notification');
-        _addLog('Failed to schedule notification');
-      }
-    } catch (e) {
-      _addLog('Error scheduling notification: $e');
-      setState(() => _status = 'Error: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -376,49 +244,9 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
     }
   }
 
-  Future<void> _testActionableNotification() async {
-    setState(() => _isLoading = true);
-
-    try {
-      _addLog('Testing actionable expense notification...');
-
-      // 1. Create a mock extraction result
-      final mockResult = ExpenseExtractionResult(
-        amount: '25.50',
-        currency: 'MYR',
-        merchantName: 'Starbucks',
-        paymentMethod: 'Credit Card',
-        suggestedCategory: 'food',
-        confidence: 0.95,
-      );
-
-      // 2. Record the mock attempt to get a detection ID
-      final detectionId = await _recordUseCase.recordDetectionAttempt(
-        originalNotificationText: 'Mock Notification: Test Starbucks',
-        notificationSource: 'manual_test',
-        packageName: 'com.kai.budgie',
-        detectionResult: mockResult,
-      );
-
-      // 3. Send the notification if recording was successful
-      if (detectionId != null) {
-        _addLog('📊 Mock detection recorded with ID: $detectionId');
-        await _sendActionableNotification(mockResult, detectionId);
-        setState(() => _status =
-            'Test actionable notification sent! Check your notification panel.');
-      } else {
-        _addLog('❌ Failed to record mock detection.');
-        setState(() => _status = 'Failed to record mock detection.');
-      }
-    } catch (e) {
-      _addLog('❌ Error testing notification: $e');
-      setState(() => _status = 'Error: $e');
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
   void _addLog(String log) {
+    if (!mounted) return; // Prevent setState after dispose
+
     setState(() {
       _logs.add('[${DateTime.now().toString().substring(11, 19)}] $log');
 
@@ -430,7 +258,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
 
     // Auto-scroll to bottom
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_logScrollController.hasClients) {
+      if (mounted && _logScrollController.hasClients) {
         _logScrollController.animateTo(
           _logScrollController.position.maxScrollExtent,
           duration: AppConstants.animationDurationShort,
@@ -451,10 +279,11 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Expense Detection Test Center',
+          'Expense Detection Test',
           style: TextStyle(
             fontSize: AppConstants.textSizeXLarge.sp,
             fontWeight: FontWeight.w600,
+            color: Theme.of(context).textTheme.titleMedium?.color,
           ),
         ),
         actions: [
@@ -497,8 +326,6 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                   _buildStatusCard(),
                   SizedBox(height: AppConstants.spacingLarge.h),
                   _buildServiceControlCard(),
-                  SizedBox(height: AppConstants.spacingLarge.h),
-                  _buildNotificationTestCard(),
                   SizedBox(height: AppConstants.spacingLarge.h),
                   _buildLogCard(),
                   SizedBox(height: AppConstants.bottomPaddingWithNavBar.h),
@@ -548,7 +375,6 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
             ),
             SizedBox(height: AppConstants.spacingSmall.h),
             ...[
-              '• Send and schedule test notifications',
               '• Test classification and extraction pipeline',
               '• Monitor notification listening service',
               '• View detailed processing logs',
@@ -718,174 +544,6 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                   ),
                 ),
               ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNotificationTestCard() {
-    return Card(
-      elevation: AppConstants.elevationStandard,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge.r),
-      ),
-      child: Padding(
-        padding: AppConstants.containerPaddingLarge,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Notification Testing',
-              style: TextStyle(
-                fontSize: AppConstants.textSizeLarge.sp,
-                fontWeight: FontWeight.w600,
-                color: Theme.of(context).textTheme.titleMedium?.color,
-              ),
-            ),
-            SizedBox(height: AppConstants.spacingLarge.h),
-
-            // Input fields
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                labelText: 'Notification Title',
-                labelStyle: TextStyle(fontSize: AppConstants.textSizeSmall.sp),
-                border: OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(AppConstants.borderRadiusMedium.r),
-                ),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: AppConstants.spacingMedium.w,
-                  vertical: AppConstants.spacingMedium.h,
-                ),
-              ),
-              style: TextStyle(fontSize: AppConstants.textSizeSmall.sp),
-            ),
-            SizedBox(height: AppConstants.spacingMedium.h),
-
-            TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                labelText: 'Notification Message',
-                labelStyle: TextStyle(fontSize: AppConstants.textSizeSmall.sp),
-                hintText: 'Try: "Payment of RM 50.00 at Starbucks completed"',
-                hintStyle: TextStyle(fontSize: AppConstants.textSizeXSmall.sp),
-                border: OutlineInputBorder(
-                  borderRadius:
-                      BorderRadius.circular(AppConstants.borderRadiusMedium.r),
-                ),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: AppConstants.spacingMedium.w,
-                  vertical: AppConstants.spacingMedium.h,
-                ),
-              ),
-              style: TextStyle(fontSize: AppConstants.textSizeSmall.sp),
-              maxLines: 3,
-            ),
-            SizedBox(height: AppConstants.spacingMedium.h),
-
-            Row(
-              children: [
-                Expanded(
-                  flex: 1,
-                  child: TextField(
-                    controller: _delayController,
-                    decoration: InputDecoration(
-                      labelText: 'Delay (sec)',
-                      labelStyle:
-                          TextStyle(fontSize: AppConstants.textSizeSmall.sp),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                            AppConstants.borderRadiusMedium.r),
-                      ),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: AppConstants.spacingMedium.w,
-                        vertical: AppConstants.spacingMedium.h,
-                      ),
-                    ),
-                    style: TextStyle(fontSize: AppConstants.textSizeSmall.sp),
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                SizedBox(width: AppConstants.spacingMedium.w),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton.icon(
-                    onPressed: _scheduleNotification,
-                    icon: Icon(Icons.schedule,
-                        size: AppConstants.iconSizeSmall.sp),
-                    label: Text(
-                      'Schedule',
-                      style: TextStyle(fontSize: AppConstants.textSizeSmall.sp),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: Size(double.infinity,
-                          AppConstants.componentHeightStandard.h),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: AppConstants.spacingLarge.h),
-
-            // Action buttons: Send Now and Test Detection
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _sendTestNotification,
-                    icon: Icon(Icons.send, size: AppConstants.iconSizeSmall.sp),
-                    label: Text(
-                      'Send Now',
-                      style: TextStyle(fontSize: AppConstants.textSizeSmall.sp),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: Size(double.infinity,
-                          AppConstants.componentHeightStandard.h),
-                    ),
-                  ),
-                ),
-                SizedBox(width: AppConstants.spacingMedium.w),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _testExpenseDetection,
-                    icon: Icon(Icons.analytics,
-                        size: AppConstants.iconSizeSmall.sp),
-                    label: Text(
-                      'Test Detection',
-                      style: TextStyle(fontSize: AppConstants.textSizeSmall.sp),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      minimumSize: Size(double.infinity,
-                          AppConstants.componentHeightStandard.h),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: AppConstants.spacingMedium.h),
-
-            // Test Actionable Notification button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _testActionableNotification,
-                icon: Icon(Icons.notification_add,
-                    size: AppConstants.iconSizeSmall.sp),
-                label: Text(
-                  'Test Expense Notification',
-                  style: TextStyle(fontSize: AppConstants.textSizeSmall.sp),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                  foregroundColor: Colors.white,
-                  minimumSize: Size(
-                      double.infinity, AppConstants.componentHeightStandard.h),
-                ),
-              ),
             ),
           ],
         ),

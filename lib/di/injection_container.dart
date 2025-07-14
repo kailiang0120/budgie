@@ -33,7 +33,7 @@ import '../data/datasources/settings_local_data_source.dart';
 // Services
 import '../data/infrastructure/services/background_task_service.dart';
 import '../data/infrastructure/services/currency_conversion_service.dart';
-import '../data/infrastructure/services/data_collection_service.dart';
+
 import '../data/infrastructure/services/expense_extraction_service_impl.dart';
 import '../data/infrastructure/services/gemini_api_client.dart';
 import '../data/infrastructure/services/notification_listener_service.dart';
@@ -69,7 +69,6 @@ import '../domain/usecase/expense/update_expense_usecase.dart';
 import '../domain/usecase/goals/get_goals_usecase.dart';
 import '../domain/usecase/goals/manage_goals_usecase.dart';
 import '../domain/usecase/goals/allocate_savings_to_goals_usecase.dart';
-import '../domain/usecase/notification/record_notification_detection_usecase.dart';
 
 import 'performance_tracker.dart';
 
@@ -136,7 +135,7 @@ Future<void> init() async {
   sl.registerLazySingleton(() => NotificationService());
   sl.registerLazySingleton(() => PermissionHandlerService());
   sl.registerLazySingleton(() => NotificationListenerService());
-  sl.registerLazySingleton(() => DataCollectionService());
+
   sl.registerLazySingleton(() => BackgroundTaskService());
   sl.registerLazySingleton(() => SyncService(
       expensesRepository: sl(),
@@ -152,6 +151,15 @@ Future<void> init() async {
 
   sl.registerLazySingleton<ExpenseExtractionService>(
       () => ExpenseExtractionServiceImpl());
+
+  // Register ExpenseExtractionDomainService
+  sl.registerLazySingleton(() {
+    final domainService = ExpenseExtractionDomainService();
+    // Set up dependencies
+    domainService.setExtractionService(sl<ExpenseExtractionService>());
+    domainService.setNotificationService(sl<NotificationService>());
+    return domainService;
+  });
 
   sl.registerLazySingleton(() => BudgetCalculationService(
         currencyService: sl<CurrencyConversionService>(),
@@ -234,10 +242,6 @@ Future<void> init() async {
       budgetRepository: sl(),
       expensesRepository: sl(),
       fundingService: sl()));
-
-  // Notification use cases
-  sl.registerLazySingleton(
-      () => RecordNotificationDetectionUseCase(settingsService: sl()));
 
   // =================================================================
   // ViewModels

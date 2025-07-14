@@ -4,7 +4,6 @@ import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:uuid/uuid.dart';
 
 // Import database tables
 part 'app_database.g.dart';
@@ -89,8 +88,7 @@ class AppSettings extends Table {
   BoolColumn get allowNotification =>
       boolean().withDefault(const Constant(false))();
   BoolColumn get autoBudget => boolean().withDefault(const Constant(false))();
-  BoolColumn get improveAccuracy =>
-      boolean().withDefault(const Constant(false))();
+
   BoolColumn get syncEnabled => boolean().withDefault(const Constant(false))();
   DateTimeColumn get updatedAt => dateTime()();
 }
@@ -151,7 +149,7 @@ class AnalysisResults extends Table {
 @DriftAccessor(tables: [AnalysisResults])
 class AnalysisResultDao extends DatabaseAccessor<AppDatabase>
     with _$AnalysisResultDaoMixin {
-  AnalysisResultDao(AppDatabase db) : super(db);
+  AnalysisResultDao(super.db);
 
   /// Saves a new analysis result to the database.
   Future<void> saveAnalysisResult(AnalysisResult result) =>
@@ -170,42 +168,42 @@ class AnalysisResultDao extends DatabaseAccessor<AppDatabase>
 @DriftAccessor(tables: [AppSettings])
 class AppSettingsDao extends DatabaseAccessor<AppDatabase>
     with _$AppSettingsDaoMixin {
-  AppSettingsDao(AppDatabase db) : super(db);
+  AppSettingsDao(super.db);
 }
 
 @DriftAccessor(tables: [ExchangeRates])
 class ExchangeRatesDao extends DatabaseAccessor<AppDatabase>
     with _$ExchangeRatesDaoMixin {
-  ExchangeRatesDao(AppDatabase db) : super(db);
+  ExchangeRatesDao(super.db);
 }
 
 @DriftAccessor(tables: [UserProfiles])
 class UserProfilesDao extends DatabaseAccessor<AppDatabase>
     with _$UserProfilesDaoMixin {
-  UserProfilesDao(AppDatabase db) : super(db);
+  UserProfilesDao(super.db);
 }
 
 @DriftAccessor(tables: [Budgets])
 class BudgetsDao extends DatabaseAccessor<AppDatabase> with _$BudgetsDaoMixin {
-  BudgetsDao(AppDatabase db) : super(db);
+  BudgetsDao(super.db);
 }
 
 @DriftAccessor(tables: [Expenses])
 class ExpensesDao extends DatabaseAccessor<AppDatabase>
     with _$ExpensesDaoMixin {
-  ExpensesDao(AppDatabase db) : super(db);
+  ExpensesDao(super.db);
 }
 
 @DriftAccessor(tables: [FinancialGoals])
 class FinancialGoalsDao extends DatabaseAccessor<AppDatabase>
     with _$FinancialGoalsDaoMixin {
-  FinancialGoalsDao(AppDatabase db) : super(db);
+  FinancialGoalsDao(super.db);
 }
 
 @DriftAccessor(tables: [GoalHistory])
 class GoalHistoryDao extends DatabaseAccessor<AppDatabase>
     with _$GoalHistoryDaoMixin {
-  GoalHistoryDao(AppDatabase db) : super(db);
+  GoalHistoryDao(super.db);
 }
 
 /// Create database connection
@@ -244,13 +242,21 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   // Add getters for all DAOs
+  @override
   AnalysisResultDao get analysisResultDao => AnalysisResultDao(this);
+  @override
   AppSettingsDao get appSettingsDao => AppSettingsDao(this);
+  @override
   ExchangeRatesDao get exchangeRatesDao => ExchangeRatesDao(this);
+  @override
   UserProfilesDao get userProfilesDao => UserProfilesDao(this);
+  @override
   BudgetsDao get budgetsDao => BudgetsDao(this);
+  @override
   ExpensesDao get expensesDao => ExpensesDao(this);
+  @override
   FinancialGoalsDao get financialGoalsDao => FinancialGoalsDao(this);
+  @override
   GoalHistoryDao get goalHistoryDao => GoalHistoryDao(this);
 
   @override

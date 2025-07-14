@@ -77,6 +77,24 @@ Future<void> _initializeCoreServices() async {
   // Initialize dependency injection - Critical and Essential services only
   await di.init();
   debugPrint('✅ Core services initialized');
+
+  // Initialize SettingsService to load theme and other settings BEFORE UI renders
+  try {
+    final settingsService = di.sl<SettingsService>();
+    await settingsService.initialize();
+    debugPrint('✅ SettingsService initialized and settings loaded');
+
+    // Refresh ThemeViewModel after settings are loaded to ensure theme persists
+    try {
+      final themeViewModel = di.sl<ThemeViewModel>();
+      themeViewModel.refreshFromSettings();
+      debugPrint('✅ ThemeViewModel refreshed from loaded settings');
+    } catch (e) {
+      debugPrint('⚠️ ThemeViewModel refresh error: $e');
+    }
+  } catch (e) {
+    debugPrint('⚠️ SettingsService initialization error: $e');
+  }
 }
 
 /// Initialize remaining services after UI is rendered

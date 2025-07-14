@@ -14,10 +14,10 @@ class GoalIconSelector extends StatefulWidget {
 
   /// Constructor
   const GoalIconSelector({
-    Key? key,
+    super.key,
     required this.initialIcon,
     required this.onIconSelected,
-  }) : super(key: key);
+  });
 
   @override
   State<GoalIconSelector> createState() => _GoalIconSelectorState();
@@ -75,7 +75,7 @@ class _GoalIconSelectorState extends State<GoalIconSelector>
         Container(
           padding: EdgeInsets.all(AppConstants.spacingMedium.w),
           decoration: BoxDecoration(
-            color: _selectedColor.withOpacity(0.1),
+            color: _selectedColor.withAlpha((255 * 0.1).toInt()),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -136,7 +136,7 @@ class _GoalIconSelectorState extends State<GoalIconSelector>
           child: Container(
             decoration: BoxDecoration(
               color: isSelected
-                  ? _selectedColor.withOpacity(0.2)
+                  ? _selectedColor.withAlpha((255 * 0.2).toInt())
                   : Colors.transparent,
               border: Border.all(
                 color: isSelected ? _selectedColor : Colors.grey.shade300,
@@ -169,7 +169,7 @@ class _GoalIconSelectorState extends State<GoalIconSelector>
       itemCount: colors.length,
       itemBuilder: (context, index) {
         final color = colors[index];
-        final isSelected = color.value == _selectedColor.value;
+        final isSelected = color == _selectedColor;
 
         return GestureDetector(
           onTap: () => _updateSelectedColor(color),
@@ -184,7 +184,7 @@ class _GoalIconSelectorState extends State<GoalIconSelector>
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withAlpha((255 * 0.1).toInt()),
                         blurRadius: 4,
                         spreadRadius: 1,
                       )

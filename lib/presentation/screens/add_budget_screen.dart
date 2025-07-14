@@ -17,9 +17,9 @@ class AddBudgetScreen extends StatefulWidget {
   final String? monthId;
 
   const AddBudgetScreen({
-    Key? key,
+    super.key,
     this.monthId,
-  }) : super(key: key);
+  });
 
   @override
   State<AddBudgetScreen> createState() => _AddBudgetScreenState();

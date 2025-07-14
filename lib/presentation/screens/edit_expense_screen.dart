@@ -22,7 +22,7 @@ import '../../di/injection_container.dart' as di;
 class EditExpenseScreen extends StatefulWidget {
   final Expense expense;
 
-  const EditExpenseScreen({Key? key, required this.expense}) : super(key: key);
+  const EditExpenseScreen({super.key, required this.expense});
 
   @override
   State<EditExpenseScreen> createState() => _EditExpenseScreenState();
@@ -195,7 +195,7 @@ class _EditExpenseScreenState extends State<EditExpenseScreen> {
           method: _getPaymentMethodEnum(_selectedPaymentMethod.value),
           description: _isRecurring.value
               ? _recurringFrequency.value.displayName
-              : "One-time Payment",
+              : 'One-time Payment',
           currency: _currency.value,
           recurringDetails: recurringDetails,
           clearRecurringDetails: !_isRecurring.value,

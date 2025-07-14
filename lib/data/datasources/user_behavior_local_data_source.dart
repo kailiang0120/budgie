@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../../domain/entities/user_behavior_profile.dart';

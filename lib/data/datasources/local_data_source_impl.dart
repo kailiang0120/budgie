@@ -7,6 +7,7 @@ import '../../domain/entities/budget.dart' as domain;
 import '../../domain/entities/expense.dart' as domain;
 import '../../domain/entities/recurring_expense.dart' as domain;
 import '../../domain/entities/category.dart' as entity;
+import '../../domain/repositories/budget_repository.dart';
 
 import '../local/database/app_database.dart';
 import 'local_data_source.dart';
@@ -290,5 +291,162 @@ class LocalDataSourceImpl implements LocalDataSource {
         .getSingleOrNull();
 
     return ratesRow?.timestamp;
+  }
+
+  @override
+  Future<List<BudgetWithMonth>> getBudgetsForMonths(
+      List<String> monthIds) async {
+    try {
+      final budgetRows = await (_database.select(_database.budgets)
+            ..where((tbl) => tbl.monthId.isIn(monthIds)))
+          .get();
+
+      final budgets = <BudgetWithMonth>[];
+      for (final row in budgetRows) {
+        final categoriesMap =
+            jsonDecode(row.categoriesJson) as Map<String, dynamic>;
+        final categories = <String, domain.CategoryBudget>{};
+
+        categoriesMap.forEach((key, value) {
+          if (value != null) {
+            try {
+              categories[key] = domain.CategoryBudget.fromMap(
+                  Map<String, dynamic>.from(value));
+            } catch (e) {
+              debugPrint(
+                  '📊 LocalDataSource: Error parsing category budget: $e');
+            }
+          }
+        });
+
+        final budget = domain.Budget(
+          total: row.total,
+          left: row.left,
+          categories: categories,
+          saving: row.saving,
+          currency: row.currency,
+        );
+
+        budgets.add(BudgetWithMonth(
+          monthId: row.monthId,
+          budget: budget,
+        ));
+      }
+
+      return budgets;
+    } catch (e) {
+      debugPrint('📊 LocalDataSource: Error getting budgets for months: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<List<BudgetWithMonth>> getBudgetsWithSavings() async {
+    try {
+      final budgetRows = await (_database.select(_database.budgets)
+            ..where((tbl) => tbl.left.isBiggerThanValue(0)))
+          .get();
+
+      final budgets = <BudgetWithMonth>[];
+      for (final row in budgetRows) {
+        final categoriesMap =
+            jsonDecode(row.categoriesJson) as Map<String, dynamic>;
+        final categories = <String, domain.CategoryBudget>{};
+
+        categoriesMap.forEach((key, value) {
+          if (value != null) {
+            try {
+              categories[key] = domain.CategoryBudget.fromMap(
+                  Map<String, dynamic>.from(value));
+            } catch (e) {
+              debugPrint(
+                  '📊 LocalDataSource: Error parsing category budget: $e');
+            }
+          }
+        });
+
+        final budget = domain.Budget(
+          total: row.total,
+          left: row.left,
+          categories: categories,
+          saving: row.saving,
+          currency: row.currency,
+        );
+
+        budgets.add(BudgetWithMonth(
+          monthId: row.monthId,
+          budget: budget,
+        ));
+      }
+
+      return budgets;
+    } catch (e) {
+      debugPrint('📊 LocalDataSource: Error getting budgets with savings: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<List<BudgetWithMonth>> getPreviousMonthBudgetsWithSavings() async {
+    try {
+      // Get current month ID in YYYY-MM format
+      final now = DateTime.now();
+      final currentMonthId =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}';
+
+      debugPrint(
+          '📊 LocalDataSource: Getting previous month budgets with savings, excluding current month: $currentMonthId');
+
+      // Get budgets that have savings > 0 and are not from current month
+      final budgetRows = await (_database.select(_database.budgets)
+            ..where((tbl) =>
+                tbl.saving.isBiggerThanValue(0) &
+                tbl.monthId.isNotValue(currentMonthId)))
+          .get();
+
+      debugPrint(
+          '📊 LocalDataSource: Found ${budgetRows.length} previous month budgets with savings');
+
+      final budgets = <BudgetWithMonth>[];
+      for (final row in budgetRows) {
+        final categoriesMap =
+            jsonDecode(row.categoriesJson) as Map<String, dynamic>;
+        final categories = <String, domain.CategoryBudget>{};
+
+        categoriesMap.forEach((key, value) {
+          if (value != null) {
+            try {
+              categories[key] = domain.CategoryBudget.fromMap(
+                  Map<String, dynamic>.from(value));
+            } catch (e) {
+              debugPrint(
+                  '📊 LocalDataSource: Error parsing category budget: $e');
+            }
+          }
+        });
+
+        final budget = domain.Budget(
+          total: row.total,
+          left: row.left,
+          categories: categories,
+          saving: row.saving,
+          currency: row.currency,
+        );
+
+        debugPrint(
+            '📊 LocalDataSource: Month ${row.monthId} has savings: ${row.saving}');
+
+        budgets.add(BudgetWithMonth(
+          monthId: row.monthId,
+          budget: budget,
+        ));
+      }
+
+      return budgets;
+    } catch (e) {
+      debugPrint(
+          '📊 LocalDataSource: Error getting previous month budgets with savings: $e');
+      return [];
+    }
   }
 }

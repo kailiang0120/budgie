@@ -30,12 +30,6 @@ abstract class AppSettingsRepository {
   /// Updates auto budget settings
   Future<void> updateAutoBudgetEnabled(bool enabled);
 
-  /// Gets improve accuracy settings
-  Future<bool> getImproveAccuracy();
-
-  /// Updates improve accuracy settings
-  Future<void> updateImproveAccuracy(bool enabled);
-
   /// Gets sync settings
   Future<bool> getSyncEnabled();
 

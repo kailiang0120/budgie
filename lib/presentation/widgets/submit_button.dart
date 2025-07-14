@@ -23,7 +23,7 @@ class SubmitButton extends StatelessWidget {
   final double height;
 
   const SubmitButton({
-    Key? key,
+    super.key,
     required this.text,
     this.loadingText = AppConstants.processingText,
     required this.isLoading,
@@ -33,7 +33,7 @@ class SubmitButton extends StatelessWidget {
     this.icon,
     this.width,
     this.height = 45.0,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

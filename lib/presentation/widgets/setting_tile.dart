@@ -33,7 +33,7 @@ class SettingTile extends StatelessWidget {
   final Color? iconColor;
 
   const SettingTile({
-    Key? key,
+    super.key,
     required this.icon,
     required this.title,
     this.subtitle,
@@ -42,7 +42,7 @@ class SettingTile extends StatelessWidget {
     this.enabled = true,
     this.iconBackgroundColor,
     this.iconColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +152,7 @@ class SwitchSettingTile extends StatelessWidget {
   final VoidCallback? onTap;
 
   const SwitchSettingTile({
-    Key? key,
+    super.key,
     required this.icon,
     required this.title,
     this.subtitle,
@@ -162,7 +162,7 @@ class SwitchSettingTile extends StatelessWidget {
     this.iconBackgroundColor,
     this.iconColor,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -214,7 +214,7 @@ class DropdownSettingTile<T> extends StatelessWidget {
   final bool enabled;
 
   const DropdownSettingTile({
-    Key? key,
+    super.key,
     required this.icon,
     required this.title,
     this.subtitle,
@@ -223,7 +223,7 @@ class DropdownSettingTile<T> extends StatelessWidget {
     required this.onChanged,
     required this.itemLabelBuilder,
     this.enabled = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

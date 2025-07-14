@@ -29,7 +29,7 @@ class CategorySelector extends StatelessWidget {
   final List<Category>? categories;
 
   const CategorySelector({
-    Key? key,
+    super.key,
     required this.selectedCategory,
     required this.onCategorySelected,
     this.containerSize = 80,
@@ -37,7 +37,7 @@ class CategorySelector extends StatelessWidget {
     this.fontSize = 16,
     this.showCategoryName = true,
     this.categories,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

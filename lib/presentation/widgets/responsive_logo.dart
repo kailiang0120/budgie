@@ -13,14 +13,14 @@ class ResponsiveLogo extends StatelessWidget {
   final VoidCallback? onTap;
 
   const ResponsiveLogo({
-    Key? key,
+    super.key,
     this.heroTag = 'logo',
     this.logoSize = LogoSize.medium,
     this.showShadow = true,
     this.customWidth,
     this.customHeight,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

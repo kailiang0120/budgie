@@ -31,7 +31,7 @@ class DateTimePickerField extends StatelessWidget {
   final bool showCurrentTimeButton;
 
   const DateTimePickerField({
-    Key? key,
+    super.key,
     required this.dateTime,
     required this.onDateChanged,
     required this.onTimeChanged,
@@ -40,7 +40,7 @@ class DateTimePickerField extends StatelessWidget {
     this.dateFormat,
     this.timeFormat,
     this.showCurrentTimeButton = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

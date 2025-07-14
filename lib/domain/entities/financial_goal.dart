@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'constants.dart';
 
 /// Represents a financial goal icon
 class GoalIcon {

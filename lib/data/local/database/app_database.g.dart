@@ -976,16 +976,6 @@ class $AppSettingsTable extends AppSettings
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("auto_budget" IN (0, 1))'),
       defaultValue: const Constant(false));
-  static const VerificationMeta _improveAccuracyMeta =
-      const VerificationMeta('improveAccuracy');
-  @override
-  late final GeneratedColumn<bool> improveAccuracy = GeneratedColumn<bool>(
-      'improve_accuracy', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints: GeneratedColumn.constraintIsAlways(
-          'CHECK ("improve_accuracy" IN (0, 1))'),
-      defaultValue: const Constant(false));
   static const VerificationMeta _syncEnabledMeta =
       const VerificationMeta('syncEnabled');
   @override
@@ -1009,7 +999,6 @@ class $AppSettingsTable extends AppSettings
         currency,
         allowNotification,
         autoBudget,
-        improveAccuracy,
         syncEnabled,
         updatedAt
       ];
@@ -1046,12 +1035,6 @@ class $AppSettingsTable extends AppSettings
           autoBudget.isAcceptableOrUnknown(
               data['auto_budget']!, _autoBudgetMeta));
     }
-    if (data.containsKey('improve_accuracy')) {
-      context.handle(
-          _improveAccuracyMeta,
-          improveAccuracy.isAcceptableOrUnknown(
-              data['improve_accuracy']!, _improveAccuracyMeta));
-    }
     if (data.containsKey('sync_enabled')) {
       context.handle(
           _syncEnabledMeta,
@@ -1083,8 +1066,6 @@ class $AppSettingsTable extends AppSettings
           DriftSqlType.bool, data['${effectivePrefix}allow_notification'])!,
       autoBudget: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}auto_budget'])!,
-      improveAccuracy: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}improve_accuracy'])!,
       syncEnabled: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}sync_enabled'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -1104,7 +1085,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
   final String currency;
   final bool allowNotification;
   final bool autoBudget;
-  final bool improveAccuracy;
   final bool syncEnabled;
   final DateTime updatedAt;
   const AppSetting(
@@ -1113,7 +1093,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       required this.currency,
       required this.allowNotification,
       required this.autoBudget,
-      required this.improveAccuracy,
       required this.syncEnabled,
       required this.updatedAt});
   @override
@@ -1124,7 +1103,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
     map['currency'] = Variable<String>(currency);
     map['allow_notification'] = Variable<bool>(allowNotification);
     map['auto_budget'] = Variable<bool>(autoBudget);
-    map['improve_accuracy'] = Variable<bool>(improveAccuracy);
     map['sync_enabled'] = Variable<bool>(syncEnabled);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -1137,7 +1115,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       currency: Value(currency),
       allowNotification: Value(allowNotification),
       autoBudget: Value(autoBudget),
-      improveAccuracy: Value(improveAccuracy),
       syncEnabled: Value(syncEnabled),
       updatedAt: Value(updatedAt),
     );
@@ -1152,7 +1129,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       currency: serializer.fromJson<String>(json['currency']),
       allowNotification: serializer.fromJson<bool>(json['allowNotification']),
       autoBudget: serializer.fromJson<bool>(json['autoBudget']),
-      improveAccuracy: serializer.fromJson<bool>(json['improveAccuracy']),
       syncEnabled: serializer.fromJson<bool>(json['syncEnabled']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -1166,7 +1142,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
       'currency': serializer.toJson<String>(currency),
       'allowNotification': serializer.toJson<bool>(allowNotification),
       'autoBudget': serializer.toJson<bool>(autoBudget),
-      'improveAccuracy': serializer.toJson<bool>(improveAccuracy),
       'syncEnabled': serializer.toJson<bool>(syncEnabled),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -1178,7 +1153,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           String? currency,
           bool? allowNotification,
           bool? autoBudget,
-          bool? improveAccuracy,
           bool? syncEnabled,
           DateTime? updatedAt}) =>
       AppSetting(
@@ -1187,7 +1161,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
         currency: currency ?? this.currency,
         allowNotification: allowNotification ?? this.allowNotification,
         autoBudget: autoBudget ?? this.autoBudget,
-        improveAccuracy: improveAccuracy ?? this.improveAccuracy,
         syncEnabled: syncEnabled ?? this.syncEnabled,
         updatedAt: updatedAt ?? this.updatedAt,
       );
@@ -1201,9 +1174,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           : this.allowNotification,
       autoBudget:
           data.autoBudget.present ? data.autoBudget.value : this.autoBudget,
-      improveAccuracy: data.improveAccuracy.present
-          ? data.improveAccuracy.value
-          : this.improveAccuracy,
       syncEnabled:
           data.syncEnabled.present ? data.syncEnabled.value : this.syncEnabled,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
@@ -1218,7 +1188,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           ..write('currency: $currency, ')
           ..write('allowNotification: $allowNotification, ')
           ..write('autoBudget: $autoBudget, ')
-          ..write('improveAccuracy: $improveAccuracy, ')
           ..write('syncEnabled: $syncEnabled, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1227,7 +1196,7 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
 
   @override
   int get hashCode => Object.hash(id, theme, currency, allowNotification,
-      autoBudget, improveAccuracy, syncEnabled, updatedAt);
+      autoBudget, syncEnabled, updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1237,7 +1206,6 @@ class AppSetting extends DataClass implements Insertable<AppSetting> {
           other.currency == this.currency &&
           other.allowNotification == this.allowNotification &&
           other.autoBudget == this.autoBudget &&
-          other.improveAccuracy == this.improveAccuracy &&
           other.syncEnabled == this.syncEnabled &&
           other.updatedAt == this.updatedAt);
 }
@@ -1248,7 +1216,6 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   final Value<String> currency;
   final Value<bool> allowNotification;
   final Value<bool> autoBudget;
-  final Value<bool> improveAccuracy;
   final Value<bool> syncEnabled;
   final Value<DateTime> updatedAt;
   const AppSettingsCompanion({
@@ -1257,7 +1224,6 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.currency = const Value.absent(),
     this.allowNotification = const Value.absent(),
     this.autoBudget = const Value.absent(),
-    this.improveAccuracy = const Value.absent(),
     this.syncEnabled = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -1267,7 +1233,6 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     this.currency = const Value.absent(),
     this.allowNotification = const Value.absent(),
     this.autoBudget = const Value.absent(),
-    this.improveAccuracy = const Value.absent(),
     this.syncEnabled = const Value.absent(),
     required DateTime updatedAt,
   }) : updatedAt = Value(updatedAt);
@@ -1277,7 +1242,6 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     Expression<String>? currency,
     Expression<bool>? allowNotification,
     Expression<bool>? autoBudget,
-    Expression<bool>? improveAccuracy,
     Expression<bool>? syncEnabled,
     Expression<DateTime>? updatedAt,
   }) {
@@ -1287,7 +1251,6 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       if (currency != null) 'currency': currency,
       if (allowNotification != null) 'allow_notification': allowNotification,
       if (autoBudget != null) 'auto_budget': autoBudget,
-      if (improveAccuracy != null) 'improve_accuracy': improveAccuracy,
       if (syncEnabled != null) 'sync_enabled': syncEnabled,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -1299,7 +1262,6 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       Value<String>? currency,
       Value<bool>? allowNotification,
       Value<bool>? autoBudget,
-      Value<bool>? improveAccuracy,
       Value<bool>? syncEnabled,
       Value<DateTime>? updatedAt}) {
     return AppSettingsCompanion(
@@ -1308,7 +1270,6 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
       currency: currency ?? this.currency,
       allowNotification: allowNotification ?? this.allowNotification,
       autoBudget: autoBudget ?? this.autoBudget,
-      improveAccuracy: improveAccuracy ?? this.improveAccuracy,
       syncEnabled: syncEnabled ?? this.syncEnabled,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -1332,9 +1293,6 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
     if (autoBudget.present) {
       map['auto_budget'] = Variable<bool>(autoBudget.value);
     }
-    if (improveAccuracy.present) {
-      map['improve_accuracy'] = Variable<bool>(improveAccuracy.value);
-    }
     if (syncEnabled.present) {
       map['sync_enabled'] = Variable<bool>(syncEnabled.value);
     }
@@ -1352,7 +1310,6 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
           ..write('currency: $currency, ')
           ..write('allowNotification: $allowNotification, ')
           ..write('autoBudget: $autoBudget, ')
-          ..write('improveAccuracy: $improveAccuracy, ')
           ..write('syncEnabled: $syncEnabled, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -4123,7 +4080,6 @@ typedef $$AppSettingsTableCreateCompanionBuilder = AppSettingsCompanion
   Value<String> currency,
   Value<bool> allowNotification,
   Value<bool> autoBudget,
-  Value<bool> improveAccuracy,
   Value<bool> syncEnabled,
   required DateTime updatedAt,
 });
@@ -4134,7 +4090,6 @@ typedef $$AppSettingsTableUpdateCompanionBuilder = AppSettingsCompanion
   Value<String> currency,
   Value<bool> allowNotification,
   Value<bool> autoBudget,
-  Value<bool> improveAccuracy,
   Value<bool> syncEnabled,
   Value<DateTime> updatedAt,
 });
@@ -4163,10 +4118,6 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<bool> get autoBudget => $composableBuilder(
       column: $table.autoBudget, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<bool> get improveAccuracy => $composableBuilder(
-      column: $table.improveAccuracy,
-      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get syncEnabled => $composableBuilder(
       column: $table.syncEnabled, builder: (column) => ColumnFilters(column));
@@ -4200,10 +4151,6 @@ class $$AppSettingsTableOrderingComposer
   ColumnOrderings<bool> get autoBudget => $composableBuilder(
       column: $table.autoBudget, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<bool> get improveAccuracy => $composableBuilder(
-      column: $table.improveAccuracy,
-      builder: (column) => ColumnOrderings(column));
-
   ColumnOrderings<bool> get syncEnabled => $composableBuilder(
       column: $table.syncEnabled, builder: (column) => ColumnOrderings(column));
 
@@ -4234,9 +4181,6 @@ class $$AppSettingsTableAnnotationComposer
 
   GeneratedColumn<bool> get autoBudget => $composableBuilder(
       column: $table.autoBudget, builder: (column) => column);
-
-  GeneratedColumn<bool> get improveAccuracy => $composableBuilder(
-      column: $table.improveAccuracy, builder: (column) => column);
 
   GeneratedColumn<bool> get syncEnabled => $composableBuilder(
       column: $table.syncEnabled, builder: (column) => column);
@@ -4273,7 +4217,6 @@ class $$AppSettingsTableTableManager extends RootTableManager<
             Value<String> currency = const Value.absent(),
             Value<bool> allowNotification = const Value.absent(),
             Value<bool> autoBudget = const Value.absent(),
-            Value<bool> improveAccuracy = const Value.absent(),
             Value<bool> syncEnabled = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
           }) =>
@@ -4283,7 +4226,6 @@ class $$AppSettingsTableTableManager extends RootTableManager<
             currency: currency,
             allowNotification: allowNotification,
             autoBudget: autoBudget,
-            improveAccuracy: improveAccuracy,
             syncEnabled: syncEnabled,
             updatedAt: updatedAt,
           ),
@@ -4293,7 +4235,6 @@ class $$AppSettingsTableTableManager extends RootTableManager<
             Value<String> currency = const Value.absent(),
             Value<bool> allowNotification = const Value.absent(),
             Value<bool> autoBudget = const Value.absent(),
-            Value<bool> improveAccuracy = const Value.absent(),
             Value<bool> syncEnabled = const Value.absent(),
             required DateTime updatedAt,
           }) =>
@@ -4303,7 +4244,6 @@ class $$AppSettingsTableTableManager extends RootTableManager<
             currency: currency,
             allowNotification: allowNotification,
             autoBudget: autoBudget,
-            improveAccuracy: improveAccuracy,
             syncEnabled: syncEnabled,
             updatedAt: updatedAt,
           ),

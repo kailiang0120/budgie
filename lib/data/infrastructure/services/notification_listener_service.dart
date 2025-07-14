@@ -316,8 +316,8 @@ class NotificationListenerService {
 
     try {
       const androidConfig = FlutterBackgroundAndroidConfig(
-        notificationTitle: "Budgie Expense Detector",
-        notificationText: "Monitoring notifications for expenses",
+        notificationTitle: 'Budgie Expense Detector',
+        notificationText: 'Monitoring notifications for expenses',
         notificationImportance: AndroidNotificationImportance.normal,
         notificationIcon: AndroidResource(
           name: 'ic_launcher',

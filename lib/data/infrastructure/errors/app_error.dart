@@ -51,15 +51,12 @@ abstract class AppError implements Exception {
 /// network error
 class NetworkError extends AppError {
   NetworkError(
-    String message, {
+    super.message, {
     String? code,
-    dynamic originalError,
-    StackTrace? stackTrace,
+    super.originalError,
+    super.stackTrace,
   }) : super(
-          message,
           code: code ?? 'NETWORK_ERROR',
-          originalError: originalError,
-          stackTrace: stackTrace,
         );
 
   static NetworkError connectionTimeout() {

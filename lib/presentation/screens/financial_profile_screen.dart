@@ -297,7 +297,7 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
                 Container(
                   padding: AppConstants.containerPaddingMedium,
                   decoration: BoxDecoration(
-                    color: AppTheme.warningColor.withOpacity(0.1),
+                    color: AppTheme.warningColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(
                         AppConstants.borderRadiusMedium.r),
                   ),
@@ -337,7 +337,7 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
                 Container(
                   padding: AppConstants.containerPaddingMedium,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(
                         AppConstants.borderRadiusMedium.r),
                   ),
@@ -377,7 +377,7 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
                 Container(
                   padding: AppConstants.containerPaddingMedium,
                   decoration: BoxDecoration(
-                    color: AppTheme.warningColor.withOpacity(0.1),
+                    color: AppTheme.warningColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(
                         AppConstants.borderRadiusMedium.r),
                   ),
@@ -433,7 +433,7 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
                 Container(
                   padding: AppConstants.containerPaddingMedium,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(
                         AppConstants.borderRadiusMedium.r),
                   ),
@@ -489,7 +489,7 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
                 Container(
                   padding: AppConstants.containerPaddingMedium,
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(
                         AppConstants.borderRadiusMedium.r),
                   ),
@@ -515,7 +515,7 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
                 Container(
                   padding: AppConstants.containerPaddingMedium,
                   decoration: BoxDecoration(
-                    color: AppTheme.warningColor.withOpacity(0.1),
+                    color: AppTheme.warningColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(
                         AppConstants.borderRadiusMedium.r),
                   ),
@@ -562,7 +562,7 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
             Container(
               padding: EdgeInsets.all(AppConstants.spacingMedium.w),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.1),
+                color: AppTheme.primaryColor.withValues(alpha: 0.1),
                 borderRadius:
                     BorderRadius.circular(AppConstants.borderRadiusLarge.r),
               ),
@@ -608,7 +608,7 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
         color: Theme.of(context).cardColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10.r,
             offset: Offset(0, -5.h),
           ),

@@ -91,7 +91,7 @@ class CustomTextField extends StatefulWidget {
   final bool enableSuggestions;
 
   const CustomTextField({
-    Key? key,
+    super.key,
     this.controller,
     this.initialValue,
     required this.labelText,
@@ -120,7 +120,7 @@ class CustomTextField extends StatefulWidget {
     this.onFieldSubmitted,
     this.autocorrect = true,
     this.enableSuggestions = true,
-  }) : super(key: key);
+  });
 
   @override
   State<CustomTextField> createState() => _CustomTextFieldState();

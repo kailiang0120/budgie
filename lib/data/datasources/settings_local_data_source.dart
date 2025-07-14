@@ -11,8 +11,7 @@ abstract class SettingsLocalDataSource {
   Future<void> updateNotificationsEnabled(bool enabled);
   Future<bool> getAutoBudgetEnabled();
   Future<void> updateAutoBudgetEnabled(bool enabled);
-  Future<bool> getImproveAccuracyEnabled();
-  Future<void> updateImproveAccuracyEnabled(bool enabled);
+
   Future<bool> getSyncEnabled();
   Future<void> updateSyncEnabled(bool enabled);
 }
@@ -71,16 +70,6 @@ class SettingsLocalDataSourceImpl implements SettingsLocalDataSource {
 
   @override
   Future<void> updateAutoBudgetEnabled(bool enabled) {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<bool> getImproveAccuracyEnabled() {
-    throw UnimplementedError();
-  }
-
-  @override
-  Future<void> updateImproveAccuracyEnabled(bool enabled) {
     throw UnimplementedError();
   }
 

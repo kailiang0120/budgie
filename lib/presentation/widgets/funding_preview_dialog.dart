@@ -21,16 +21,16 @@ class FundingPreviewDialog extends StatelessWidget {
 
   /// Constructor
   const FundingPreviewDialog({
-    Key? key,
+    super.key,
     required this.availableSavings,
     required this.distribution,
     required this.goals,
     required this.onConfirm,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    final currency = 'MYR'; // You can make this dynamic based on settings
+    const currency = 'MYR'; // You can make this dynamic based on settings
     final totalAllocated =
         distribution.values.fold(0.0, (sum, amount) => sum + amount);
 
@@ -55,8 +55,8 @@ class FundingPreviewDialog extends StatelessWidget {
                 ),
                 gradient: LinearGradient(
                   colors: [
-                    AppTheme.successColor.withOpacity(0.1),
-                    AppTheme.successColor.withOpacity(0.05),
+                    AppTheme.successColor.withAlpha((255 * 0.1).toInt()),
+                    AppTheme.successColor.withAlpha((255 * 0.05).toInt()),
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -70,7 +70,8 @@ class FundingPreviewDialog extends StatelessWidget {
                       Container(
                         padding: EdgeInsets.all(AppConstants.spacingMedium),
                         decoration: BoxDecoration(
-                          color: AppTheme.successColor.withOpacity(0.2),
+                          color: AppTheme.successColor
+                              .withAlpha((255 * 0.2).toInt()),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -97,7 +98,8 @@ class FundingPreviewDialog extends StatelessWidget {
                   Container(
                     padding: AppConstants.containerPaddingMedium,
                     decoration: BoxDecoration(
-                      color: AppTheme.successColor.withOpacity(0.15),
+                      color:
+                          AppTheme.successColor.withAlpha((255 * 0.15).toInt()),
                       borderRadius: BorderRadius.circular(
                           AppConstants.borderRadiusMedium),
                     ),
@@ -188,9 +190,11 @@ class FundingPreviewDialog extends StatelessWidget {
                                   bottom: AppConstants.spacingSmall),
                               padding: AppConstants.containerPaddingMedium,
                               decoration: BoxDecoration(
-                                color: goal.icon.color.withOpacity(0.05),
+                                color: goal.icon.color
+                                    .withAlpha((255 * 0.05).toInt()),
                                 border: Border.all(
-                                  color: goal.icon.color.withOpacity(0.2),
+                                  color: goal.icon.color
+                                      .withAlpha((255 * 0.2).toInt()),
                                 ),
                                 borderRadius: BorderRadius.circular(
                                     AppConstants.borderRadiusMedium),
@@ -202,7 +206,8 @@ class FundingPreviewDialog extends StatelessWidget {
                                     padding: EdgeInsets.all(
                                         AppConstants.spacingSmall),
                                     decoration: BoxDecoration(
-                                      color: goal.icon.color.withOpacity(0.15),
+                                      color: goal.icon.color
+                                          .withAlpha((255 * 0.15).toInt()),
                                       borderRadius: BorderRadius.circular(
                                           AppConstants.borderRadiusSmall),
                                     ),
@@ -302,10 +307,7 @@ class FundingPreviewDialog extends StatelessWidget {
                       Container(
                         padding: AppConstants.containerPaddingMedium,
                         decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primary
-                              .withOpacity(0.1),
+                          color: Colors.grey.withAlpha((255 * 0.1).toInt()),
                           borderRadius: BorderRadius.circular(
                               AppConstants.borderRadiusMedium),
                         ),
