@@ -329,7 +329,12 @@ class _GoalsScreenState extends State<GoalsScreen>
         await goalsViewModel.loadGoalHistory();
       },
       child: ListView.builder(
-        padding: AppConstants.screenPadding,
+        padding: EdgeInsets.only(
+          left: AppConstants.spacingLarge.w,
+          right: AppConstants.spacingLarge.w,
+          top: AppConstants.spacingLarge.h,
+          bottom: AppConstants.bottomPaddingWithNavBar,
+        ),
         itemCount: goalsViewModel.goalHistory.length,
         itemBuilder: (context, index) {
           final history = goalsViewModel.goalHistory[index];

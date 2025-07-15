@@ -282,13 +282,11 @@ class AppDatabase extends _$AppDatabase {
             currency, 
             allow_notification, 
             auto_budget, 
-            improve_accuracy, 
             sync_enabled,
             updated_at
           ) VALUES (
             'light',
             'MYR', 
-            0, 
             0, 
             0, 
             0,
@@ -533,13 +531,11 @@ class AppDatabase extends _$AppDatabase {
         currency, 
         allow_notification, 
         auto_budget, 
-        improve_accuracy, 
         sync_enabled,
         updated_at
       ) VALUES (
         'light',
         'MYR',
-        0,
         0,
         0,
         0,

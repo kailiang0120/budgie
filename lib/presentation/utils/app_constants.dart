@@ -1,6 +1,7 @@
 import 'currency_formatter.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 /// Application constants management class
 class AppConstants {
@@ -122,15 +123,20 @@ class AppConstants {
   static const String exportDataTitle = 'Export Data';
 
   /// Text sizes - Using consistent sizes throughout the app
-  static double textSizeXXSmall = 8.sp; // Very tiny text
-  static double textSizeXSmall = 10.sp; // Extra small text
-  static double textSizeSmall = 12.sp; // Small text, subtitles
-  static double textSizeMedium = 14.sp; // Regular body text
-  static double textSizeLarge = 16.sp; // Large text, button text
-  static double textSizeXLarge = 18.sp; // Section headers
-  static double textSizeXXLarge = 20.sp; // Screen titles
-  static double textSizeHuge = 24.sp; // Large headers
-  static double textSizeGiant = 28.sp; // Very large text
+  static double textSizeXXSmall = 10.sp; // Very tiny text (increased from 8.sp)
+  static double textSizeXSmall =
+      12.sp; // Extra small text (increased from 10.sp)
+  static double textSizeSmall =
+      14.sp; // Small text, subtitles (increased from 12.sp)
+  static double textSizeMedium =
+      16.sp; // Regular body text (increased from 14.sp)
+  static double textSizeLarge =
+      18.sp; // Large text, button text (increased from 16.sp)
+  static double textSizeXLarge =
+      20.sp; // Section headers (increased from 18.sp)
+  static double textSizeXXLarge = 22.sp; // Screen titles (increased from 20.sp)
+  static double textSizeHuge = 26.sp; // Large headers (increased from 24.sp)
+  static double textSizeGiant = 30.sp; // Very large text (increased from 28.sp)
 
   /// Spacing constants
   static double spacingXXSmall = 2.sp;
@@ -180,7 +186,8 @@ class AppConstants {
   static double componentHeightLarge = 56.h;
 
   /// Bottom padding for screens with FAB and bottom nav
-  static double bottomPaddingWithNavBar = 90.h;
+  static double bottomPaddingWithNavBar =
+      140.h; // Updated to 150px as requested
 
   /// Container padding
   static EdgeInsets containerPaddingSmall = EdgeInsets.all(spacingSmall.w);
@@ -198,4 +205,33 @@ class AppConstants {
       EdgeInsets.symmetric(horizontal: spacingLarge.w);
   static EdgeInsets screenPaddingVertical =
       EdgeInsets.symmetric(vertical: spacingLarge.h);
+
+  /// Debug method to print text sizes and screen info
+  static void debugTextSizes() {
+    if (kDebugMode) {
+      debugPrint('=== AppConstants Debug Info ===');
+      debugPrint('Screen Width: ${1.sw}');
+      debugPrint('Screen Height: ${1.sh}');
+      debugPrint('Text Scale Factor: ${ScreenUtil().textScaleFactor}');
+      debugPrint('Status Bar Height: ${ScreenUtil().statusBarHeight}');
+      debugPrint('Bottom Bar Height: ${ScreenUtil().bottomBarHeight}');
+      debugPrint('');
+      debugPrint('Text Sizes:');
+      debugPrint(
+          'textSizeXXSmall: ${textSizeXXSmall}sp = ${textSizeXXSmall.sp}px');
+      debugPrint(
+          'textSizeXSmall: ${textSizeXSmall}sp = ${textSizeXSmall.sp}px');
+      debugPrint('textSizeSmall: ${textSizeSmall}sp = ${textSizeSmall.sp}px');
+      debugPrint(
+          'textSizeMedium: ${textSizeMedium}sp = ${textSizeMedium.sp}px');
+      debugPrint('textSizeLarge: ${textSizeLarge}sp = ${textSizeLarge.sp}px');
+      debugPrint(
+          'textSizeXLarge: ${textSizeXLarge}sp = ${textSizeXLarge.sp}px');
+      debugPrint(
+          'textSizeXXLarge: ${textSizeXXLarge}sp = ${textSizeXXLarge.sp}px');
+      debugPrint('textSizeHuge: ${textSizeHuge}sp = ${textSizeHuge.sp}px');
+      debugPrint('textSizeGiant: ${textSizeGiant}sp = ${textSizeGiant.sp}px');
+      debugPrint('==============================');
+    }
+  }
 }

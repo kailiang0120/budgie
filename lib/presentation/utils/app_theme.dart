@@ -76,6 +76,98 @@ class AppTheme {
         titleTextStyle: TextStyle(
           fontSize: AppConstants.textSizeXXLarge.sp,
           fontWeight: FontWeight.bold,
+          color: appBarForegroundLight,
+          fontFamily: fontFamily,
+        ),
+      ),
+      // Add responsive TextTheme
+      textTheme: TextTheme(
+        displayLarge: TextStyle(
+          color: darkTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeGiant.sp,
+          fontWeight: FontWeight.bold,
+        ),
+        displayMedium: TextStyle(
+          color: darkTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeHuge.sp,
+          fontWeight: FontWeight.bold,
+        ),
+        displaySmall: TextStyle(
+          color: darkTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeXXLarge.sp,
+          fontWeight: FontWeight.w600,
+        ),
+        headlineLarge: TextStyle(
+          color: darkTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeXXLarge.sp,
+          fontWeight: FontWeight.bold,
+        ),
+        headlineMedium: TextStyle(
+          color: darkTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeXLarge.sp,
+          fontWeight: FontWeight.w600,
+        ),
+        headlineSmall: TextStyle(
+          color: darkTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeLarge.sp,
+          fontWeight: FontWeight.w600,
+        ),
+        titleLarge: TextStyle(
+          color: darkTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeLarge.sp,
+          fontWeight: FontWeight.w500,
+        ),
+        titleMedium: TextStyle(
+          color: darkTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeMedium.sp,
+          fontWeight: FontWeight.w500,
+        ),
+        titleSmall: TextStyle(
+          color: darkTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeSmall.sp,
+          fontWeight: FontWeight.w500,
+        ),
+        bodyLarge: TextStyle(
+          color: darkTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeMedium.sp,
+        ),
+        bodyMedium: TextStyle(
+          color: darkTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeMedium.sp,
+        ),
+        bodySmall: TextStyle(
+          color: greyTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeSmall.sp,
+        ),
+        labelLarge: TextStyle(
+          color: darkTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeMedium.sp,
+          fontWeight: FontWeight.w500,
+        ),
+        labelMedium: TextStyle(
+          color: greyTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeSmall.sp,
+          fontWeight: FontWeight.w500,
+        ),
+        labelSmall: TextStyle(
+          color: greyTextLight,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeXSmall.sp,
+          fontWeight: FontWeight.w500,
         ),
       ),
       fontFamily: fontFamily,
@@ -88,6 +180,11 @@ class AppTheme {
                 BorderRadius.circular(AppConstants.borderRadiusLarge.r),
           ),
           padding: EdgeInsets.symmetric(vertical: AppConstants.spacingLarge.h),
+          textStyle: TextStyle(
+            fontSize: AppConstants.textSizeLarge.sp,
+            fontWeight: FontWeight.w600,
+            fontFamily: fontFamily,
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -158,6 +255,98 @@ class AppTheme {
         titleTextStyle: TextStyle(
           fontSize: AppConstants.textSizeXXLarge.sp,
           fontWeight: FontWeight.bold,
+          color: appBarForegroundDark,
+          fontFamily: fontFamily,
+        ),
+      ),
+      // Add responsive TextTheme
+      textTheme: TextTheme(
+        displayLarge: TextStyle(
+          color: lightTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeGiant.sp,
+          fontWeight: FontWeight.bold,
+        ),
+        displayMedium: TextStyle(
+          color: lightTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeHuge.sp,
+          fontWeight: FontWeight.bold,
+        ),
+        displaySmall: TextStyle(
+          color: lightTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeXXLarge.sp,
+          fontWeight: FontWeight.w600,
+        ),
+        headlineLarge: TextStyle(
+          color: lightTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeXXLarge.sp,
+          fontWeight: FontWeight.bold,
+        ),
+        headlineMedium: TextStyle(
+          color: lightTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeXLarge.sp,
+          fontWeight: FontWeight.w600,
+        ),
+        headlineSmall: TextStyle(
+          color: lightTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeLarge.sp,
+          fontWeight: FontWeight.w600,
+        ),
+        titleLarge: TextStyle(
+          color: lightTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeLarge.sp,
+          fontWeight: FontWeight.w500,
+        ),
+        titleMedium: TextStyle(
+          color: lightTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeMedium.sp,
+          fontWeight: FontWeight.w500,
+        ),
+        titleSmall: TextStyle(
+          color: lightTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeSmall.sp,
+          fontWeight: FontWeight.w500,
+        ),
+        bodyLarge: TextStyle(
+          color: lightTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeMedium.sp,
+        ),
+        bodyMedium: TextStyle(
+          color: lightTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeMedium.sp,
+        ),
+        bodySmall: TextStyle(
+          color: greyTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeSmall.sp,
+        ),
+        labelLarge: TextStyle(
+          color: lightTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeMedium.sp,
+          fontWeight: FontWeight.w500,
+        ),
+        labelMedium: TextStyle(
+          color: greyTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeSmall.sp,
+          fontWeight: FontWeight.w500,
+        ),
+        labelSmall: TextStyle(
+          color: greyTextDark,
+          fontFamily: fontFamily,
+          fontSize: AppConstants.textSizeXSmall.sp,
+          fontWeight: FontWeight.w500,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -169,6 +358,11 @@ class AppTheme {
                 BorderRadius.circular(AppConstants.borderRadiusLarge.r),
           ),
           padding: EdgeInsets.symmetric(vertical: AppConstants.spacingLarge.h),
+          textStyle: TextStyle(
+            fontSize: AppConstants.textSizeLarge.sp,
+            fontWeight: FontWeight.w600,
+            fontFamily: fontFamily,
+          ),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(

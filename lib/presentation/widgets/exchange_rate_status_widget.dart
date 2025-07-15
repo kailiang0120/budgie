@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../data/infrastructure/services/currency_conversion_service.dart';
 import '../../di/injection_container.dart' as di;
@@ -38,7 +39,9 @@ class _ExchangeRateStatusWidgetState extends State<ExchangeRateStatusWidget> {
         });
       }
     } catch (e) {
-      debugPrint('Error checking exchange rate status: $e');
+      if (kDebugMode) {
+        debugPrint('Error checking exchange rate status: $e');
+      }
     }
   }
 
@@ -87,7 +90,9 @@ class _ExchangeRateStatusWidgetState extends State<ExchangeRateStatusWidget> {
         await _checkStatus();
       }
     } catch (e) {
-      debugPrint('Error refreshing rates: $e');
+      if (kDebugMode) {
+        debugPrint('Error refreshing rates: $e');
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -254,7 +259,9 @@ class _CompactExchangeRateStatusWidgetState
         });
       }
     } catch (e) {
-      debugPrint('Error checking exchange rate status: $e');
+      if (kDebugMode) {
+        debugPrint('Error checking exchange rate status: $e');
+      }
     }
   }
 
@@ -321,7 +328,9 @@ class _CompactExchangeRateStatusWidgetState
         );
       }
     } catch (e) {
-      debugPrint('Error refreshing rates: $e');
+      if (kDebugMode) {
+        debugPrint('Error refreshing rates: $e');
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

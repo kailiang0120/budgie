@@ -48,7 +48,7 @@ class BottomNavBar extends StatelessWidget {
             Theme.of(context).colorScheme.surface, Colors.blueGrey, 0.0)!;
 
     return SizedBox(
-      height: 80.h,
+      height: 95.h,
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
@@ -62,22 +62,29 @@ class BottomNavBar extends StatelessWidget {
           Positioned.fill(
             bottom: AppConstants
                 .spacingLarge.h, // Adjust bottom position for better centering
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: List.generate(4, (idx) {
-                final isSelected = currentIndex == idx;
-                return _buildNavItem(
-                  context,
-                  idx,
-                  isSelected,
-                  icons[idx],
-                  labels[idx],
-                  routes[idx],
-                  primaryColor,
-                  textColor,
-                );
-              }),
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 8.h,
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: List.generate(4, (idx) {
+                    final isSelected = currentIndex == idx;
+                    return _buildNavItem(
+                      context,
+                      idx,
+                      isSelected,
+                      icons[idx],
+                      labels[idx],
+                      routes[idx],
+                      primaryColor,
+                      textColor,
+                    );
+                  }),
+                ),
+              ],
             ),
           ),
         ],

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_background/flutter_background.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/services.dart';
@@ -28,10 +27,6 @@ class NotificationListenerService {
       _onNotificationReceived;
   bool _isListening = false;
   bool _isInitialized = false;
-
-  // Cache to track recently processed notifications and prevent duplicates
-  final Map<String, DateTime> _processedNotificationsCache = {};
-  static const Duration _cacheDuration = Duration(hours: 24);
 
   // Dependencies
   late final PermissionHandlerService _permissionHandler;
@@ -137,18 +132,8 @@ class NotificationListenerService {
             '⚠️ NotificationListenerService: Error stopping platform listener: $e');
       }
 
-      // Disable background execution with error handling
-      try {
-        if (Platform.isAndroid &&
-            FlutterBackground.isBackgroundExecutionEnabled) {
-          await FlutterBackground.disableBackgroundExecution();
-          debugPrint(
-              '✅ NotificationListenerService: Background execution disabled');
-        }
-      } catch (e) {
-        debugPrint(
-            '⚠️ NotificationListenerService: Error disabling background execution: $e');
-      }
+      // No background execution to disable since we're not using FlutterBackground
+      debugPrint('✅ NotificationListenerService: Background cleanup completed');
 
       _isListening = false;
       debugPrint(
@@ -166,9 +151,8 @@ class NotificationListenerService {
       'isListening': _isListening,
       'hasPermissions': await _permissionHandler
           .hasPermissionsForFeature(PermissionFeature.notifications),
-      'backgroundServiceEnabled': Platform.isAndroid
-          ? FlutterBackground.isBackgroundExecutionEnabled
-          : true,
+      'backgroundServiceEnabled':
+          true, // Always true since we don't use FlutterBackground
     };
   }
 
@@ -315,18 +299,11 @@ class NotificationListenerService {
     if (!Platform.isAndroid) return;
 
     try {
-      const androidConfig = FlutterBackgroundAndroidConfig(
-        notificationTitle: 'Budgie Expense Detector',
-        notificationText: 'Monitoring notifications for expenses',
-        notificationImportance: AndroidNotificationImportance.normal,
-        notificationIcon: AndroidResource(
-          name: 'ic_launcher',
-          defType: 'mipmap',
-        ),
-      );
-
-      await FlutterBackground.initialize(androidConfig: androidConfig);
+      // Set up method channel without FlutterBackground foreground service
+      // NotificationListenerService can run without a foreground service
       platform.setMethodCallHandler(_handleNotificationData);
+      debugPrint(
+          '✅ NotificationListenerService: Method channel setup completed');
     } catch (e) {
       debugPrint('❌ NotificationListenerService: Background setup failed: $e');
     }
@@ -334,13 +311,10 @@ class NotificationListenerService {
 
   Future<void> _enableBackgroundService() async {
     try {
-      final hasBackgroundPermissions = await FlutterBackground.hasPermissions;
-      if (!hasBackgroundPermissions) {
-        debugPrint('❌ NotificationListenerService: No background permissions');
-        return;
-      }
-
-      await FlutterBackground.enableBackgroundExecution();
+      // NotificationListenerService doesn't need FlutterBackground to function
+      // It's a system service that runs independently
+      debugPrint(
+          '✅ NotificationListenerService: Background service setup skipped (not needed)');
     } catch (e) {
       debugPrint(
           '❌ NotificationListenerService: Background service failed: $e');
@@ -364,20 +338,6 @@ class NotificationListenerService {
       final title = data['title'] ?? '';
       final content = data['content'] ?? '';
 
-      // Create a unique signature for the notification
-      final notificationSignature =
-          '$packageName-$title-$content'.hashCode.toString();
-
-      // Clean up expired cache entries
-      _cleanupCache();
-
-      // Check if this notification has been processed recently
-      if (_processedNotificationsCache.containsKey(notificationSignature)) {
-        debugPrint(
-            '🔔 NotificationListenerService: Ignoring duplicate notification - $title');
-        return;
-      }
-
       // Filter out system notifications and other irrelevant sources
       if (_shouldIgnoreNotification(packageName, title, content)) {
         debugPrint(
@@ -386,9 +346,6 @@ class NotificationListenerService {
       }
 
       if (_onNotificationReceived != null) {
-        // Add to cache before processing
-        _processedNotificationsCache[notificationSignature] = DateTime.now();
-
         debugPrint(
             '🔔 NotificationListenerService: Processing notification - $title: $content (from $packageName)');
         _onNotificationReceived!(title, content, packageName);
@@ -426,7 +383,9 @@ class NotificationListenerService {
       'volume',
       'screenshot',
       'media',
-      'call',
+      'incoming call', // Changed from 'call' to 'incoming call' to be more specific
+      'missed call', // Added for call-related notifications
+      'call ended', // Added for call-related notifications
       'sms',
       'email',
       'calendar',
@@ -437,19 +396,43 @@ class NotificationListenerService {
     ];
 
     final combinedText = '$title $content'.toLowerCase();
+
+    // Check for exact keyword matches to avoid false positives
+    // For expense-related notifications that might contain words like "call" in banking instructions
     if (irrelevantKeywords.any((keyword) => combinedText.contains(keyword))) {
-      return true;
+      // Additional check: if it contains financial keywords, don't filter it out
+      final financialKeywords = [
+        'payment',
+        'transfer',
+        'transaction',
+        'balance',
+        'account',
+        'bank',
+        'debit',
+        'credit',
+        'purchase',
+        'receipt',
+        'charged',
+        'fpx',
+        'rm', // Malaysian Ringgit
+        'usd',
+        'eur',
+        'sgd',
+      ];
+
+      final hasFinancialContent =
+          financialKeywords.any((keyword) => combinedText.contains(keyword));
+
+      if (hasFinancialContent) {
+        debugPrint(
+            '🔔 NotificationListenerService: Contains irrelevant keyword but has financial content, processing anyway');
+        return false; // Don't ignore financial notifications
+      }
+
+      return true; // Ignore non-financial notifications with irrelevant keywords
     }
 
     return false;
-  }
-
-  /// Remove old entries from the notification cache
-  void _cleanupCache() {
-    final now = DateTime.now();
-    _processedNotificationsCache.removeWhere((key, value) {
-      return now.difference(value) > _cacheDuration;
-    });
   }
 
   /// Getters for service state

@@ -89,8 +89,10 @@ class AnalysisViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      debugPrint(
-          '📊 AnalysisViewModel: Starting spending behavior analysis...');
+      if (kDebugMode) {
+        debugPrint(
+            '📊 AnalysisViewModel: Starting spending behavior analysis...');
+      }
 
       // Use a constant guest user ID
       const userId = _guestUserId;
@@ -127,8 +129,10 @@ class AnalysisViewModel extends ChangeNotifier {
       // Get financial goals
       final goals = await _goalsRepository.getActiveGoals();
 
-      debugPrint(
-          '📊 AnalysisViewModel: Data collected - ${historicalExpenses.length} expenses, ${goals.length} goals');
+      if (kDebugMode) {
+        debugPrint(
+            '📊 AnalysisViewModel: Data collected - ${historicalExpenses.length} expenses, ${goals.length} goals');
+      }
 
       // Perform analysis
       final result = await _spendingBehaviorService.analyzeSpendingBehavior(
@@ -142,14 +146,20 @@ class AnalysisViewModel extends ChangeNotifier {
       _spendingAnalysisResult = result;
 
       // Save the analysis result to local database immediately
-      debugPrint(
-          '💾 AnalysisViewModel: Saving analysis result to local database...');
+      if (kDebugMode) {
+        debugPrint(
+            '💾 AnalysisViewModel: Saving analysis result to local database...');
+      }
       try {
         await _analysisRepository.saveAnalysis(userId, result);
-        debugPrint('✅ AnalysisViewModel: Analysis result saved successfully');
+        if (kDebugMode) {
+          debugPrint('✅ AnalysisViewModel: Analysis result saved successfully');
+        }
       } catch (saveError) {
-        debugPrint(
-            '⚠️ AnalysisViewModel: Failed to save analysis result: $saveError');
+        if (kDebugMode) {
+          debugPrint(
+              '⚠️ AnalysisViewModel: Failed to save analysis result: $saveError');
+        }
         // Continue execution even if save fails - don't break the user flow
       }
 
@@ -165,11 +175,15 @@ class AnalysisViewModel extends ChangeNotifier {
         analysisDate: DateTime.now(),
       );
 
-      debugPrint(
-          '📊 AnalysisViewModel: Spending behavior analysis completed successfully');
+      if (kDebugMode) {
+        debugPrint(
+            '📊 AnalysisViewModel: Spending behavior analysis completed successfully');
+      }
     } catch (e, stackTrace) {
-      debugPrint('❌ AnalysisViewModel: Spending behavior analysis error: $e');
-      debugPrint('Stack trace: $stackTrace');
+      if (kDebugMode) {
+        debugPrint('❌ AnalysisViewModel: Spending behavior analysis error: $e');
+        debugPrint('Stack trace: $stackTrace');
+      }
       _errorMessage = e.toString();
       _spendingAnalysisResult = null;
       _lastSpendingRequest = null;
@@ -188,8 +202,10 @@ class AnalysisViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      debugPrint(
-          '📊 AnalysisViewModel: Starting budget reallocation analysis...');
+      if (kDebugMode) {
+        debugPrint(
+            '📊 AnalysisViewModel: Starting budget reallocation analysis...');
+      }
 
       // Use a constant guest user ID
       const userId = _guestUserId;
@@ -213,13 +229,18 @@ class AnalysisViewModel extends ChangeNotifier {
       // Store results
       _reallocationResult = result;
 
-      debugPrint(
-          '📊 AnalysisViewModel: Budget reallocation analysis completed successfully');
-      debugPrint(
-          '📊 Found ${result.suggestions.length} reallocation suggestions');
+      if (kDebugMode) {
+        debugPrint(
+            '📊 AnalysisViewModel: Budget reallocation analysis completed successfully');
+        debugPrint(
+            '📊 Found ${result.suggestions.length} reallocation suggestions');
+      }
     } catch (e, stackTrace) {
-      debugPrint('❌ AnalysisViewModel: Budget reallocation analysis error: $e');
-      debugPrint('Stack trace: $stackTrace');
+      if (kDebugMode) {
+        debugPrint(
+            '❌ AnalysisViewModel: Budget reallocation analysis error: $e');
+        debugPrint('Stack trace: $stackTrace');
+      }
       _errorMessage = e.toString();
       _reallocationResult = null;
     } finally {
@@ -235,17 +256,23 @@ class AnalysisViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      debugPrint('🔍 AnalysisViewModel: Checking API health...');
+      if (kDebugMode) {
+        debugPrint('🔍 AnalysisViewModel: Checking API health...');
+      }
 
       final healthStatus = await _apiClient.checkServicesHealth();
-      debugPrint('✅ AnalysisViewModel: API health check completed');
-      debugPrint('📊 Health status: $healthStatus');
+      if (kDebugMode) {
+        debugPrint('✅ AnalysisViewModel: API health check completed');
+        debugPrint('📊 Health status: $healthStatus');
+      }
 
       // You can process the health status here if needed
       // For now, we'll just log it
     } catch (e, stackTrace) {
-      debugPrint('❌ AnalysisViewModel: API health check error: $e');
-      debugPrint('Stack trace: $stackTrace');
+      if (kDebugMode) {
+        debugPrint('❌ AnalysisViewModel: API health check error: $e');
+        debugPrint('Stack trace: $stackTrace');
+      }
       _errorMessage = e.toString();
     } finally {
       _isCheckingHealth = false;
@@ -269,8 +296,10 @@ class AnalysisViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      debugPrint(
-          '📊 AnalysisViewModel: Applying budget reallocation recommendations...');
+      if (kDebugMode) {
+        debugPrint(
+            '📊 AnalysisViewModel: Applying budget reallocation recommendations...');
+      }
 
       // Get current budget
       final monthId =
@@ -287,15 +316,19 @@ class AnalysisViewModel extends ChangeNotifier {
         _reallocationResult!.suggestions,
       );
 
-      debugPrint(
-          '✅ AnalysisViewModel: Budget recommendations applied successfully');
-      debugPrint(
-          '📊 Updated budget total: ${updatedBudget.total} ${updatedBudget.currency}');
+      if (kDebugMode) {
+        debugPrint(
+            '✅ AnalysisViewModel: Budget recommendations applied successfully');
+        debugPrint(
+            '📊 Updated budget total: ${updatedBudget.total} ${updatedBudget.currency}');
+      }
       return true;
     } catch (e, stackTrace) {
-      debugPrint(
-          '❌ AnalysisViewModel: Failed to apply budget recommendations: $e');
-      debugPrint('Stack trace: $stackTrace');
+      if (kDebugMode) {
+        debugPrint(
+            '❌ AnalysisViewModel: Failed to apply budget recommendations: $e');
+        debugPrint('Stack trace: $stackTrace');
+      }
       _errorMessage = 'Failed to apply recommendations: ${e.toString()}';
       return false;
     } finally {
@@ -422,8 +455,10 @@ class AnalysisViewModel extends ChangeNotifier {
   /// Load the latest analysis result from local database
   Future<void> loadLatestAnalysis() async {
     try {
-      debugPrint(
-          '📊 AnalysisViewModel: Loading latest analysis from local database...');
+      if (kDebugMode) {
+        debugPrint(
+            '📊 AnalysisViewModel: Loading latest analysis from local database...');
+      }
 
       // Use a constant guest user ID
       const userId = _guestUserId;
@@ -434,20 +469,27 @@ class AnalysisViewModel extends ChangeNotifier {
 
       if (latestAnalysis != null) {
         _spendingAnalysisResult = latestAnalysis;
-        debugPrint('✅ AnalysisViewModel: Latest analysis loaded successfully');
-        debugPrint('📊 Analysis summary: ${latestAnalysis.summary}');
-        debugPrint(
-            '📊 Key insights: ${latestAnalysis.keyInsights.length} items');
-        debugPrint(
-            '📊 Category insights: ${latestAnalysis.categoryInsights.length} items');
+        if (kDebugMode) {
+          debugPrint(
+              '✅ AnalysisViewModel: Latest analysis loaded successfully');
+          debugPrint('📊 Analysis summary: ${latestAnalysis.summary}');
+          debugPrint(
+              '📊 Key insights: ${latestAnalysis.keyInsights.length} items');
+          debugPrint(
+              '📊 Category insights: ${latestAnalysis.categoryInsights.length} items');
+        }
         notifyListeners();
       } else {
-        debugPrint('📊 AnalysisViewModel: No previous analysis found');
+        if (kDebugMode) {
+          debugPrint('📊 AnalysisViewModel: No previous analysis found');
+        }
         _spendingAnalysisResult = null;
       }
     } catch (e, stackTrace) {
-      debugPrint('❌ AnalysisViewModel: Error loading latest analysis: $e');
-      debugPrint('Stack trace: $stackTrace');
+      if (kDebugMode) {
+        debugPrint('❌ AnalysisViewModel: Error loading latest analysis: $e');
+        debugPrint('Stack trace: $stackTrace');
+      }
       _errorMessage = 'Failed to load previous analysis: ${e.toString()}';
       _spendingAnalysisResult = null;
       notifyListeners();
@@ -462,8 +504,10 @@ class AnalysisViewModel extends ChangeNotifier {
           await _analysisRepository.getLatestAnalysis(userId);
       return latestAnalysis != null;
     } catch (e) {
-      debugPrint(
-          '❌ AnalysisViewModel: Error checking for previous analysis: $e');
+      if (kDebugMode) {
+        debugPrint(
+            '❌ AnalysisViewModel: Error checking for previous analysis: $e');
+      }
       return false;
     }
   }
@@ -485,7 +529,9 @@ class AnalysisViewModel extends ChangeNotifier {
   Future<void> performFullAnalysis({
     required DateTime selectedDate,
   }) async {
-    debugPrint('🚀 AnalysisViewModel: Starting full analysis...');
+    if (kDebugMode) {
+      debugPrint('🚀 AnalysisViewModel: Starting full analysis...');
+    }
 
     // Clear previous results
     clearResults();
@@ -496,8 +542,10 @@ class AnalysisViewModel extends ChangeNotifier {
 
       // If health check failed, stop here
       if (_errorMessage != null) {
-        debugPrint(
-            '❌ AnalysisViewModel: Health check failed, stopping analysis');
+        if (kDebugMode) {
+          debugPrint(
+              '❌ AnalysisViewModel: Health check failed, stopping analysis');
+        }
         return;
       }
 
@@ -506,8 +554,10 @@ class AnalysisViewModel extends ChangeNotifier {
 
       // If spending analysis failed, stop here
       if (_errorMessage != null) {
-        debugPrint(
-            '❌ AnalysisViewModel: Spending analysis failed, stopping full analysis');
+        if (kDebugMode) {
+          debugPrint(
+              '❌ AnalysisViewModel: Spending analysis failed, stopping full analysis');
+        }
         return;
       }
 
@@ -515,14 +565,21 @@ class AnalysisViewModel extends ChangeNotifier {
       await analyzeBudgetReallocation(selectedDate: selectedDate);
 
       if (_errorMessage == null) {
-        debugPrint('✅ AnalysisViewModel: Full analysis completed successfully');
+        if (kDebugMode) {
+          debugPrint(
+              '✅ AnalysisViewModel: Full analysis completed successfully');
+        }
       } else {
-        debugPrint(
-            '⚠️ AnalysisViewModel: Full analysis completed with errors in reallocation step');
+        if (kDebugMode) {
+          debugPrint(
+              '⚠️ AnalysisViewModel: Full analysis completed with errors in reallocation step');
+        }
       }
     } catch (e, stackTrace) {
-      debugPrint('❌ AnalysisViewModel: Full analysis failed: $e');
-      debugPrint('Stack trace: $stackTrace');
+      if (kDebugMode) {
+        debugPrint('❌ AnalysisViewModel: Full analysis failed: $e');
+        debugPrint('Stack trace: $stackTrace');
+      }
       _errorMessage = e.toString();
       notifyListeners();
     }

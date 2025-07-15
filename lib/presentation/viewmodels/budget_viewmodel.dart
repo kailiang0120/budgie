@@ -10,6 +10,7 @@ import '../../domain/usecase/budget/convert_budget_currency_usecase.dart';
 import '../../domain/usecase/budget/calculate_budget_remaining_usecase.dart';
 import '../../domain/usecase/budget/refresh_budget_usecase.dart';
 import '../../domain/usecase/budget/delete_budget_usecase.dart';
+import 'package:flutter/foundation.dart';
 
 class BudgetViewModel extends ChangeNotifier {
   final BudgetRepository _budgetRepository;
@@ -70,34 +71,49 @@ class BudgetViewModel extends ChangeNotifier {
   /// Force refresh the budget data
   Future<void> refreshBudget(String monthId) async {
     try {
-      debugPrint(
-          '🔄 BudgetViewModel: Manual budget refresh requested for month: $monthId');
+      if (kDebugMode) {
+        debugPrint(
+            '🔄 BudgetViewModel: Manual budget refresh requested for month: $monthId');
+      }
       isLoading = true;
       notifyListeners();
 
       // First try to get the budget directly from repository to check if it exists
       final existingBudget = await _budgetRepository.getBudget(monthId);
-      debugPrint(
-          '🔄 BudgetViewModel: Existing budget found: ${existingBudget != null}');
-      if (existingBudget != null) {
+      if (kDebugMode) {
         debugPrint(
-            '🔄 BudgetViewModel: Existing budget total: ${existingBudget.total}, currency: ${existingBudget.currency}');
+            '🔄 BudgetViewModel: Existing budget found: ${existingBudget != null}');
+      }
+      if (existingBudget != null) {
+        if (kDebugMode) {
+          debugPrint(
+              '🔄 BudgetViewModel: Existing budget total: ${existingBudget.total}, currency: ${existingBudget.currency}');
+        }
       }
 
       // Now use the refresh use case to recalculate with expenses
       final refreshedBudget = await _refreshBudgetUseCase.execute(monthId);
-      debugPrint(
-          '🔄 BudgetViewModel: Refresh use case returned budget: ${refreshedBudget != null}');
+      if (kDebugMode) {
+        debugPrint(
+            '🔄 BudgetViewModel: Refresh use case returned budget: ${refreshedBudget != null}');
+      }
 
       if (refreshedBudget != null) {
-        debugPrint(
-            '🔄 BudgetViewModel: Refreshed budget total: ${refreshedBudget.total}, currency: ${refreshedBudget.currency}');
+        if (kDebugMode) {
+          debugPrint(
+              '🔄 BudgetViewModel: Refreshed budget total: ${refreshedBudget.total}, currency: ${refreshedBudget.currency}');
+        }
       }
 
       budget = refreshedBudget;
-      debugPrint('🔄 BudgetViewModel: Budget after refresh: ${budget != null}');
+      if (kDebugMode) {
+        debugPrint(
+            '🔄 BudgetViewModel: Budget after refresh: ${budget != null}');
+      }
     } catch (e) {
-      debugPrint('🔄 BudgetViewModel: Error refreshing budget: $e');
+      if (kDebugMode) {
+        debugPrint('🔄 BudgetViewModel: Error refreshing budget: $e');
+      }
       errorMessage = 'Failed to refresh budget: ${e.toString()}';
     } finally {
       isLoading = false;
@@ -108,8 +124,10 @@ class BudgetViewModel extends ChangeNotifier {
   /// Handle currency changes from settings
   Future<void> onCurrencyChanged(String newCurrency) async {
     try {
-      debugPrint(
-          '💱 BudgetViewModel: Currency change requested to: $newCurrency');
+      if (kDebugMode) {
+        debugPrint(
+            '💱 BudgetViewModel: Currency change requested to: $newCurrency');
+      }
 
       isLoading = true;
       errorMessage = null;
@@ -123,20 +141,26 @@ class BudgetViewModel extends ChangeNotifier {
       final currentBudget = await _loadBudgetUseCase.execute(monthId);
 
       if (currentBudget == null) {
-        debugPrint('💱 BudgetViewModel: No budget found for month: $monthId');
+        if (kDebugMode) {
+          debugPrint('💱 BudgetViewModel: No budget found for month: $monthId');
+        }
         return;
       }
 
       // Check if conversion is needed
       if (currentBudget.currency == newCurrency) {
-        debugPrint(
-            '💱 BudgetViewModel: Budget already in target currency: $newCurrency');
+        if (kDebugMode) {
+          debugPrint(
+              '💱 BudgetViewModel: Budget already in target currency: $newCurrency');
+        }
         budget = currentBudget;
         return;
       }
 
-      debugPrint(
-          '💱 BudgetViewModel: Converting budget from ${currentBudget.currency} to $newCurrency');
+      if (kDebugMode) {
+        debugPrint(
+            '💱 BudgetViewModel: Converting budget from ${currentBudget.currency} to $newCurrency');
+      }
 
       // Perform currency conversion
       final convertedBudget =
@@ -144,16 +168,22 @@ class BudgetViewModel extends ChangeNotifier {
 
       if (convertedBudget != null) {
         budget = convertedBudget;
-        debugPrint(
-            '💱 BudgetViewModel: Currency conversion completed successfully');
+        if (kDebugMode) {
+          debugPrint(
+              '💱 BudgetViewModel: Currency conversion completed successfully');
+        }
       } else {
-        debugPrint(
-            '💱 BudgetViewModel: Currency conversion failed, keeping original budget');
+        if (kDebugMode) {
+          debugPrint(
+              '💱 BudgetViewModel: Currency conversion failed, keeping original budget');
+        }
         budget = currentBudget;
         errorMessage = 'Failed to convert budget currency';
       }
     } catch (e) {
-      debugPrint('💱 BudgetViewModel: Error handling currency change: $e');
+      if (kDebugMode) {
+        debugPrint('💱 BudgetViewModel: Error handling currency change: $e');
+      }
       errorMessage =
           'Failed to update budget with new currency: ${e.toString()}';
     } finally {
@@ -164,9 +194,11 @@ class BudgetViewModel extends ChangeNotifier {
 
   Future<void> saveBudgetWithMonthId(String monthId, Budget newBudget) async {
     try {
-      debugPrint('💾 BudgetViewModel: Saving budget for month: $monthId');
-      debugPrint(
-          '💾 BudgetViewModel: Budget total: ${newBudget.total}, left: ${newBudget.left}, currency: ${newBudget.currency}');
+      if (kDebugMode) {
+        debugPrint('💾 BudgetViewModel: Saving budget for month: $monthId');
+        debugPrint(
+            '💾 BudgetViewModel: Budget total: ${newBudget.total}, left: ${newBudget.left}, currency: ${newBudget.currency}');
+      }
 
       errorMessage = null;
       isLoading = true;
@@ -177,12 +209,16 @@ class BudgetViewModel extends ChangeNotifier {
       // Explicitly set the budget property to ensure UI updates
       budget = newBudget;
 
-      debugPrint('💾 BudgetViewModel: Budget saved successfully');
+      if (kDebugMode) {
+        debugPrint('💾 BudgetViewModel: Budget saved successfully');
+      }
     } catch (e, stackTrace) {
       final error = AppError.from(e, stackTrace);
       error.log();
       errorMessage = error.message;
-      debugPrint('💾 BudgetViewModel: Error saving budget: ${error.message}');
+      if (kDebugMode) {
+        debugPrint('💾 BudgetViewModel: Error saving budget: ${error.message}');
+      }
     } finally {
       isLoading = false;
       notifyListeners();
@@ -260,7 +296,9 @@ class BudgetViewModel extends ChangeNotifier {
   /// Delete budget for a specific month
   Future<void> deleteBudget(String monthId) async {
     try {
-      debugPrint('🗑️ BudgetViewModel: Deleting budget for month: $monthId');
+      if (kDebugMode) {
+        debugPrint('🗑️ BudgetViewModel: Deleting budget for month: $monthId');
+      }
 
       isLoading = true;
       errorMessage = null;
@@ -274,11 +312,15 @@ class BudgetViewModel extends ChangeNotifier {
         budget = null;
       }
 
-      debugPrint('🗑️ BudgetViewModel: Budget deleted successfully');
+      if (kDebugMode) {
+        debugPrint('🗑️ BudgetViewModel: Budget deleted successfully');
+      }
     } catch (e, stackTrace) {
       final error = AppError.from(e, stackTrace);
-      debugPrint(
-          '🗑️ BudgetViewModel: Error deleting budget: ${error.message}');
+      if (kDebugMode) {
+        debugPrint(
+            '🗑️ BudgetViewModel: Error deleting budget: ${error.message}');
+      }
       errorMessage = 'Failed to delete budget: ${error.message}';
     } finally {
       isLoading = false;

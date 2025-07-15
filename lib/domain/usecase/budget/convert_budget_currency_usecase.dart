@@ -79,14 +79,18 @@ class ConvertBudgetCurrencyUseCase {
       Budget budget, String newCurrency, String monthId) async {
     // Check if the currency is already the same
     if (budget.currency == newCurrency) {
-      print('Budget currency already matches new currency: $newCurrency');
+      if (kDebugMode) {
+        print('Budget currency already matches new currency: $newCurrency');
+      }
       return budget;
     }
 
     // Check if a conversion is already in progress
     if (_isConvertingCurrency) {
-      print(
-          'Currency conversion already in progress, skipping duplicate request');
+      if (kDebugMode) {
+        print(
+            'Currency conversion already in progress, skipping duplicate request');
+      }
       return budget;
     }
 
@@ -94,9 +98,11 @@ class ConvertBudgetCurrencyUseCase {
       // Set the conversion flag to prevent duplicate conversions
       _isConvertingCurrency = true;
 
-      print(
-          'Currency changed to $newCurrency - updating budget from ${budget.currency}');
-      print('Before conversion - Budget total: ${budget.total}');
+      if (kDebugMode) {
+        print(
+            'Currency changed to $newCurrency - updating budget from ${budget.currency}');
+        print('Before conversion - Budget total: ${budget.total}');
+      }
 
       // Convert the budget using our enhanced CurrencyConversionService
       final oldCurrency = budget.currency;
@@ -121,8 +127,10 @@ class ConvertBudgetCurrencyUseCase {
           left: convertedLeft,
         );
 
-        print(
-            'Converted category "$categoryId": Budget ${categoryBudget.budget} $oldCurrency → $convertedBudget $newCurrency');
+        if (kDebugMode) {
+          print(
+              'Converted category "$categoryId": Budget ${categoryBudget.budget} $oldCurrency → $convertedBudget $newCurrency');
+        }
       }
 
       // Convert total, left, and saving amounts
@@ -144,24 +152,32 @@ class ConvertBudgetCurrencyUseCase {
         currency: newCurrency,
       );
 
-      print(
-          'Converted total budget: ${budget.total} $oldCurrency → ${convertedBudget.total} $newCurrency');
-      print(
-          'Converted left budget: ${budget.left} $oldCurrency → ${convertedBudget.left} $newCurrency');
-      print(
-          'Converted saving: ${budget.saving} $oldCurrency → ${convertedBudget.saving} $newCurrency');
+      if (kDebugMode) {
+        print(
+            'Converted total budget: ${budget.total} $oldCurrency → ${convertedBudget.total} $newCurrency');
+        print(
+            'Converted left budget: ${budget.left} $oldCurrency → ${convertedBudget.left} $newCurrency');
+        print(
+            'Converted saving: ${budget.saving} $oldCurrency → ${convertedBudget.saving} $newCurrency');
+      }
 
       // Save the converted budget
-      print('Saving converted budget with currency: $newCurrency');
+      if (kDebugMode) {
+        print('Saving converted budget with currency: $newCurrency');
+      }
       await _budgetRepository.setBudget(monthId, convertedBudget);
 
-      print(
-          'Budget successfully converted and saved with new currency: $newCurrency');
-      print('Final budget total: ${convertedBudget.total}');
+      if (kDebugMode) {
+        print(
+            'Budget successfully converted and saved with new currency: $newCurrency');
+        print('Final budget total: ${convertedBudget.total}');
+      }
 
       return convertedBudget;
     } catch (e) {
-      print('Error handling currency change: $e');
+      if (kDebugMode) {
+        print('Error handling currency change: $e');
+      }
       rethrow;
     } finally {
       // Reset the conversion flag

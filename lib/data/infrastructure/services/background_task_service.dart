@@ -7,9 +7,11 @@ import 'settings_service.dart';
 import 'sync_service.dart';
 import '../../../domain/services/budget_reallocation_service.dart';
 import '../../../domain/repositories/user_behavior_repository.dart';
+import '../../../domain/usecase/expense/process_recurring_expenses_usecase.dart';
 
 const autoReallocationTask = 'autoReallocationTask';
 const dataSyncTask = 'dataSyncTask';
+const recurringExpenseTask = 'recurringExpenseTask';
 
 @pragma('vm:entry-point')
 void callbackDispatcher() {
@@ -64,6 +66,11 @@ void callbackDispatcher() {
           final syncService = di.sl<SyncService>();
           await syncService.syncData(fullSync: true);
           debugPrint('Background data sync completed.');
+          break;
+        case recurringExpenseTask:
+          // Execute recurring expense processing
+          await di.sl<ProcessRecurringExpensesUseCase>().execute();
+          debugPrint('Background recurring expense processing completed.');
           break;
       }
       return Future.value(true);
@@ -124,5 +131,22 @@ class BackgroundTaskService {
     } else {
       await cancelDataSyncTask();
     }
+  }
+
+  Future<void> scheduleRecurringExpenseTask() async {
+    await Workmanager().registerPeriodicTask(
+      '3',
+      recurringExpenseTask,
+      frequency: const Duration(hours: 1),
+      constraints: Constraints(
+        networkType: NetworkType.connected,
+      ),
+    );
+    debugPrint('Recurring expense processing task scheduled.');
+  }
+
+  Future<void> cancelRecurringExpenseTask() async {
+    await Workmanager().cancelByUniqueName('3');
+    debugPrint('Recurring expense processing task canceled.');
   }
 }

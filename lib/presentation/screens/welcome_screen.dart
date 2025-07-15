@@ -30,31 +30,47 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   final int _totalPages = 4;
   bool _isPermissionRequesting = false;
 
+  // Individual permission request tracking
+  final Map<String, bool> _permissionRequestStates = {
+    'Notifications': false,
+    'Storage': false,
+    'Camera': false,
+    'Location': false,
+  };
+
   // Permission status tracking with descriptions
   final Map<String, Map<String, dynamic>> _permissionStatus = {
     'Notifications': {
       'granted': false,
-      'description': 'Detect expenses from SMS and notifications',
+      'description': 'Detect expenses from SMS and notifications automatically',
       'icon': Icons.notifications_outlined,
       'required': true,
+      'color': AppTheme.primaryColorDark,
+      'available': true,
     },
     'Storage': {
       'granted': false,
-      'description': 'Save receipts and export your data',
+      'description': 'Save receipts and export your financial data',
       'icon': Icons.folder_outlined,
       'required': true,
+      'color': AppTheme.secondaryColorDark,
+      'available': true,
     },
     'Camera': {
       'granted': false,
-      'description': 'Scan receipts and documents',
+      'description': 'Scan receipts and documents for expense tracking',
       'icon': Icons.camera_alt_outlined,
       'required': false,
+      'color': AppTheme.successColorDark,
+      'available': false, // Coming soon
     },
     'Location': {
       'granted': false,
-      'description': 'Location-based expense tracking (optional)',
+      'description': 'Location-based expense tracking and merchant detection',
       'icon': Icons.location_on_outlined,
       'required': false,
+      'color': AppTheme.warningColorDark,
+      'available': false, // Coming soon
     },
   };
 
@@ -99,18 +115,20 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   Future<void> _checkInitialPermissions() async {
     final permissionService = di.sl<PermissionHandlerService>();
 
+    // Only check permissions for available features
     final storage = await permissionService.hasStoragePermission();
     final notifications = await permissionService
         .hasPermissionsForFeature(PermissionFeature.notifications);
-    final camera = await permissionService.hasCameraPermission();
-    final location = await permissionService.hasLocationPermission();
 
-    setState(() {
-      _permissionStatus['Storage']!['granted'] = storage;
-      _permissionStatus['Notifications']!['granted'] = notifications;
-      _permissionStatus['Camera']!['granted'] = camera;
-      _permissionStatus['Location']!['granted'] = location;
-    });
+    if (mounted) {
+      setState(() {
+        _permissionStatus['Storage']!['granted'] = storage;
+        _permissionStatus['Notifications']!['granted'] = notifications;
+        // Camera and Location remain false as they're not available yet
+        _permissionStatus['Camera']!['granted'] = false;
+        _permissionStatus['Location']!['granted'] = false;
+      });
+    }
   }
 
   @override
@@ -146,93 +164,104 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('welcome_completed', true);
 
+    // Update settings based on granted permissions
+    await _updateSettingsBasedOnPermissions();
+
     // Navigate to home
     if (mounted) {
       Navigator.of(context).pushReplacementNamed(Routes.home);
     }
   }
 
-  Future<void> _requestAllPermissions() async {
+  /// Request individual permission and update UI in real-time
+  Future<void> _requestIndividualPermission(String permissionName) async {
+    // Check if permission is available for request
+    if (!_permissionStatus[permissionName]!['available']) {
+      // Show coming soon message for unavailable permissions
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$permissionName feature coming soon! 🚀'),
+          backgroundColor: AppTheme.warningColorDark,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    if (_permissionRequestStates[permissionName] == true) return;
+
+    setState(() {
+      _permissionRequestStates[permissionName] = true;
+    });
+
+    final permissionService = di.sl<PermissionHandlerService>();
+    bool granted = false;
+
+    try {
+      switch (permissionName) {
+        case 'Notifications':
+          final result = await permissionService.requestPermissionsForFeature(
+            PermissionFeature.notifications,
+            context,
+          );
+          granted = result.isGranted;
+          break;
+        case 'Storage':
+          granted = await permissionService.requestStoragePermission();
+          break;
+        case 'Camera':
+        case 'Location':
+          // These are not available yet, shouldn't reach here
+          return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _permissionStatus[permissionName]!['granted'] = granted;
+          _permissionRequestStates[permissionName] = false;
+        });
+
+        // Show feedback
+        if (granted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$permissionName permission granted ✓'),
+              backgroundColor: AppTheme.successColorDark,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error requesting $permissionName permission: $e');
+      if (mounted) {
+        setState(() {
+          _permissionRequestStates[permissionName] = false;
+        });
+      }
+    }
+  }
+
+  /// Request all remaining permissions (only available ones)
+  Future<void> _requestAllRemainingPermissions() async {
     setState(() {
       _isPermissionRequesting = true;
     });
 
-    final permissionService = di.sl<PermissionHandlerService>();
-    final settingsService = di.sl<SettingsService>();
+    final ungranted = _permissionStatus.entries
+        .where((entry) =>
+            !entry.value['granted'] && entry.value['available'] == true)
+        .map((entry) => entry.key)
+        .toList();
 
-    try {
-      // Request notification permissions (includes SMS and notification listener)
-      if (!_permissionStatus['Notifications']!['granted']) {
-        await permissionService.requestPermissionsForFeature(
-          PermissionFeature.notifications,
-          context,
-        );
-        final notifications = await permissionService
-            .hasPermissionsForFeature(PermissionFeature.notifications);
-        _permissionStatus['Notifications']!['granted'] = notifications;
-      }
+    for (final permissionName in ungranted) {
+      if (!mounted) break;
+      await _requestIndividualPermission(permissionName);
+      // Small delay between requests for better UX
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
 
-      // Request storage permission
-      if (!_permissionStatus['Storage']!['granted']) {
-        if (!mounted) return;
-        final requestStorage = await DialogUtils.showConfirmationDialog(
-          context,
-          title: 'Storage Permission',
-          content:
-              'Budgie needs storage access to save receipts and export your data.',
-          confirmText: 'Allow',
-          cancelText: 'Skip',
-        );
-
-        if (requestStorage == true) {
-          final storage = await permissionService.requestStoragePermission();
-          _permissionStatus['Storage']!['granted'] = storage;
-        }
-      }
-
-      // Request camera permission
-      if (!_permissionStatus['Camera']!['granted']) {
-        if (!mounted) return;
-        final requestCamera = await DialogUtils.showConfirmationDialog(
-          context,
-          title: 'Camera Permission',
-          content: 'Budgie needs camera access to scan receipts and documents.',
-          confirmText: 'Allow',
-          cancelText: 'Skip',
-        );
-
-        if (requestCamera == true) {
-          final camera = await permissionService.requestCameraPermission();
-          _permissionStatus['Camera']!['granted'] = camera;
-        }
-      }
-
-      // Request location permission (optional)
-      if (!_permissionStatus['Location']!['granted']) {
-        if (!mounted) return;
-        final requestLocation = await DialogUtils.showConfirmationDialog(
-          context,
-          title: 'Location Permission (Optional)',
-          content:
-              'Allow Budgie to access your location for location-based expense tracking?',
-          confirmText: 'Allow',
-          cancelText: 'Skip',
-        );
-
-        if (requestLocation == true) {
-          final location = await permissionService.requestLocationPermission();
-          _permissionStatus['Location']!['granted'] = location;
-        }
-      }
-
-      // Update settings based on granted permissions
-      await _updateSettingsBasedOnPermissions(
-          permissionService, settingsService);
-
-      setState(() {});
-    } catch (e) {
-      debugPrint('Error requesting permissions: $e');
-    } finally {
+    if (mounted) {
       setState(() {
         _isPermissionRequesting = false;
       });
@@ -240,10 +269,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   /// Update settings based on granted permissions
-  Future<void> _updateSettingsBasedOnPermissions(
-      PermissionHandlerService permissionHandler,
-      SettingsService settingsService) async {
+  Future<void> _updateSettingsBasedOnPermissions() async {
     try {
+      final settingsService = di.sl<SettingsService>();
+
       final hasNotifications =
           _permissionStatus['Notifications']!['granted'] as bool;
       final hasStorage = _permissionStatus['Storage']!['granted'] as bool;
@@ -647,11 +676,26 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   Widget _buildPermissionsPage() {
+    final availablePermissions = _permissionStatus.entries
+        .where((entry) => entry.value['available'] as bool)
+        .toList();
+    final grantedCount = availablePermissions
+        .where((entry) => entry.value['granted'] as bool)
+        .length;
+    final totalCount = availablePermissions.length;
+    final requiredCount = availablePermissions
+        .where((entry) => entry.value['required'] as bool)
+        .length;
+    final grantedRequiredCount = availablePermissions
+        .where((entry) =>
+            entry.value['required'] as bool && entry.value['granted'] as bool)
+        .length;
+
     return Padding(
       padding: AppConstants.screenPadding,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // Header
           Text(
             'Permissions Setup',
             style: TextStyle(
@@ -661,17 +705,9 @@ class _WelcomeScreenState extends State<WelcomeScreen>
             ),
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: AppConstants.spacingLarge.h),
-          Text(
-            'Grant permissions to unlock Budgie\'s full potential. Don\'t worry - you can still use the app without them!',
-            style: TextStyle(
-              fontSize: AppConstants.textSizeLarge.sp,
-              color: AppTheme.greyTextDark,
-              height: 1.5,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: AppConstants.spacingXXLarge.h),
+          SizedBox(height: AppConstants.spacingMedium.h),
+
+          // Progress indicator
           Container(
             padding: EdgeInsets.all(AppConstants.spacingLarge.w),
             decoration: BoxDecoration(
@@ -684,7 +720,70 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                 width: 1,
               ),
             ),
-            child: Column(
+            child: Row(
+              children: [
+                Container(
+                  width: 50.w,
+                  height: 50.h,
+                  decoration: BoxDecoration(
+                    color: grantedRequiredCount == requiredCount
+                        ? AppTheme.successColorDark
+                        : AppTheme.primaryColorDark,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    grantedRequiredCount == requiredCount
+                        ? Icons.check_circle
+                        : Icons.shield_outlined,
+                    color: Colors.white,
+                    size: AppConstants.iconSizeMedium.sp,
+                  ),
+                ),
+                SizedBox(width: AppConstants.spacingLarge.w),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$grantedCount of $totalCount permissions granted',
+                        style: TextStyle(
+                          fontSize: AppConstants.textSizeLarge.sp,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.lightTextDark,
+                        ),
+                      ),
+                      SizedBox(height: 4.h),
+                      Text(
+                        '$grantedRequiredCount of $requiredCount required permissions',
+                        style: TextStyle(
+                          fontSize: AppConstants.textSizeMedium.sp,
+                          color: AppTheme.greyTextDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          SizedBox(height: AppConstants.spacingLarge.h),
+
+          Text(
+            'Tap each permission to grant access. Don\'t worry - you can change these later in settings!',
+            style: TextStyle(
+              fontSize: AppConstants.textSizeMedium.sp,
+              color: AppTheme.greyTextDark,
+              height: 1.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+
+          SizedBox(height: AppConstants.spacingXLarge.h),
+
+          // Permissions checklist
+          Expanded(
+            child: ListView(
               children: _permissionStatus.entries.map((entry) {
                 final String permissionName = entry.key;
                 final Map<String, dynamic> permissionData = entry.value;
@@ -693,124 +792,268 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     permissionData['description'] as String;
                 final IconData icon = permissionData['icon'] as IconData;
                 final bool isRequired = permissionData['required'] as bool;
+                final Color permissionColor = permissionData['color'] as Color;
+                final bool isAvailable = permissionData['available'] as bool;
+                final bool isRequesting =
+                    _permissionRequestStates[permissionName] == true;
 
                 return Container(
                   margin: EdgeInsets.only(bottom: AppConstants.spacingMedium.h),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40.w,
-                        height: 40.h,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: isGranted || isRequesting || !isAvailable
+                          ? null
+                          : () => _requestIndividualPermission(permissionName),
+                      borderRadius: BorderRadius.circular(
+                          AppConstants.borderRadiusLarge.r),
+                      child: Container(
+                        padding: EdgeInsets.all(AppConstants.spacingLarge.w),
                         decoration: BoxDecoration(
-                          color: isGranted
-                              ? AppTheme.successColorDark.withAlpha(
-                                  (255 * AppConstants.opacityHigh).toInt())
-                              : (isRequired
-                                  ? AppTheme.warningColorDark.withAlpha(
-                                      (255 * AppConstants.opacityHigh).toInt())
-                                  : AppTheme.greyTextDark.withAlpha(
-                                      (255 * AppConstants.opacityHigh)
-                                          .toInt())),
+                          color: AppTheme.cardBackgroundDark,
                           borderRadius: BorderRadius.circular(
-                              AppConstants.borderRadiusMedium.r),
+                              AppConstants.borderRadiusLarge.r),
+                          border: Border.all(
+                            color: isGranted
+                                ? AppTheme.successColorDark
+                                : (!isAvailable
+                                    ? AppTheme.greyTextDark.withAlpha(
+                                        (255 * AppConstants.opacityLow).toInt())
+                                    : (isRequired
+                                        ? permissionColor.withAlpha(
+                                            (255 * AppConstants.opacityMedium)
+                                                .toInt())
+                                        : AppTheme.greyTextDark.withAlpha(
+                                            (255 * AppConstants.opacityMedium)
+                                                .toInt()))),
+                            width: isGranted ? 2 : 1,
+                          ),
                         ),
-                        child: Icon(
-                          isGranted ? Icons.check_circle : icon,
-                          color: isGranted
-                              ? AppTheme.successColorDark
-                              : (isRequired
-                                  ? AppTheme.warningColorDark
-                                  : AppTheme.greyTextDark),
-                          size: AppConstants.iconSizeMedium.sp,
-                        ),
-                      ),
-                      SizedBox(width: AppConstants.spacingLarge.w),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Row(
-                              children: [
-                                Text(
-                                  permissionName,
-                                  style: TextStyle(
-                                    fontSize: AppConstants.textSizeLarge.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.lightTextDark,
-                                  ),
-                                ),
-                                if (!isRequired) ...[
-                                  SizedBox(width: AppConstants.spacingSmall.w),
-                                  Container(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: AppConstants.spacingSmall.w,
-                                      vertical: 2.h,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.greyTextDark.withAlpha(
-                                          (255 * AppConstants.opacityMedium)
-                                              .toInt()),
-                                      borderRadius: BorderRadius.circular(8.r),
-                                    ),
-                                    child: Text(
-                                      'Optional',
-                                      style: TextStyle(
-                                        fontSize:
-                                            AppConstants.textSizeXSmall.sp,
-                                        color: AppTheme.greyTextDark,
+                            // Status indicator
+                            Container(
+                              width: 50.w,
+                              height: 50.h,
+                              decoration: BoxDecoration(
+                                color: isGranted
+                                    ? AppTheme.successColorDark
+                                    : (!isAvailable
+                                        ? AppTheme.greyTextDark.withAlpha(
+                                            (255 * AppConstants.opacityLow)
+                                                .toInt())
+                                        : (isRequesting
+                                            ? permissionColor.withAlpha((255 *
+                                                    AppConstants.opacityMedium)
+                                                .toInt())
+                                            : permissionColor.withAlpha((255 *
+                                                    AppConstants.opacityOverlay)
+                                                .toInt()))),
+                                borderRadius: BorderRadius.circular(
+                                    AppConstants.borderRadiusMedium.r),
+                              ),
+                              child: isRequesting
+                                  ? SizedBox(
+                                      width: 20.w,
+                                      height: 20.h,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                                permissionColor),
                                       ),
+                                    )
+                                  : Icon(
+                                      isGranted
+                                          ? Icons.check_circle
+                                          : (!isAvailable
+                                              ? Icons.schedule
+                                              : icon),
+                                      color: isGranted
+                                          ? Colors.white
+                                          : (!isAvailable
+                                              ? AppTheme.greyTextDark
+                                              : permissionColor),
+                                      size: AppConstants.iconSizeMedium.sp,
+                                    ),
+                            ),
+                            SizedBox(width: AppConstants.spacingLarge.w),
+
+                            // Permission details
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        permissionName,
+                                        style: TextStyle(
+                                          fontSize:
+                                              AppConstants.textSizeLarge.sp,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.lightTextDark,
+                                        ),
+                                      ),
+                                      SizedBox(
+                                          width: AppConstants.spacingSmall.w),
+                                      Container(
+                                        padding: EdgeInsets.symmetric(
+                                          horizontal:
+                                              AppConstants.spacingSmall.w,
+                                          vertical: 2.h,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: !isAvailable
+                                              ? AppTheme.greyTextDark.withAlpha(
+                                                  (255 *
+                                                          AppConstants
+                                                              .opacityOverlay)
+                                                      .toInt())
+                                              : (isRequired
+                                                  ? AppTheme.warningColorDark
+                                                      .withAlpha((255 *
+                                                              AppConstants
+                                                                  .opacityOverlay)
+                                                          .toInt())
+                                                  : AppTheme.greyTextDark
+                                                      .withAlpha((255 *
+                                                              AppConstants
+                                                                  .opacityOverlay)
+                                                          .toInt())),
+                                          borderRadius:
+                                              BorderRadius.circular(8.r),
+                                        ),
+                                        child: Text(
+                                          !isAvailable
+                                              ? 'Coming Soon'
+                                              : (isRequired
+                                                  ? 'Required'
+                                                  : 'Optional'),
+                                          style: TextStyle(
+                                            fontSize:
+                                                AppConstants.textSizeXSmall.sp,
+                                            color: !isAvailable
+                                                ? AppTheme.greyTextDark
+                                                : (isRequired
+                                                    ? AppTheme.warningColorDark
+                                                    : AppTheme.greyTextDark),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  SizedBox(height: AppConstants.spacingSmall.h),
+                                  Text(
+                                    description,
+                                    style: TextStyle(
+                                      fontSize: AppConstants.textSizeMedium.sp,
+                                      color: AppTheme.greyTextDark,
+                                      height: 1.4,
                                     ),
                                   ),
+                                  if (isGranted) ...[
+                                    SizedBox(
+                                        height: AppConstants.spacingSmall.h),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.check_circle_outline,
+                                          size: AppConstants.iconSizeSmall.sp,
+                                          color: AppTheme.successColorDark,
+                                        ),
+                                        SizedBox(width: 4.w),
+                                        Text(
+                                          'Permission granted',
+                                          style: TextStyle(
+                                            fontSize:
+                                                AppConstants.textSizeSmall.sp,
+                                            color: AppTheme.successColorDark,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ] else if (!isRequesting) ...[
+                                    SizedBox(
+                                        height: AppConstants.spacingSmall.h),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          !isAvailable
+                                              ? Icons.schedule_outlined
+                                              : Icons.touch_app_outlined,
+                                          size: AppConstants.iconSizeSmall.sp,
+                                          color: !isAvailable
+                                              ? AppTheme.greyTextDark
+                                              : permissionColor,
+                                        ),
+                                        SizedBox(width: 4.w),
+                                        Text(
+                                          !isAvailable
+                                              ? 'Feature coming soon'
+                                              : 'Tap to grant permission',
+                                          style: TextStyle(
+                                            fontSize:
+                                                AppConstants.textSizeSmall.sp,
+                                            color: !isAvailable
+                                                ? AppTheme.greyTextDark
+                                                : permissionColor,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ],
-                              ],
+                              ),
                             ),
-                            SizedBox(height: 2.h),
-                            Text(
-                              description,
-                              style: TextStyle(
-                                fontSize: AppConstants.textSizeSmall.sp,
+
+                            // Action indicator
+                            if (!isGranted && !isRequesting)
+                              Icon(
+                                Icons.arrow_forward_ios,
+                                size: AppConstants.iconSizeSmall.sp,
                                 color: AppTheme.greyTextDark,
-                                height: 1.3,
                               ),
-                            ),
-                            if (isGranted) ...[
-                              SizedBox(height: 2.h),
-                              Text(
-                                'Granted ✓',
-                                style: TextStyle(
-                                  fontSize: AppConstants.textSizeXSmall.sp,
-                                  color: AppTheme.successColorDark,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
                           ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 );
               }).toList(),
             ),
           ),
-          SizedBox(height: AppConstants.spacingXLarge.h),
-          if (!_permissionStatus.values.every((permission) =>
-              (permission['granted'] as bool) ||
-              !(permission['required'] as bool)))
+
+          SizedBox(height: AppConstants.spacingLarge.h),
+
+          // Action buttons
+          if (grantedCount < totalCount) ...[
             SubmitButton(
-              text: 'Grant Permissions',
+              text: 'Grant All Remaining',
               isLoading: _isPermissionRequesting,
-              onPressed: _requestAllPermissions,
+              onPressed: _requestAllRemainingPermissions,
               color: AppTheme.primaryColorDark,
             ),
-          SizedBox(height: AppConstants.spacingMedium.h),
+            SizedBox(height: AppConstants.spacingMedium.h),
+          ],
+
           TextButton(
             onPressed: _completeWelcome,
             child: Text(
-              'Skip for now',
+              grantedRequiredCount == requiredCount
+                  ? 'Continue to App'
+                  : 'Skip for now',
               style: TextStyle(
                 fontSize: AppConstants.textSizeMedium.sp,
-                color: AppTheme.greyTextDark,
+                color: grantedRequiredCount == requiredCount
+                    ? AppTheme.primaryColorDark
+                    : AppTheme.greyTextDark,
+                fontWeight: grantedRequiredCount == requiredCount
+                    ? FontWeight.w600
+                    : FontWeight.normal,
               ),
             ),
           ),
@@ -826,22 +1069,30 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         children: [
           if (_currentPage > 0)
             Expanded(
-              child: OutlinedButton(
+              child: ElevatedButton(
                 onPressed: _previousPage,
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppTheme.primaryColorDark),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.cardBackgroundDark,
+                  foregroundColor: AppTheme.greyTextDark,
+                  elevation: 0,
                   padding: EdgeInsets.symmetric(
                       vertical: AppConstants.spacingLarge.h),
                   shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppConstants.borderRadiusLarge.r),
+                    borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadiusXLarge.r),
+                    side: BorderSide(
+                      color: AppTheme.greyTextDark.withAlpha(
+                          (255 * AppConstants.opacityMedium).toInt()),
+                      width: 1,
+                    ),
                   ),
                 ),
                 child: Text(
                   'Previous',
                   style: TextStyle(
                     fontSize: AppConstants.textSizeLarge.sp,
-                    color: AppTheme.primaryColorDark,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.greyTextDark,
                   ),
                 ),
               ),
@@ -849,11 +1100,27 @@ class _WelcomeScreenState extends State<WelcomeScreen>
           if (_currentPage > 0) SizedBox(width: AppConstants.spacingLarge.w),
           Expanded(
             flex: _currentPage == 0 ? 1 : 1,
-            child: SubmitButton(
-              text: _currentPage == _totalPages - 1 ? 'Get Started' : 'Next',
-              isLoading: false,
+            child: ElevatedButton(
               onPressed: _nextPage,
-              color: AppTheme.primaryColorDark,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColorDark,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding:
+                    EdgeInsets.symmetric(vertical: AppConstants.spacingLarge.h),
+                shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadiusXLarge.r),
+                ),
+              ),
+              child: Text(
+                _currentPage == _totalPages - 1 ? 'Get Started' : 'Next',
+                style: TextStyle(
+                  fontSize: AppConstants.textSizeLarge.sp,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              ),
             ),
           ),
         ],

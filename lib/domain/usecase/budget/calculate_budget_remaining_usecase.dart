@@ -3,6 +3,7 @@ import '../../entities/expense.dart';
 import '../../../data/infrastructure/services/currency_conversion_service.dart';
 import '../../../data/infrastructure/errors/app_error.dart';
 import '../../services/budget_calculation_service.dart';
+import 'package:flutter/foundation.dart';
 
 /// Use case for calculating budget remaining amounts
 class CalculateBudgetRemainingUseCase {
@@ -46,8 +47,10 @@ class CalculateBudgetRemainingUseCase {
     final budgetCurrency = budget.currency;
     final result = <Expense>[];
 
-    print(
-        'Converting ${expenses.length} expenses to budget currency: $budgetCurrency');
+    if (kDebugMode) {
+      print(
+          'Converting ${expenses.length} expenses to budget currency: $budgetCurrency');
+    }
     int convertedCount = 0;
 
     for (final expense in expenses) {
@@ -67,8 +70,10 @@ class CalculateBudgetRemainingUseCase {
           convertedCount++;
           if (convertedCount <= 3) {
             // Only log a few conversions to avoid log spam
-            print(
-                'Converted expense: ${expense.amount} ${expense.currency} → $convertedAmount $budgetCurrency (${expense.remark})');
+            if (kDebugMode) {
+              print(
+                  'Converted expense: ${expense.amount} ${expense.currency} → $convertedAmount $budgetCurrency (${expense.remark})');
+            }
           }
 
           // Create a copy of the expense with the converted amount and budget currency
@@ -79,7 +84,9 @@ class CalculateBudgetRemainingUseCase {
 
           result.add(convertedExpense);
         } catch (e) {
-          print('Error converting expense currency: $e');
+          if (kDebugMode) {
+            print('Error converting expense currency: $e');
+          }
           // If conversion fails, use original expense
           result.add(expense);
         }
@@ -87,7 +94,9 @@ class CalculateBudgetRemainingUseCase {
     }
 
     if (convertedCount > 3) {
-      print('Converted $convertedCount expenses to $budgetCurrency');
+      if (kDebugMode) {
+        print('Converted $convertedCount expenses to $budgetCurrency');
+      }
     }
 
     return result;

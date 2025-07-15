@@ -433,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   // Padding at bottom so FAB + NavBar don't cover last card
                   SliverPadding(
                     padding: EdgeInsets.only(
-                        bottom: AppConstants.spacingHuge.h * 2.3),
+                        bottom: AppConstants.bottomPaddingWithNavBar),
                     sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
                   ),
                 ],

@@ -539,7 +539,8 @@ class _AnalyticScreenState extends State<AnalyticScreen>
                       ),
 
                       SliverPadding(
-                        padding: EdgeInsets.only(bottom: 80.h),
+                        padding: EdgeInsets.only(
+                            bottom: AppConstants.bottomPaddingWithNavBar),
                         sliver:
                             const SliverToBoxAdapter(child: SizedBox.shrink()),
                       ),

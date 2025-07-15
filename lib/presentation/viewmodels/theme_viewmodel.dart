@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/app_theme.dart';
 import '../../data/infrastructure/services/settings_service.dart';
+import 'package:flutter/foundation.dart';
 
 class ThemeViewModel extends ChangeNotifier {
   bool _isDarkMode = false;
@@ -24,8 +25,10 @@ class ThemeViewModel extends ChangeNotifier {
     if (settingsTheme != _currentTheme) {
       _currentTheme = settingsTheme;
       _isDarkMode = _currentTheme == 'dark';
-      debugPrint(
-          '🎨 ThemeViewModel: Refreshed theme from settings: $_currentTheme');
+      if (kDebugMode) {
+        debugPrint(
+            '🎨 ThemeViewModel: Refreshed theme from settings: $_currentTheme');
+      }
     }
   }
 
@@ -38,7 +41,9 @@ class ThemeViewModel extends ChangeNotifier {
 
     // Save theme setting to local settings service
     await _settingsService.updateTheme(theme);
-    debugPrint('🎨 ThemeViewModel: Theme set to: $theme');
+    if (kDebugMode) {
+      debugPrint('🎨 ThemeViewModel: Theme set to: $theme');
+    }
   }
 
   Future<void> toggleTheme() async {
@@ -54,7 +59,9 @@ class ThemeViewModel extends ChangeNotifier {
       _refreshThemeFromSettings();
       notifyListeners();
     } catch (e) {
-      debugPrint('🎨 ThemeViewModel: Error refreshing theme: $e');
+      if (kDebugMode) {
+        debugPrint('🎨 ThemeViewModel: Error refreshing theme: $e');
+      }
       // Don't rethrow - just keep the default theme
     }
   }

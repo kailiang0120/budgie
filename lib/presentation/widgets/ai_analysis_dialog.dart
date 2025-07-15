@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart'; // Added for kDebugMode
 
 import '../viewmodels/analysis_viewmodel.dart';
 import '../utils/app_constants.dart';
@@ -69,7 +70,9 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
         }
       }
     } catch (e) {
-      debugPrint('Error loading previous analysis: $e');
+      if (kDebugMode) {
+        debugPrint('Error loading previous analysis: $e');
+      }
       // Don't show error for loading previous analysis, just continue without it
       if (mounted) {
         setState(() {
@@ -101,7 +104,9 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
         }
       });
     } catch (e) {
-      debugPrint('Error starting analysis: $e');
+      if (kDebugMode) {
+        debugPrint('Error starting analysis: $e');
+      }
       if (mounted) {
         setState(() {
           _isAnalysisStarted = false;
@@ -119,12 +124,16 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
       ),
       child: Container(
         width: MediaQuery.of(context).size.width * 0.95,
-        height: MediaQuery.of(context).size.height * 0.9,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+          minHeight: MediaQuery.of(context).size.height * 0.6,
+        ),
         decoration: BoxDecoration(
           color: Theme.of(context).dialogBackgroundColor.withValues(alpha: 1),
           borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge.r),
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Header Section
             Container(
@@ -144,6 +153,7 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   _buildHeader(),
                   SizedBox(height: AppConstants.spacingMedium.h),
@@ -154,7 +164,7 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
 
             // Main Content Section
             Expanded(
-              child: Padding(
+              child: Container(
                 padding: EdgeInsets.all(AppConstants.spacingLarge.w),
                 child: Consumer<AnalysisViewModel>(
                   builder: (context, analysisViewModel, child) {
@@ -190,34 +200,39 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
   /// Build dialog header
   Widget _buildHeader() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
-          children: [
-            Container(
-              padding: EdgeInsets.all(AppConstants.spacingSmall.w),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary.withAlpha(30),
-                borderRadius:
-                    BorderRadius.circular(AppConstants.borderRadiusSmall.r),
+        Expanded(
+          child: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(AppConstants.spacingSmall.w),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withAlpha(30),
+                  borderRadius:
+                      BorderRadius.circular(AppConstants.borderRadiusSmall.r),
+                ),
+                child: Icon(
+                  Icons.psychology_outlined,
+                  size: AppConstants.iconSizeMedium.sp,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
-              child: Icon(
-                Icons.psychology_outlined,
-                size: AppConstants.iconSizeMedium.sp,
-                color: Theme.of(context).colorScheme.primary,
+              SizedBox(width: AppConstants.spacingMedium.w),
+              Expanded(
+                child: Text(
+                  'AI Financial Analysis',
+                  style: TextStyle(
+                    fontSize: AppConstants.textSizeXLarge.sp,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).textTheme.titleLarge?.color,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-            ),
-            SizedBox(width: AppConstants.spacingMedium.w),
-            Text(
-              'AI Financial Analysis',
-              style: TextStyle(
-                fontSize: AppConstants.textSizeXLarge.sp,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).textTheme.titleLarge?.color,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
+        SizedBox(width: AppConstants.spacingMedium.w),
         IconButton(
           onPressed: () => Navigator.of(context).pop(),
           icon: Icon(
@@ -228,6 +243,7 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
           style: IconButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.surface,
             padding: EdgeInsets.all(AppConstants.spacingSmall.w),
+            minimumSize: Size(44.w, 44.h),
           ),
         ),
       ],
@@ -243,6 +259,8 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
         color: Theme.of(context).textTheme.bodyMedium?.color,
         height: 1.4,
       ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
     );
   }
 
@@ -270,45 +288,49 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
   /// Build initial state before analysis
   Widget _buildInitialState() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: EdgeInsets.all(AppConstants.spacingXLarge.w),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary.withAlpha(20),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.analytics_outlined,
-              size: 64.sp,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-          SizedBox(height: AppConstants.spacingXLarge.h),
-          Text(
-            'Ready to Analyze Your Finances',
-            style: TextStyle(
-              fontSize: AppConstants.textSizeXLarge.sp,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(context).textTheme.titleLarge?.color,
-            ),
-          ),
-          SizedBox(height: AppConstants.spacingMedium.h),
-          Padding(
-            padding:
-                EdgeInsets.symmetric(horizontal: AppConstants.spacingXLarge.w),
-            child: Text(
-              'Our AI will analyze your spending patterns, budget utilization, and provide personalized recommendations to optimize your financial health.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: AppConstants.textSizeMedium.sp,
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-                height: 1.5,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: EdgeInsets.all(AppConstants.spacingXLarge.w),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary.withAlpha(20),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.analytics_outlined,
+                size: 64.sp,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
-          ),
-        ],
+            SizedBox(height: AppConstants.spacingXLarge.h),
+            Text(
+              'Ready to Analyze Your Finances',
+              style: TextStyle(
+                fontSize: AppConstants.textSizeXLarge.sp,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).textTheme.titleLarge?.color,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: AppConstants.spacingMedium.h),
+            Padding(
+              padding:
+                  EdgeInsets.symmetric(horizontal: AppConstants.spacingLarge.w),
+              child: Text(
+                'Our AI will analyze your spending patterns, budget utilization, and provide personalized recommendations to optimize your financial health.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: AppConstants.textSizeMedium.sp,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -455,45 +477,49 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
   /// Build error state
   Widget _buildErrorState(String errorMessage) {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: EdgeInsets.all(AppConstants.spacingXLarge.w),
-            decoration: BoxDecoration(
-              color: Colors.red[50],
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.error_outline,
-              size: 64.sp,
-              color: Colors.red[400],
-            ),
-          ),
-          SizedBox(height: AppConstants.spacingXLarge.h),
-          Text(
-            'Analysis Failed',
-            style: TextStyle(
-              fontSize: AppConstants.textSizeXLarge.sp,
-              fontWeight: FontWeight.bold,
-              color: Colors.red[600],
-            ),
-          ),
-          SizedBox(height: AppConstants.spacingMedium.h),
-          Padding(
-            padding:
-                EdgeInsets.symmetric(horizontal: AppConstants.spacingXLarge.w),
-            child: Text(
-              errorMessage,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: AppConstants.textSizeMedium.sp,
-                color: Theme.of(context).textTheme.bodyMedium?.color,
-                height: 1.5,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: EdgeInsets.all(AppConstants.spacingXLarge.w),
+              decoration: BoxDecoration(
+                color: Colors.red[50],
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline,
+                size: 64.sp,
+                color: Colors.red[400],
               ),
             ),
-          ),
-        ],
+            SizedBox(height: AppConstants.spacingXLarge.h),
+            Text(
+              'Analysis Failed',
+              style: TextStyle(
+                fontSize: AppConstants.textSizeXLarge.sp,
+                fontWeight: FontWeight.bold,
+                color: Colors.red[600],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: AppConstants.spacingMedium.h),
+            Padding(
+              padding:
+                  EdgeInsets.symmetric(horizontal: AppConstants.spacingLarge.w),
+              child: Text(
+                errorMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: AppConstants.textSizeMedium.sp,
+                  color: Theme.of(context).textTheme.bodyMedium?.color,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1333,16 +1359,24 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        minimumSize:
-            Size(double.infinity, AppConstants.componentHeightStandard.h),
-        side: BorderSide(color: Theme.of(context).dividerColor),
+        minimumSize: Size(double.infinity, 48.h),
+        maximumSize: Size(double.infinity, 48.h),
+        side: BorderSide(
+          color: Theme.of(context).dividerColor,
+          width: 1.w,
+        ),
         shape: RoundedRectangleBorder(
           borderRadius:
               BorderRadius.circular(AppConstants.borderRadiusMedium.r),
         ),
+        padding: EdgeInsets.symmetric(
+          horizontal: AppConstants.spacingMedium.w,
+          vertical: AppConstants.spacingSmall.h,
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
             Icon(
@@ -1352,11 +1386,15 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
             ),
             SizedBox(width: AppConstants.spacingSmall.w),
           ],
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: AppConstants.textSizeLarge.sp,
-              color: Theme.of(context).textTheme.bodyMedium?.color,
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: AppConstants.textSizeMedium.sp,
+                color: Theme.of(context).textTheme.bodyMedium?.color,
+                fontWeight: FontWeight.w500,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -1405,6 +1443,7 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
             isLoading: false,
             onPressed: _performAnalysis,
             icon: Icons.analytics_outlined,
+            height: 48.0.h,
           ),
         ),
       ],
@@ -1428,6 +1467,7 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
               loadingText: 'Applying Changes...',
               onPressed: () => _applyBudgetSuggestions(analysisViewModel),
               icon: Icons.check_circle_outline,
+              height: 48.0.h,
             ),
           ),
           SizedBox(height: AppConstants.spacingMedium.h),
@@ -1450,6 +1490,7 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
                 isLoading: false,
                 onPressed: _performAnalysis,
                 icon: Icons.refresh,
+                height: 48.0.h,
               ),
             ),
           ],
@@ -1477,6 +1518,7 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
             isLoading: false,
             onPressed: _performAnalysis,
             icon: Icons.refresh,
+            height: 48.0.h,
           ),
         ),
         SizedBox(width: AppConstants.spacingMedium.w),
@@ -1508,6 +1550,7 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
               loadingText: 'Applying Changes...',
               onPressed: () => _applyBudgetSuggestions(analysisViewModel),
               icon: Icons.check_circle_outline,
+              height: 48.0.h,
             ),
           ),
           SizedBox(height: AppConstants.spacingMedium.h),
@@ -1530,6 +1573,7 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
                 isLoading: false,
                 onPressed: _performAnalysis,
                 icon: Icons.refresh,
+                height: 48.0.h,
               ),
             ),
           ],
@@ -1581,7 +1625,9 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
         }
       }
     } catch (e) {
-      debugPrint('Error applying budget suggestions: $e');
+      if (kDebugMode) {
+        debugPrint('Error applying budget suggestions: $e');
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

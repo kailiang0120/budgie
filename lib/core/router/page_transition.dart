@@ -411,31 +411,3 @@ class PageTransition extends PageRouteBuilder {
     }
   }
 }
-
-/// Screen navigation direction
-enum NavDirection { forward, backward }
-
-/// Enhanced route creation with smooth animations
-Route createRoute(Widget page,
-    {NavDirection direction = NavDirection.forward,
-    RouteSettings? settings,
-    TransitionType? forwardTransition,
-    TransitionType? backwardTransition,
-    Duration? duration,
-    Curve? curve}) {
-  // Use new smooth transitions as defaults
-  const defaultForwardTransition = TransitionType.smoothSlideRight;
-  const defaultBackwardTransition = TransitionType.smoothSlideLeft;
-
-  TransitionType type = direction == NavDirection.forward
-      ? (forwardTransition ?? defaultForwardTransition)
-      : (backwardTransition ?? defaultBackwardTransition);
-
-  return PageTransition(
-    child: page,
-    type: type,
-    settings: settings,
-    duration: duration ?? const Duration(milliseconds: 350),
-    curve: curve ?? Curves.easeInOutCubic,
-  );
-}

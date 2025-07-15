@@ -7,13 +7,11 @@ import '../data/repositories/analysis_repository_impl.dart';
 import '../data/repositories/budget_repository_impl.dart';
 import '../data/repositories/expenses_repository_impl.dart';
 import '../data/repositories/goals_repository_impl.dart';
-import '../data/repositories/app_settings_repository_impl.dart';
 import '../data/repositories/user_behavior_repository_impl.dart';
 import '../domain/repositories/analysis_repository.dart';
 import '../domain/repositories/budget_repository.dart';
 import '../domain/repositories/expenses_repository.dart';
 import '../domain/repositories/goals_repository.dart';
-import '../domain/repositories/app_settings_repository.dart';
 import '../domain/repositories/user_behavior_repository.dart';
 
 // ViewModels
@@ -28,7 +26,6 @@ import '../data/datasources/local_data_source.dart';
 import '../data/datasources/local_data_source_impl.dart';
 import '../data/datasources/user_behavior_local_data_source.dart';
 import '../data/datasources/analysis_local_data_source.dart';
-import '../data/datasources/settings_local_data_source.dart';
 
 // Services
 import '../data/infrastructure/services/background_task_service.dart';
@@ -101,8 +98,6 @@ Future<void> init() async {
   // =================================================================
   sl.registerLazySingleton<LocalDataSource>(
       () => LocalDataSourceImpl(sl(), sl()));
-  sl.registerLazySingleton<SettingsLocalDataSource>(
-      () => SettingsLocalDataSourceImpl(sl<AppSettingsDao>()));
   sl.registerLazySingleton<UserBehaviorLocalDataSource>(
       () => UserBehaviorLocalDataSourceImpl(sl<AppDatabase>()));
   sl.registerLazySingleton<AnalysisLocalDataSource>(
@@ -111,9 +106,6 @@ Future<void> init() async {
   // =================================================================
   // Repositories
   // =================================================================
-  sl.registerLazySingleton<AppSettingsRepository>(() =>
-      AppSettingsRepositoryImpl(
-          localDataSource: sl<SettingsLocalDataSource>()));
   sl.registerLazySingleton<AnalysisRepository>(
       () => AnalysisRepositoryImpl(sl<AnalysisLocalDataSource>()));
   sl.registerLazySingleton<ExpensesRepository>(

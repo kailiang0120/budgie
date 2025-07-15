@@ -14,55 +14,9 @@ import '../constants/routes.dart';
 import 'page_transition.dart';
 
 class AppRouter {
-  /// Enhanced navigation direction detection with smoother transitions
-  static NavDirection _getNavigationDirection(
-      String? fromRoute, String toRoute) {
-    // Enhanced page hierarchy for better transition logic
-    final pagePositions = {
-      Routes.home: 0, // Main hub
-      Routes.analytic: 1, // Right of home
-      Routes.goals: 2, // Goals moved to position 2
-      Routes.settings: 3, // Settings moved to position 3
-      Routes.expenses: 10, // Modal-style (special handling)
-      Routes.editExpense: 11, // Modal-style (special handling)
-      Routes.splash: -10, // Initial screen
-      Routes.welcome: -5, // Welcome screen
-      Routes.notificationTest: 4, // Additional screen
-    };
-
-    // Handle special cases first
-    if (toRoute == Routes.expenses || toRoute == Routes.editExpense) {
-      return NavDirection.forward; // Always slide up for modal
-    }
-
-    // Default to forward for unknown routes
-    if (fromRoute == null ||
-        !pagePositions.containsKey(fromRoute) ||
-        !pagePositions.containsKey(toRoute)) {
-      return NavDirection.forward;
-    }
-
-    final fromPosition = pagePositions[fromRoute]!;
-    final toPosition = pagePositions[toRoute]!;
-
-    // Enhanced logic for smoother transitions
-    if (toPosition > fromPosition) {
-      return NavDirection.forward;
-    } else {
-      return NavDirection.backward;
-    }
-  }
-
   static Route<dynamic> generateRoute(RouteSettings settings) {
-    // Get current route for direction calculation
-    final fromRoute = navigatorKey.currentContext != null
-        ? ModalRoute.of(navigatorKey.currentContext!)?.settings.name
-        : null;
-
-    final direction = _getNavigationDirection(fromRoute, settings.name ?? '');
-
     // Special handling for expense screen (modal behavior)
-    if (settings.name == Routes.expenses) {
+    if (settings.name == Routes.expenses || settings.name == '/add_expense') {
       // Handle prefilled data if provided
       final prefilledData = settings.arguments as Map<String, dynamic>?;
       return PageTransition(
@@ -106,14 +60,12 @@ class AppRouter {
         );
 
       case Routes.home:
-        return createRoute(
-          const HomeScreen(),
-          settings: settings,
-          direction: direction,
-          forwardTransition: TransitionType.smoothSlideRight,
-          backwardTransition: TransitionType.smoothSlideLeft,
+        return PageTransition(
+          child: const HomeScreen(),
+          type: TransitionType.smoothFadeSlide,
           duration: const Duration(milliseconds: 350),
           curve: Curves.easeInOutCubic,
+          settings: settings,
         );
 
       case Routes.analytic:
@@ -167,16 +119,21 @@ class AppRouter {
                   const SizedBox(height: 16),
                   Text(
                     'Page Not Found',
-                    style: Theme.of(navigatorKey.currentContext!)
-                        .textTheme
-                        .headlineSmall,
+                    style: navigatorKey.currentContext != null
+                        ? Theme.of(navigatorKey.currentContext!)
+                            .textTheme
+                            .headlineSmall
+                        : const TextStyle(
+                            fontSize: 24, fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'No route defined for ${settings.name}',
-                    style: Theme.of(navigatorKey.currentContext!)
-                        .textTheme
-                        .bodyMedium,
+                    style: navigatorKey.currentContext != null
+                        ? Theme.of(navigatorKey.currentContext!)
+                            .textTheme
+                            .bodyMedium
+                        : const TextStyle(fontSize: 16),
                   ),
                 ],
               ),

@@ -29,6 +29,9 @@ class _TempExpenseData {
   });
 }
 
+/// Callback function type for expense refresh
+typedef ExpenseRefreshCallback = Future<void> Function();
+
 /// Unified notification service for sending local notifications
 /// Provides a clean interface for all notification sending functionality
 class NotificationService {
@@ -60,6 +63,9 @@ class NotificationService {
   static const String _generalChannelId = 'general_notifications';
   static const String _expenseChannelId = 'expense_notifications';
   static const String _reminderChannelId = 'reminder_notifications';
+
+  // Callback for refreshing app data when expenses are added
+  ExpenseRefreshCallback? _expenseRefreshCallback;
 
   /// Initialize the notification service
   Future<void> initialize() async {
@@ -351,6 +357,33 @@ class NotificationService {
           '❌ NotificationService: Failed to get active notifications: $e');
     }
     return [];
+  }
+
+  /// Set callback function to refresh app data after expense is added via notifications
+  void setExpenseRefreshCallback(ExpenseRefreshCallback callback) {
+    _expenseRefreshCallback = callback;
+    debugPrint('📤 NotificationService: Expense refresh callback registered');
+  }
+
+  /// Cleanup after expense is successfully added via notification
+  Future<void> cleanupAfterExpenseAdded(String detectionId) async {
+    try {
+      // Clear the temporary storage
+      clearStoredExpenseData(detectionId);
+
+      // Trigger app data refresh
+      if (_expenseRefreshCallback != null) {
+        debugPrint(
+            '📤 NotificationService: Triggering app data refresh after expense addition');
+        await _expenseRefreshCallback!();
+        debugPrint('✅ NotificationService: App data refresh completed');
+      } else {
+        debugPrint('⚠️ NotificationService: No refresh callback registered');
+      }
+    } catch (e) {
+      debugPrint(
+          '❌ NotificationService: Error during cleanup after expense addition: $e');
+    }
   }
 
   // Private methods
@@ -670,13 +703,6 @@ class NotificationService {
 
   /// Check if service is initialized
   bool get isInitialized => _isInitialized;
-
-  /// Clean up stored data after successful expense addition
-  void cleanupAfterExpenseAdded(String? detectionId) {
-    if (detectionId != null) {
-      clearStoredExpenseData(detectionId);
-    }
-  }
 }
 
 /// Notification priority levels

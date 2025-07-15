@@ -102,8 +102,11 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       }
     }
 
-    // Set merchant name as remark (primary change as per user requirement)
-    if (data['merchantName'] != null &&
+    // Set remarks directly from extracted data (primary change as per user requirement)
+    if (data['remarks'] != null &&
+        data['remarks'].toString().trim().isNotEmpty) {
+      _remarkController.text = data['remarks'].toString();
+    } else if (data['merchantName'] != null &&
         data['merchantName'].toString().trim().isNotEmpty) {
       _remarkController.text = data['merchantName'].toString();
     } else if (data['merchant'] != null &&
@@ -161,7 +164,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
 
     debugPrint(
-        '📱 AddExpenseScreen: Preloaded data - Amount: ${_amountController.text}, Merchant: ${_remarkController.text}, Currency: ${_currency.value}, Payment Method: ${_selectedPaymentMethod.value}');
+        '📱 AddExpenseScreen: Preloaded data - Amount: ${_amountController.text}, Remarks: ${_remarkController.text}, Currency: ${_currency.value}, Payment Method: ${_selectedPaymentMethod.value}');
   }
 
   /// Normalize extracted payment method to match app's payment method options

@@ -89,16 +89,20 @@ class ExpensesViewModel extends ChangeNotifier
 
       // Reload data when going from offline to online
       if (wasOffline && isConnected && _settingsService.syncEnabled) {
-        debugPrint(
-            '🔄 ExpensesViewModel: Network connection restored, triggering sync and reload');
+        if (kDebugMode) {
+          debugPrint(
+              '🔄 ExpensesViewModel: Network connection restored, triggering sync and reload');
+        }
         // Trigger sync first
         _loadExpensesUseCase.execute();
         // Then reload data
         _loadExpensesFromLocalDatabase();
       } else if (!wasOffline && !isConnected) {
         // Load local data when going from online to offline
-        debugPrint(
-            '🔄 ExpensesViewModel: Network connection lost, loading from local database');
+        if (kDebugMode) {
+          debugPrint(
+              '🔄 ExpensesViewModel: Network connection lost, loading from local database');
+        }
         _loadExpensesFromLocalDatabase();
       }
     });
@@ -121,8 +125,10 @@ class ExpensesViewModel extends ChangeNotifier
   Future<void> _loadExpensesWithRetry({int maxRetries = 3}) async {
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        debugPrint(
-            '🔄 ExpensesViewModel: Loading expenses attempt ${attempt + 1}/$maxRetries');
+        if (kDebugMode) {
+          debugPrint(
+              '🔄 ExpensesViewModel: Loading expenses attempt ${attempt + 1}/$maxRetries');
+        }
 
         final localExpenses = await _expensesRepository.getExpenses();
 
@@ -139,11 +145,15 @@ class ExpensesViewModel extends ChangeNotifier
         _isLoading = false;
         notifyListenersThrottled('expenses_loaded');
 
-        debugPrint(
-            '✅ ExpensesViewModel: Successfully loaded ${_expenses.length} expenses');
+        if (kDebugMode) {
+          debugPrint(
+              '✅ ExpensesViewModel: Successfully loaded ${_expenses.length} expenses');
+        }
         return; // Success, exit retry loop
       } catch (e, stackTrace) {
-        debugPrint('⚠️ ExpensesViewModel: Attempt ${attempt + 1} failed: $e');
+        if (kDebugMode) {
+          debugPrint('⚠️ ExpensesViewModel: Attempt ${attempt + 1} failed: $e');
+        }
 
         // Check if this is the last attempt
         if (attempt >= maxRetries - 1) {
@@ -153,8 +163,10 @@ class ExpensesViewModel extends ChangeNotifier
 
         // Wait before retrying, with exponential backoff
         final delay = Duration(milliseconds: 500 * (attempt + 1));
-        debugPrint(
-            '🔄 ExpensesViewModel: Retrying in ${delay.inMilliseconds}ms...');
+        if (kDebugMode) {
+          debugPrint(
+              '🔄 ExpensesViewModel: Retrying in ${delay.inMilliseconds}ms...');
+        }
         await Future.delayed(delay);
       }
     }
@@ -213,7 +225,9 @@ class ExpensesViewModel extends ChangeNotifier
       _filterExpensesByMonth();
       notifyListenersThrottled('month_filter_changed');
     } catch (e) {
-      debugPrint('Error setting selected month: $e');
+      if (kDebugMode) {
+        debugPrint('Error setting selected month: $e');
+      }
     }
   }
 
@@ -488,7 +502,9 @@ class ExpensesViewModel extends ChangeNotifier
       _filterExpensesByMonth();
       notifyListenersThrottled('filter_mode_changed');
     } catch (e) {
-      debugPrint('Error setting filter mode: $e');
+      if (kDebugMode) {
+        debugPrint('Error setting filter mode: $e');
+      }
     }
   }
 
@@ -553,10 +569,14 @@ class ExpensesViewModel extends ChangeNotifier
         _filterExpensesByMonth();
       }
 
-      debugPrint(
-          'ExpensesViewModel: Data refreshed successfully, ${_expenses.length} expenses loaded');
+      if (kDebugMode) {
+        debugPrint(
+            'ExpensesViewModel: Data refreshed successfully, ${_expenses.length} expenses loaded');
+      }
     } catch (e) {
-      debugPrint('ExpensesViewModel: Error refreshing data: $e');
+      if (kDebugMode) {
+        debugPrint('ExpensesViewModel: Error refreshing data: $e');
+      }
     } finally {
       _isLoading = false;
       notifyListeners();

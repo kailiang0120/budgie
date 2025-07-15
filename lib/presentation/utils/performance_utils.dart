@@ -62,7 +62,9 @@ class PerformanceUtils {
         resource.dispose();
       }
     } catch (e) {
-      debugPrint('Warning: Error disposing resource: $e');
+      if (kDebugMode) {
+        debugPrint('Warning: Error disposing resource: $e');
+      }
     }
   }
 

@@ -10,6 +10,7 @@ import '../viewmodels/expenses_viewmodel.dart';
 import '../../core/constants/routes.dart';
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
+import '../utils/currency_formatter.dart';
 import '../viewmodels/budget_viewmodel.dart';
 
 class ExpenseCard extends StatefulWidget {
@@ -233,10 +234,9 @@ class _ExpenseCardState extends State<ExpenseCard>
     final timeFormatter = DateFormat(AppConstants.shortTimeFormat);
     final formattedTime = timeFormatter.format(expense.date);
 
-    // Format amount with currency
-    final viewModel = Provider.of<ExpensesViewModel>(context);
+    // Format amount with the original currency from the expense record
     final formattedAmount =
-        '${viewModel.currentCurrency} ${expense.amount.toStringAsFixed(2)}';
+        CurrencyFormatter.formatAmount(expense.amount, expense.currency);
 
     // Get recurring badge info if applicable
     final bool isRecurring = expense.isRecurring;
@@ -376,53 +376,97 @@ class _ExpenseCardState extends State<ExpenseCard>
                             // Category and date/time
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  expense.remark,
-                                  style: TextStyle(
-                                    fontFamily: AppTheme.fontFamily,
-                                    fontSize: AppConstants.textSizeSmall.sp,
-                                    color: Colors.grey[600],
+                                // Remarks text with proper wrapping
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    expense.remark.isNotEmpty
+                                        ? expense.remark
+                                        : 'No remarks',
+                                    style: TextStyle(
+                                      fontFamily: AppTheme.fontFamily,
+                                      fontSize: AppConstants.textSizeSmall.sp,
+                                      color: expense.remark.isNotEmpty
+                                          ? Colors.grey[600]
+                                          : Colors.grey[400],
+                                      fontStyle: expense.remark.isNotEmpty
+                                          ? FontStyle.normal
+                                          : FontStyle.italic,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    softWrap: true,
                                   ),
                                 ),
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.calendar_today,
-                                      size: AppConstants.iconSizeSmall.sp,
-                                      color: Colors.grey[600],
-                                    ),
-                                    SizedBox(
-                                        width: AppConstants.spacingXXSmall.w),
-                                    Text(
-                                      formattedDate,
-                                      style: TextStyle(
-                                        fontFamily: AppTheme.fontFamily,
-                                        fontSize: AppConstants.textSizeSmall.sp,
-                                        color: Colors.grey[600],
+                                SizedBox(width: AppConstants.spacingSmall.w),
+                                // Date and time section
+                                Expanded(
+                                  flex: 1,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.calendar_today,
+                                            size: AppConstants.iconSizeSmall.sp,
+                                            color: Colors.grey[600],
+                                          ),
+                                          SizedBox(
+                                              width: AppConstants
+                                                  .spacingXXSmall.w),
+                                          Flexible(
+                                            child: Text(
+                                              formattedDate,
+                                              style: TextStyle(
+                                                fontFamily: AppTheme.fontFamily,
+                                                fontSize: AppConstants
+                                                    .textSizeSmall.sp,
+                                                color: Colors.grey[600],
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                    if (formattedTime.isNotEmpty) ...[
-                                      SizedBox(
-                                          width: AppConstants.spacingXSmall.w),
-                                      Icon(
-                                        Icons.access_time,
-                                        size: AppConstants.iconSizeSmall.sp,
-                                        color: Colors.grey[600],
-                                      ),
-                                      SizedBox(
-                                          width: AppConstants.spacingXXSmall.w),
-                                      Text(
-                                        formattedTime,
-                                        style: TextStyle(
-                                          fontFamily: AppTheme.fontFamily,
-                                          fontSize:
-                                              AppConstants.textSizeSmall.sp,
-                                          color: Colors.grey[600],
+                                      if (formattedTime.isNotEmpty) ...[
+                                        SizedBox(
+                                            height:
+                                                AppConstants.spacingXXSmall.h),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.access_time,
+                                              size:
+                                                  AppConstants.iconSizeSmall.sp,
+                                              color: Colors.grey[600],
+                                            ),
+                                            SizedBox(
+                                                width: AppConstants
+                                                    .spacingXXSmall.w),
+                                            Flexible(
+                                              child: Text(
+                                                formattedTime,
+                                                style: TextStyle(
+                                                  fontFamily:
+                                                      AppTheme.fontFamily,
+                                                  fontSize: AppConstants
+                                                      .textSizeSmall.sp,
+                                                  color: Colors.grey[600],
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ),
+                                      ],
                                     ],
-                                  ],
+                                  ),
                                 ),
                               ],
                             ),

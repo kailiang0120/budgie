@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/financial_goal.dart';
 import '../../domain/usecase/goals/get_goals_usecase.dart';
@@ -71,7 +72,9 @@ class GoalsViewModel extends ChangeNotifier {
       _availableSavings = await _allocateSavingsUseCase.getAvailableSavings();
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading available savings: $e');
+      if (kDebugMode) {
+        debugPrint('Error loading available savings: $e');
+      }
     }
   }
 
@@ -88,8 +91,10 @@ class GoalsViewModel extends ChangeNotifier {
         await loadGoals();
         await loadAvailableSavings();
 
-        debugPrint(
-            '🎯 GoalsViewModel: Successfully allocated savings to ${distribution.length} goals');
+        if (kDebugMode) {
+          debugPrint(
+              '🎯 GoalsViewModel: Successfully allocated savings to ${distribution.length} goals');
+        }
         return true;
       } else {
         _setError('No savings available to allocate or no active goals');
@@ -137,8 +142,10 @@ class GoalsViewModel extends ChangeNotifier {
         await loadGoals();
         await loadAvailableSavings();
 
-        debugPrint(
-            '🎯 GoalsViewModel: Successfully allocated custom amount $amount to ${distribution.length} goals');
+        if (kDebugMode) {
+          debugPrint(
+              '🎯 GoalsViewModel: Successfully allocated custom amount $amount to ${distribution.length} goals');
+        }
         return true;
       } else {
         _setError('No savings available to allocate or no active goals');
@@ -336,7 +343,9 @@ class GoalsViewModel extends ChangeNotifier {
 
   void _setError(String message) {
     _errorMessage = message;
-    debugPrint('GoalsViewModel Error: $message');
+    if (kDebugMode) {
+      debugPrint('GoalsViewModel Error: $message');
+    }
     notifyListeners();
   }
 

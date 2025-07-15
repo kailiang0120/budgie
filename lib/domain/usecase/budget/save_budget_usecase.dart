@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import '../../entities/budget.dart';
 import '../../repositories/budget_repository.dart';
 import '../../../data/infrastructure/errors/app_error.dart';
@@ -34,14 +35,18 @@ class SaveBudgetUseCase {
       if (_lastSaveTime != null &&
           now.difference(_lastSaveTime!).inSeconds < 2) {
         // Debounce save requests that come too quickly
-        print('Debouncing budget save for month: $monthId');
+        if (kDebugMode) {
+          print('Debouncing budget save for month: $monthId');
+        }
         _saveDebounceTimer = Timer(const Duration(seconds: 2), () {
-          // After debounce period, check if this save is still needed
+          // After debounce period, check if this is still needed
           if (_pendingSaves.containsKey(monthId)) {
             final budgetToSave = _pendingSaves.remove(monthId);
             if (budgetToSave != null) {
               _executeSave(monthId, budgetToSave).catchError((error) {
-                print('Error in debounced save: $error');
+                if (kDebugMode) {
+                  print('Error in debounced save: $error');
+                }
                 // Re-add to pending if save failed
                 _pendingSaves[monthId] = budgetToSave;
               });
@@ -55,7 +60,9 @@ class SaveBudgetUseCase {
       _pendingSaves.remove(monthId);
       await _executeSave(monthId, budget);
     } catch (e) {
-      print('Error in save budget use case: $e');
+      if (kDebugMode) {
+        print('Error in save budget use case: $e');
+      }
       // Re-add to pending saves if execution failed
       _pendingSaves[monthId] = budget;
       rethrow;
@@ -65,7 +72,9 @@ class SaveBudgetUseCase {
   /// The actual save operation
   Future<void> _executeSave(String monthId, Budget budget) async {
     try {
-      print('Executing budget save for month: $monthId');
+      if (kDebugMode) {
+        print('Executing budget save for month: $monthId');
+      }
       _lastSaveTime = DateTime.now();
 
       await Future.microtask(() async {

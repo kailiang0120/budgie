@@ -2,6 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'permission_handler_service.dart';
+import 'notification_listener_service.dart';
+import '../../../domain/services/expense_extraction_service.dart';
+import '../../../di/injection_container.dart' as di;
 
 /// Service responsible for managing all app settings and preferences
 /// Acts as the single source of truth for user settings
@@ -34,6 +37,7 @@ class SettingsService extends ChangeNotifier {
 
   // Services
   PermissionHandlerService? _permissionHandler;
+  NotificationListenerService? _notificationListenerService;
 
   // Getters
   String get theme => _theme;
@@ -85,8 +89,24 @@ class SettingsService extends ChangeNotifier {
         await permissionHandler.initialize(this);
       }
 
+      // Initialize notification listener service
+      try {
+        _notificationListenerService = NotificationListenerService();
+        await _notificationListenerService!.initialize();
+        debugPrint(
+            '🔧 SettingsService: NotificationListenerService initialized');
+      } catch (e) {
+        debugPrint(
+            '🔧 SettingsService: Error initializing NotificationListenerService: $e');
+      }
+
       // Verify permission settings match actual permissions
       await _verifyPermissionSettings();
+
+      // Start notification listener if notifications are enabled
+      if (_allowNotification && _notificationListenerService != null) {
+        await _startNotificationListener();
+      }
 
       notifyListeners();
       debugPrint('🔧 SettingsService: Initialization completed');
@@ -258,7 +278,7 @@ class SettingsService extends ChangeNotifier {
     }
   }
 
-  /// Update notification setting with permission check
+  /// Update notification setting and automatically start/stop notification listener
   Future<bool> updateNotificationSetting(bool enabled) async {
     try {
       // If trying to enable, make sure we have permissions
@@ -275,11 +295,23 @@ class SettingsService extends ChangeNotifier {
         }
       }
 
+      final previousValue = _allowNotification;
       _allowNotification = enabled;
 
       // Save to shared preferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_allowNotificationKey, enabled);
+
+      // Automatically start/stop notification listener based on setting
+      if (_notificationListenerService != null) {
+        if (enabled && !previousValue) {
+          // Start notification listener
+          await _startNotificationListener();
+        } else if (!enabled && previousValue) {
+          // Stop notification listener
+          await _stopNotificationListener();
+        }
+      }
 
       notifyListeners();
       debugPrint(
@@ -430,6 +462,69 @@ class SettingsService extends ChangeNotifier {
       debugPrint('🔧 SettingsService: Biometric setting updated to: $enabled');
     } catch (e) {
       debugPrint('🔧 SettingsService: Error updating biometric setting: $e');
+    }
+  }
+
+  /// Start the notification listener service
+  Future<void> _startNotificationListener() async {
+    try {
+      if (_notificationListenerService == null) return;
+
+      debugPrint('🔧 SettingsService: Starting notification listener...');
+
+      // Initialize expense extraction service for notification processing
+      try {
+        final extractionService = di.sl<ExpenseExtractionDomainService>();
+        if (!extractionService.isInitialized) {
+          debugPrint(
+              '🔧 SettingsService: Initializing expense extraction service...');
+          await extractionService.initialize();
+          debugPrint(
+              '✅ SettingsService: Expense extraction service initialized');
+        } else {
+          debugPrint(
+              '✅ SettingsService: Expense extraction service already initialized');
+        }
+      } catch (e) {
+        debugPrint(
+            '⚠️ SettingsService: Failed to initialize expense extraction service: $e');
+      }
+
+      // Set up notification callback for expense processing
+      _notificationListenerService!
+          .setNotificationCallback((title, content, packageName) {
+        // Process the notification for expense detection
+        _notificationListenerService!.processNotificationWithHybridDetection(
+          title: title,
+          content: content,
+          packageName: packageName,
+          timestamp: DateTime.now(),
+        );
+      });
+
+      final started = await _notificationListenerService!.startListening();
+      if (started) {
+        debugPrint(
+            '✅ SettingsService: Notification listener started successfully');
+      } else {
+        debugPrint('❌ SettingsService: Failed to start notification listener');
+      }
+    } catch (e) {
+      debugPrint('❌ SettingsService: Error starting notification listener: $e');
+    }
+  }
+
+  /// Stop the notification listener service
+  Future<void> _stopNotificationListener() async {
+    try {
+      if (_notificationListenerService == null) return;
+
+      debugPrint('🔧 SettingsService: Stopping notification listener...');
+      await _notificationListenerService!.stopListening();
+      debugPrint(
+          '✅ SettingsService: Notification listener stopped successfully');
+    } catch (e) {
+      debugPrint('❌ SettingsService: Error stopping notification listener: $e');
     }
   }
 }

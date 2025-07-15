@@ -1,12 +1,11 @@
 import 'package:budgie/presentation/screens/goals_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
-import 'package:flutter_background/flutter_background.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:io';
 import 'dart:async';
 
 import 'data/infrastructure/config/firebase_options.dart';
@@ -14,12 +13,15 @@ import 'core/constants/routes.dart';
 import 'core/router/app_router.dart';
 import 'data/infrastructure/services/settings_service.dart';
 import 'data/infrastructure/services/sync_service.dart';
+import 'data/infrastructure/services/permission_handler_service.dart';
 import 'domain/usecase/expense/process_recurring_expenses_usecase.dart';
 import 'presentation/viewmodels/expenses_viewmodel.dart';
 import 'presentation/viewmodels/budget_viewmodel.dart';
 import 'presentation/viewmodels/theme_viewmodel.dart';
 import 'presentation/viewmodels/analysis_viewmodel.dart';
+import 'presentation/viewmodels/goals_viewmodel.dart';
 import 'presentation/utils/app_theme.dart';
+import 'presentation/utils/app_constants.dart';
 import 'di/injection_container.dart' as di;
 import 'di/performance_tracker.dart';
 import 'presentation/screens/home_screen.dart';
@@ -29,6 +31,7 @@ import 'presentation/screens/setting_screen.dart';
 import 'presentation/widgets/animated_float_button.dart';
 import 'data/infrastructure/services/background_task_service.dart';
 import 'data/infrastructure/services/notification_service.dart';
+import 'domain/services/expense_extraction_service.dart';
 
 // Global keys for app-wide access
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
@@ -55,7 +58,9 @@ Future<void> main() async {
 
     // Print performance report after app is fully loaded
     Future.delayed(const Duration(seconds: 5), () {
-      PerformanceTracker.printPerformanceReport();
+      if (kDebugMode) {
+        PerformanceTracker.printPerformanceReport();
+      }
     });
   } catch (e, stackTrace) {
     debugPrint('❌ App initialization failed: $e');
@@ -81,7 +86,10 @@ Future<void> _initializeCoreServices() async {
   // Initialize SettingsService to load theme and other settings BEFORE UI renders
   try {
     final settingsService = di.sl<SettingsService>();
-    await settingsService.initialize();
+    final permissionHandler = di.sl<PermissionHandlerService>();
+
+    // Initialize settings with permission handler to enable automatic notification listener management
+    await settingsService.initialize(permissionHandler: permissionHandler);
     debugPrint('✅ SettingsService initialized and settings loaded');
 
     // Refresh ThemeViewModel after settings are loaded to ensure theme persists
@@ -125,12 +133,9 @@ void _initializeRemainingServices() {
 
     try {
       // Start recurring expense service
-      _startRecurringExpenseService();
+      await _startRecurringExpenseService();
 
-      // Initialize background service permissions if needed
-      if (Platform.isAndroid) {
-        _initializeBackgroundServicePermissions();
-      }
+      // Background service permissions no longer needed for notification listener
 
       debugPrint('✅ Optional services initialized');
     } catch (e) {
@@ -151,8 +156,69 @@ Future<void> _initializeNotificationServices() async {
     final notificationService = di.sl<NotificationService>();
     await notificationService.initialize();
     debugPrint('✅ Main: NotificationService initialized successfully');
+
+    // Set up expense refresh callback for automatic app data refresh
+    notificationService
+        .setExpenseRefreshCallback(_refreshAppDataAfterExpenseAdded);
+    debugPrint('✅ Main: Expense refresh callback registered');
+
+    // Initialize expense extraction service for notification processing
+    try {
+      final extractionService = di.sl<ExpenseExtractionDomainService>();
+      if (!extractionService.isInitialized) {
+        debugPrint('🔧 Main: Initializing expense extraction service...');
+        await extractionService.initialize();
+        debugPrint('✅ Main: Expense extraction service initialized');
+      }
+    } catch (e) {
+      debugPrint(
+          '⚠️ Main: Failed to initialize expense extraction service: $e');
+    }
   } catch (e) {
     debugPrint('❌ Main: Failed to initialize notification services: $e');
+  }
+}
+
+/// Refresh app data after expense is added via notification extraction
+Future<void> _refreshAppDataAfterExpenseAdded() async {
+  try {
+    debugPrint(
+        '🔄 Main: Refreshing app data after notification expense addition...');
+
+    // Small delay to ensure UI has finished updating
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // Refresh ExpensesViewModel
+    if (di.sl.isRegistered<ExpensesViewModel>()) {
+      try {
+        final expensesViewModel = di.sl<ExpensesViewModel>();
+        await expensesViewModel.refreshData();
+        debugPrint('✅ Main: ExpensesViewModel refreshed');
+      } catch (e) {
+        debugPrint('⚠️ Main: Failed to refresh ExpensesViewModel: $e');
+      }
+    } else {
+      debugPrint('ℹ️ Main: ExpensesViewModel not registered, skipping refresh');
+    }
+
+    // Refresh BudgetViewModel for current month
+    if (di.sl.isRegistered<BudgetViewModel>()) {
+      try {
+        final budgetViewModel = di.sl<BudgetViewModel>();
+        final now = DateTime.now();
+        final monthId = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+        await budgetViewModel.refreshBudget(monthId);
+        debugPrint('✅ Main: BudgetViewModel refreshed for month $monthId');
+      } catch (e) {
+        debugPrint('⚠️ Main: Failed to refresh BudgetViewModel: $e');
+      }
+    } else {
+      debugPrint('ℹ️ Main: BudgetViewModel not registered, skipping refresh');
+    }
+
+    debugPrint('🎉 Main: App data refresh completed successfully');
+  } catch (e) {
+    debugPrint('❌ Main: Error refreshing app data: $e');
   }
 }
 
@@ -187,12 +253,11 @@ Future<void> _initializeSyncService() async {
 }
 
 /// Start recurring expense processing service
-void _startRecurringExpenseService() {
+Future<void> _startRecurringExpenseService() async {
   try {
-    // Process recurring expenses periodically
-    Timer.periodic(const Duration(hours: 1), (_) {
-      di.sl<ProcessRecurringExpensesUseCase>().execute();
-    });
+    // Process recurring expenses periodically using Workmanager
+    final backgroundTaskService = di.sl<BackgroundTaskService>();
+    await backgroundTaskService.scheduleRecurringExpenseTask();
 
     // Also process immediately after startup (with delay)
     Future.delayed(const Duration(seconds: 10), () {
@@ -203,47 +268,6 @@ void _startRecurringExpenseService() {
     debugPrint('✅ Recurring expense service started');
   } catch (e) {
     debugPrint('⚠️ Recurring expense service error: $e');
-  }
-}
-
-/// Initialize background service permissions (Android only)
-void _initializeBackgroundServicePermissions() {
-  Future.delayed(const Duration(seconds: 3), () async {
-    try {
-      final hasPermissions = await FlutterBackground.hasPermissions;
-
-      if (hasPermissions) {
-        // Initialize silently if we already have permissions
-        await _setupFlutterBackground();
-      } else {
-        // Delay permission request to avoid disrupting startup
-        Future.delayed(const Duration(seconds: 10), () async {
-          await _setupFlutterBackground();
-        });
-      }
-    } catch (e) {
-      debugPrint('⚠️ Background service permissions error: $e');
-    }
-  });
-}
-
-/// Configure and initialize Flutter Background service
-Future<void> _setupFlutterBackground() async {
-  try {
-    const androidConfig = FlutterBackgroundAndroidConfig(
-      notificationTitle: 'Budgie',
-      notificationText: 'Tracking expenses in background',
-      notificationImportance: AndroidNotificationImportance.normal,
-      notificationIcon: AndroidResource(name: 'ic_launcher', defType: 'mipmap'),
-    );
-
-    final initialized =
-        await FlutterBackground.initialize(androidConfig: androidConfig);
-    debugPrint(initialized
-        ? '✅ Background service initialized'
-        : '⚠️ Background service initialization failed');
-  } catch (e) {
-    debugPrint('⚠️ Background service setup error: $e');
   }
 }
 
@@ -332,9 +356,15 @@ class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
       providers: _buildProviders(),
       child: ScreenUtilInit(
         designSize: const Size(430, 952),
-        minTextAdapt: true,
+        minTextAdapt: true, // Ensure text scales properly
         splitScreenMode: true,
-        builder: (context, _) => _buildMaterialApp(context),
+        builder: (context, _) {
+          // Debug text scaling on first build
+          Future.delayed(const Duration(milliseconds: 500), () {
+            AppConstants.debugTextSizes();
+          });
+          return _buildMaterialApp(context);
+        },
       ),
     );
   }
@@ -346,6 +376,7 @@ class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
       ChangeNotifierProvider(create: (_) => di.sl<ExpensesViewModel>()),
       ChangeNotifierProvider(create: (_) => di.sl<BudgetViewModel>()),
       ChangeNotifierProvider(create: (_) => di.sl<AnalysisViewModel>()),
+      ChangeNotifierProvider(create: (_) => di.sl<GoalsViewModel>()),
     ];
   }
 

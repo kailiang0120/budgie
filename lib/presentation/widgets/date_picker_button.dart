@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
+import 'package:flutter/foundation.dart';
 
 /// Filter modes for date picker
 enum DateFilterMode {
@@ -364,7 +365,9 @@ class DatePickerButton extends StatelessWidget {
         onDateChanged(selectedDate);
       }
     } catch (e) {
-      debugPrint('Error showing date picker: $e');
+      if (kDebugMode) {
+        debugPrint('Error showing date picker: $e');
+      }
     }
   }
 
