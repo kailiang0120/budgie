@@ -226,9 +226,11 @@ class AnalysisUserProfileData {
   final String incomeStability;
   final String spendingMentality;
   final String riskAppetite;
-  final double monthlyIncome;
-  final double emergencyFundTarget;
   final FinancialLiteracyLevel financialLiteracyLevel;
+  final String financialPriority;
+  final String savingHabit;
+  final String financialStressLevel;
+  final String technologyAdoption;
   final DateTime? dataConsentAcceptedAt;
 
   AnalysisUserProfileData({
@@ -236,9 +238,11 @@ class AnalysisUserProfileData {
     required this.incomeStability,
     required this.spendingMentality,
     required this.riskAppetite,
-    required this.monthlyIncome,
-    required this.emergencyFundTarget,
     required this.financialLiteracyLevel,
+    required this.financialPriority,
+    required this.savingHabit,
+    required this.financialStressLevel,
+    required this.technologyAdoption,
     this.dataConsentAcceptedAt,
   });
 
@@ -249,9 +253,11 @@ class AnalysisUserProfileData {
       incomeStability: profile.incomeStability.name,
       spendingMentality: profile.spendingMentality.name,
       riskAppetite: profile.riskAppetite.name,
-      monthlyIncome: profile.monthlyIncome,
-      emergencyFundTarget: profile.emergencyFundTarget,
       financialLiteracyLevel: profile.financialLiteracyLevel,
+      financialPriority: profile.financialPriority.name,
+      savingHabit: profile.savingHabit.name,
+      financialStressLevel: profile.financialStressLevel.name,
+      technologyAdoption: profile.technologyAdoption.name,
       dataConsentAcceptedAt: profile.dataConsentAcceptedAt,
     );
   }
@@ -263,9 +269,11 @@ class AnalysisUserProfileData {
       'incomeStability': incomeStability,
       'spendingMentality': spendingMentality,
       'riskAppetite': riskAppetite,
-      'monthlyIncome': monthlyIncome,
-      'emergencyFundTarget': emergencyFundTarget,
       'financialLiteracyLevel': financialLiteracyLevel.name,
+      'financialPriority': financialPriority,
+      'savingHabit': savingHabit,
+      'financialStressLevel': financialStressLevel,
+      'technologyAdoption': technologyAdoption,
       'dataConsentAcceptedAt': dataConsentAcceptedAt?.toIso8601String(),
     };
   }

@@ -79,20 +79,6 @@ class GoalHistory extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// Settings table for app-wide settings
-class AppSettings extends Table {
-  // Use a single row for app settings with id=1
-  IntColumn get id => integer().autoIncrement()();
-  TextColumn get theme => text().withDefault(const Constant('light'))();
-  TextColumn get currency => text().withDefault(const Constant('MYR'))();
-  BoolColumn get allowNotification =>
-      boolean().withDefault(const Constant(false))();
-  BoolColumn get autoBudget => boolean().withDefault(const Constant(false))();
-
-  BoolColumn get syncEnabled => boolean().withDefault(const Constant(false))();
-  DateTimeColumn get updatedAt => dateTime()();
-}
-
 /// Exchange rates table for storing currency conversion rates
 class ExchangeRates extends Table {
   TextColumn get baseCurrency => text()();
@@ -111,9 +97,11 @@ class UserProfiles extends Table {
   TextColumn get incomeStability => text()();
   TextColumn get spendingMentality => text()();
   TextColumn get riskAppetite => text()();
-  RealColumn get monthlyIncome => real()();
-  RealColumn get emergencyFundTarget => real()();
   TextColumn get financialLiteracy => text()();
+  TextColumn get financialPriority => text()();
+  TextColumn get savingHabit => text()();
+  TextColumn get financialStressLevel => text()();
+  TextColumn get technologyAdoption => text()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get dataConsentAcceptedAt => dateTime().nullable()();
@@ -165,12 +153,6 @@ class AnalysisResultDao extends DatabaseAccessor<AppDatabase>
   }
 }
 
-@DriftAccessor(tables: [AppSettings])
-class AppSettingsDao extends DatabaseAccessor<AppDatabase>
-    with _$AppSettingsDaoMixin {
-  AppSettingsDao(super.db);
-}
-
 @DriftAccessor(tables: [ExchangeRates])
 class ExchangeRatesDao extends DatabaseAccessor<AppDatabase>
     with _$ExchangeRatesDaoMixin {
@@ -220,7 +202,6 @@ LazyDatabase _openConnection() {
   tables: [
     Expenses,
     Budgets,
-    AppSettings,
     ExchangeRates,
     FinancialGoals,
     GoalHistory,
@@ -229,7 +210,6 @@ LazyDatabase _openConnection() {
   ],
   daos: [
     AnalysisResultDao,
-    AppSettingsDao,
     ExchangeRatesDao,
     UserProfilesDao,
     BudgetsDao,
@@ -245,8 +225,6 @@ class AppDatabase extends _$AppDatabase {
   @override
   AnalysisResultDao get analysisResultDao => AnalysisResultDao(this);
   @override
-  AppSettingsDao get appSettingsDao => AppSettingsDao(this);
-  @override
   ExchangeRatesDao get exchangeRatesDao => ExchangeRatesDao(this);
   @override
   UserProfilesDao get userProfilesDao => UserProfilesDao(this);
@@ -260,7 +238,7 @@ class AppDatabase extends _$AppDatabase {
   GoalHistoryDao get goalHistoryDao => GoalHistoryDao(this);
 
   @override
-  int get schemaVersion => 16;
+  int get schemaVersion => 17;
 
   /// Create performance indexes for better query performance
   Future<void> _createPerformanceIndexes() async {
@@ -274,25 +252,6 @@ class AppDatabase extends _$AppDatabase {
         await m.createAll();
         // Create performance indexes
         await _createPerformanceIndexes();
-
-        // Create default settings directly with SQL
-        await customStatement('''
-          INSERT INTO app_settings (
-            theme,
-            currency, 
-            allow_notification, 
-            auto_budget, 
-            sync_enabled,
-            updated_at
-          ) VALUES (
-            'light',
-            'MYR', 
-            0, 
-            0, 
-            0,
-            ${DateTime.now().millisecondsSinceEpoch}
-          )
-        ''');
       },
       onUpgrade: (Migrator m, int from, int to) async {
         if (from < 14) {
@@ -398,6 +357,50 @@ class AppDatabase extends _$AppDatabase {
           } catch (e) {
             debugPrint(
                 'Error removing unnecessary columns from user profiles: $e');
+          }
+        }
+        if (from < 17) {
+          // Migrate user_profiles to new schema (remove old fields, add new ones)
+          try {
+            await customStatement('''
+              CREATE TABLE user_profiles_new (
+                id TEXT PRIMARY KEY NOT NULL,
+                user_id TEXT NOT NULL,
+                income_stability TEXT NOT NULL,
+                spending_mentality TEXT NOT NULL,
+                risk_appetite TEXT NOT NULL,
+                financial_literacy TEXT NOT NULL DEFAULT 'intermediate',
+                financial_priority TEXT NOT NULL DEFAULT 'saving',
+                saving_habit TEXT NOT NULL DEFAULT 'regular',
+                financial_stress_level TEXT NOT NULL DEFAULT 'moderate',
+                technology_adoption TEXT NOT NULL DEFAULT 'average',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                data_consent_accepted_at INTEGER,
+                is_complete INTEGER NOT NULL
+              )
+            ''');
+
+            // Copy data from old table, set new fields to defaults
+            await customStatement('''
+              INSERT INTO user_profiles_new (
+                id, user_id, income_stability, spending_mentality, risk_appetite,
+                financial_literacy, financial_priority, saving_habit, financial_stress_level, technology_adoption,
+                created_at, updated_at, data_consent_accepted_at, is_complete
+              )
+              SELECT
+                id, user_id, income_stability, spending_mentality, risk_appetite,
+                financial_literacy, 'saving', 'regular', 'moderate', 'average',
+                created_at, updated_at, data_consent_accepted_at, is_complete
+              FROM user_profiles
+            ''');
+
+            await customStatement('DROP TABLE user_profiles');
+            await customStatement(
+                'ALTER TABLE user_profiles_new RENAME TO user_profiles');
+          } catch (e) {
+            debugPrint(
+                'Error migrating user profiles schema to v17: ' + e.toString());
           }
         }
         if (from < 12) {
@@ -512,97 +515,6 @@ class AppDatabase extends _$AppDatabase {
         }
       },
     );
-  }
-
-  // Get app settings
-  Future<Map<String, dynamic>> getAppSettings() async {
-    final result = await customSelect(
-      'SELECT * FROM app_settings LIMIT 1',
-    ).getSingleOrNull();
-
-    if (result != null) {
-      return result.data;
-    }
-
-    // Create default settings if none exist
-    await customStatement('''
-      INSERT INTO app_settings (
-        theme,
-        currency, 
-        allow_notification, 
-        auto_budget, 
-        sync_enabled,
-        updated_at
-      ) VALUES (
-        'light',
-        'MYR',
-        0,
-        0,
-        0,
-        ${DateTime.now().millisecondsSinceEpoch}
-      )
-    ''');
-
-    final newResult = await customSelect(
-      'SELECT * FROM app_settings LIMIT 1',
-    ).getSingle();
-
-    return newResult.data;
-  }
-
-  // Update app settings
-  Future<void> updateAppSettings(Map<String, dynamic> settings) async {
-    final settingsData = await getAppSettings();
-    final id = settingsData['id'] as int;
-
-    final updates = <String>[];
-    final values = <String>[];
-
-    settings.forEach((key, value) {
-      updates.add('$key = ?');
-
-      if (value is bool) {
-        values.add(value ? '1' : '0');
-      } else if (value is String) {
-        values.add("'$value'");
-      } else if (value is DateTime) {
-        values.add('${value.millisecondsSinceEpoch}');
-      } else if (value is int || value is double) {
-        values.add('$value');
-      }
-    });
-
-    // Add updated_at to the update
-    updates.add('updated_at = ${DateTime.now().millisecondsSinceEpoch}');
-
-    await customStatement(
-        'UPDATE app_settings SET ${updates.join(', ')} WHERE id = $id');
-  }
-
-  /// Delete and recreate the budgets table
-  Future<void> resetBudgetsTable() async {
-    try {
-      debugPrint('🗑️ AppDatabase: Deleting budgets table...');
-      await customStatement('DROP TABLE IF EXISTS budgets');
-      debugPrint('✅ AppDatabase: Budgets table deleted successfully');
-
-      debugPrint('🔄 AppDatabase: Recreating budgets table...');
-      await customStatement('''
-        CREATE TABLE budgets (
-          month_id TEXT PRIMARY KEY NOT NULL,
-          total REAL NOT NULL,
-          left REAL NOT NULL,
-          categories_json TEXT NOT NULL,
-          saving REAL NOT NULL DEFAULT 0.0,
-          currency TEXT NOT NULL DEFAULT 'MYR',
-          updated_at INTEGER NOT NULL
-        )
-      ''');
-      debugPrint('✅ AppDatabase: Budgets table recreated successfully');
-    } catch (e) {
-      debugPrint('❌ AppDatabase: Error resetting budgets table: $e');
-      rethrow;
-    }
   }
 
   /// Financial goals methods

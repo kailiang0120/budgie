@@ -321,12 +321,12 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
                   EdgeInsets.symmetric(horizontal: AppConstants.spacingLarge.w),
               child: Text(
                 'Our AI will analyze your spending patterns, budget utilization, and provide personalized recommendations to optimize your financial health.',
-                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: AppConstants.textSizeMedium.sp,
                   color: Theme.of(context).textTheme.bodyMedium?.color,
                   height: 1.5,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
           ],
@@ -454,6 +454,7 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
               fontWeight: FontWeight.bold,
               color: Theme.of(context).textTheme.titleLarge?.color,
             ),
+            textAlign: TextAlign.center,
           ),
           SizedBox(height: AppConstants.spacingMedium.h),
           Padding(
@@ -461,12 +462,12 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
                 EdgeInsets.symmetric(horizontal: AppConstants.spacingXLarge.w),
             child: Text(
               description,
-              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: AppConstants.textSizeMedium.sp,
                 color: Theme.of(context).textTheme.bodyMedium?.color,
                 height: 1.5,
               ),
+              textAlign: TextAlign.center,
             ),
           ),
         ],
@@ -510,12 +511,12 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
                   EdgeInsets.symmetric(horizontal: AppConstants.spacingLarge.w),
               child: Text(
                 errorMessage,
-                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: AppConstants.textSizeMedium.sp,
                   color: Theme.of(context).textTheme.bodyMedium?.color,
                   height: 1.5,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
           ],
