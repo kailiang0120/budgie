@@ -6,9 +6,6 @@ part of 'app_database.dart';
 mixin _$AnalysisResultDaoMixin on DatabaseAccessor<AppDatabase> {
   $AnalysisResultsTable get analysisResults => attachedDatabase.analysisResults;
 }
-mixin _$AppSettingsDaoMixin on DatabaseAccessor<AppDatabase> {
-  $AppSettingsTable get appSettings => attachedDatabase.appSettings;
-}
 mixin _$ExchangeRatesDaoMixin on DatabaseAccessor<AppDatabase> {
   $ExchangeRatesTable get exchangeRates => attachedDatabase.exchangeRates;
 }
@@ -921,397 +918,6 @@ class BudgetsCompanion extends UpdateCompanion<Budget> {
           ..write('currency: $currency, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
-          ..write(')'))
-        .toString();
-  }
-}
-
-class $AppSettingsTable extends AppSettings
-    with TableInfo<$AppSettingsTable, AppSetting> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $AppSettingsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
-      'id', aliasedName, false,
-      hasAutoIncrement: true,
-      type: DriftSqlType.int,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
-  static const VerificationMeta _themeMeta = const VerificationMeta('theme');
-  @override
-  late final GeneratedColumn<String> theme = GeneratedColumn<String>(
-      'theme', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('light'));
-  static const VerificationMeta _currencyMeta =
-      const VerificationMeta('currency');
-  @override
-  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
-      'currency', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: false,
-      defaultValue: const Constant('MYR'));
-  static const VerificationMeta _allowNotificationMeta =
-      const VerificationMeta('allowNotification');
-  @override
-  late final GeneratedColumn<bool> allowNotification = GeneratedColumn<bool>(
-      'allow_notification', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints: GeneratedColumn.constraintIsAlways(
-          'CHECK ("allow_notification" IN (0, 1))'),
-      defaultValue: const Constant(false));
-  static const VerificationMeta _autoBudgetMeta =
-      const VerificationMeta('autoBudget');
-  @override
-  late final GeneratedColumn<bool> autoBudget = GeneratedColumn<bool>(
-      'auto_budget', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints:
-          GeneratedColumn.constraintIsAlways('CHECK ("auto_budget" IN (0, 1))'),
-      defaultValue: const Constant(false));
-  static const VerificationMeta _syncEnabledMeta =
-      const VerificationMeta('syncEnabled');
-  @override
-  late final GeneratedColumn<bool> syncEnabled = GeneratedColumn<bool>(
-      'sync_enabled', aliasedName, false,
-      type: DriftSqlType.bool,
-      requiredDuringInsert: false,
-      defaultConstraints: GeneratedColumn.constraintIsAlways(
-          'CHECK ("sync_enabled" IN (0, 1))'),
-      defaultValue: const Constant(false));
-  static const VerificationMeta _updatedAtMeta =
-      const VerificationMeta('updatedAt');
-  @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-      'updated_at', aliasedName, false,
-      type: DriftSqlType.dateTime, requiredDuringInsert: true);
-  @override
-  List<GeneratedColumn> get $columns => [
-        id,
-        theme,
-        currency,
-        allowNotification,
-        autoBudget,
-        syncEnabled,
-        updatedAt
-      ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'app_settings';
-  @override
-  VerificationContext validateIntegrity(Insertable<AppSetting> instance,
-      {bool isInserting = false}) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
-    if (data.containsKey('theme')) {
-      context.handle(
-          _themeMeta, theme.isAcceptableOrUnknown(data['theme']!, _themeMeta));
-    }
-    if (data.containsKey('currency')) {
-      context.handle(_currencyMeta,
-          currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta));
-    }
-    if (data.containsKey('allow_notification')) {
-      context.handle(
-          _allowNotificationMeta,
-          allowNotification.isAcceptableOrUnknown(
-              data['allow_notification']!, _allowNotificationMeta));
-    }
-    if (data.containsKey('auto_budget')) {
-      context.handle(
-          _autoBudgetMeta,
-          autoBudget.isAcceptableOrUnknown(
-              data['auto_budget']!, _autoBudgetMeta));
-    }
-    if (data.containsKey('sync_enabled')) {
-      context.handle(
-          _syncEnabledMeta,
-          syncEnabled.isAcceptableOrUnknown(
-              data['sync_enabled']!, _syncEnabledMeta));
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(_updatedAtMeta,
-          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  AppSetting map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return AppSetting(
-      id: attachedDatabase.typeMapping
-          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
-      theme: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}theme'])!,
-      currency: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}currency'])!,
-      allowNotification: attachedDatabase.typeMapping.read(
-          DriftSqlType.bool, data['${effectivePrefix}allow_notification'])!,
-      autoBudget: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}auto_budget'])!,
-      syncEnabled: attachedDatabase.typeMapping
-          .read(DriftSqlType.bool, data['${effectivePrefix}sync_enabled'])!,
-      updatedAt: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at'])!,
-    );
-  }
-
-  @override
-  $AppSettingsTable createAlias(String alias) {
-    return $AppSettingsTable(attachedDatabase, alias);
-  }
-}
-
-class AppSetting extends DataClass implements Insertable<AppSetting> {
-  final int id;
-  final String theme;
-  final String currency;
-  final bool allowNotification;
-  final bool autoBudget;
-  final bool syncEnabled;
-  final DateTime updatedAt;
-  const AppSetting(
-      {required this.id,
-      required this.theme,
-      required this.currency,
-      required this.allowNotification,
-      required this.autoBudget,
-      required this.syncEnabled,
-      required this.updatedAt});
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['theme'] = Variable<String>(theme);
-    map['currency'] = Variable<String>(currency);
-    map['allow_notification'] = Variable<bool>(allowNotification);
-    map['auto_budget'] = Variable<bool>(autoBudget);
-    map['sync_enabled'] = Variable<bool>(syncEnabled);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
-    return map;
-  }
-
-  AppSettingsCompanion toCompanion(bool nullToAbsent) {
-    return AppSettingsCompanion(
-      id: Value(id),
-      theme: Value(theme),
-      currency: Value(currency),
-      allowNotification: Value(allowNotification),
-      autoBudget: Value(autoBudget),
-      syncEnabled: Value(syncEnabled),
-      updatedAt: Value(updatedAt),
-    );
-  }
-
-  factory AppSetting.fromJson(Map<String, dynamic> json,
-      {ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return AppSetting(
-      id: serializer.fromJson<int>(json['id']),
-      theme: serializer.fromJson<String>(json['theme']),
-      currency: serializer.fromJson<String>(json['currency']),
-      allowNotification: serializer.fromJson<bool>(json['allowNotification']),
-      autoBudget: serializer.fromJson<bool>(json['autoBudget']),
-      syncEnabled: serializer.fromJson<bool>(json['syncEnabled']),
-      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<int>(id),
-      'theme': serializer.toJson<String>(theme),
-      'currency': serializer.toJson<String>(currency),
-      'allowNotification': serializer.toJson<bool>(allowNotification),
-      'autoBudget': serializer.toJson<bool>(autoBudget),
-      'syncEnabled': serializer.toJson<bool>(syncEnabled),
-      'updatedAt': serializer.toJson<DateTime>(updatedAt),
-    };
-  }
-
-  AppSetting copyWith(
-          {int? id,
-          String? theme,
-          String? currency,
-          bool? allowNotification,
-          bool? autoBudget,
-          bool? syncEnabled,
-          DateTime? updatedAt}) =>
-      AppSetting(
-        id: id ?? this.id,
-        theme: theme ?? this.theme,
-        currency: currency ?? this.currency,
-        allowNotification: allowNotification ?? this.allowNotification,
-        autoBudget: autoBudget ?? this.autoBudget,
-        syncEnabled: syncEnabled ?? this.syncEnabled,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
-  AppSetting copyWithCompanion(AppSettingsCompanion data) {
-    return AppSetting(
-      id: data.id.present ? data.id.value : this.id,
-      theme: data.theme.present ? data.theme.value : this.theme,
-      currency: data.currency.present ? data.currency.value : this.currency,
-      allowNotification: data.allowNotification.present
-          ? data.allowNotification.value
-          : this.allowNotification,
-      autoBudget:
-          data.autoBudget.present ? data.autoBudget.value : this.autoBudget,
-      syncEnabled:
-          data.syncEnabled.present ? data.syncEnabled.value : this.syncEnabled,
-      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('AppSetting(')
-          ..write('id: $id, ')
-          ..write('theme: $theme, ')
-          ..write('currency: $currency, ')
-          ..write('allowNotification: $allowNotification, ')
-          ..write('autoBudget: $autoBudget, ')
-          ..write('syncEnabled: $syncEnabled, ')
-          ..write('updatedAt: $updatedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode => Object.hash(id, theme, currency, allowNotification,
-      autoBudget, syncEnabled, updatedAt);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is AppSetting &&
-          other.id == this.id &&
-          other.theme == this.theme &&
-          other.currency == this.currency &&
-          other.allowNotification == this.allowNotification &&
-          other.autoBudget == this.autoBudget &&
-          other.syncEnabled == this.syncEnabled &&
-          other.updatedAt == this.updatedAt);
-}
-
-class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
-  final Value<int> id;
-  final Value<String> theme;
-  final Value<String> currency;
-  final Value<bool> allowNotification;
-  final Value<bool> autoBudget;
-  final Value<bool> syncEnabled;
-  final Value<DateTime> updatedAt;
-  const AppSettingsCompanion({
-    this.id = const Value.absent(),
-    this.theme = const Value.absent(),
-    this.currency = const Value.absent(),
-    this.allowNotification = const Value.absent(),
-    this.autoBudget = const Value.absent(),
-    this.syncEnabled = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-  });
-  AppSettingsCompanion.insert({
-    this.id = const Value.absent(),
-    this.theme = const Value.absent(),
-    this.currency = const Value.absent(),
-    this.allowNotification = const Value.absent(),
-    this.autoBudget = const Value.absent(),
-    this.syncEnabled = const Value.absent(),
-    required DateTime updatedAt,
-  }) : updatedAt = Value(updatedAt);
-  static Insertable<AppSetting> custom({
-    Expression<int>? id,
-    Expression<String>? theme,
-    Expression<String>? currency,
-    Expression<bool>? allowNotification,
-    Expression<bool>? autoBudget,
-    Expression<bool>? syncEnabled,
-    Expression<DateTime>? updatedAt,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (theme != null) 'theme': theme,
-      if (currency != null) 'currency': currency,
-      if (allowNotification != null) 'allow_notification': allowNotification,
-      if (autoBudget != null) 'auto_budget': autoBudget,
-      if (syncEnabled != null) 'sync_enabled': syncEnabled,
-      if (updatedAt != null) 'updated_at': updatedAt,
-    });
-  }
-
-  AppSettingsCompanion copyWith(
-      {Value<int>? id,
-      Value<String>? theme,
-      Value<String>? currency,
-      Value<bool>? allowNotification,
-      Value<bool>? autoBudget,
-      Value<bool>? syncEnabled,
-      Value<DateTime>? updatedAt}) {
-    return AppSettingsCompanion(
-      id: id ?? this.id,
-      theme: theme ?? this.theme,
-      currency: currency ?? this.currency,
-      allowNotification: allowNotification ?? this.allowNotification,
-      autoBudget: autoBudget ?? this.autoBudget,
-      syncEnabled: syncEnabled ?? this.syncEnabled,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<int>(id.value);
-    }
-    if (theme.present) {
-      map['theme'] = Variable<String>(theme.value);
-    }
-    if (currency.present) {
-      map['currency'] = Variable<String>(currency.value);
-    }
-    if (allowNotification.present) {
-      map['allow_notification'] = Variable<bool>(allowNotification.value);
-    }
-    if (autoBudget.present) {
-      map['auto_budget'] = Variable<bool>(autoBudget.value);
-    }
-    if (syncEnabled.present) {
-      map['sync_enabled'] = Variable<bool>(syncEnabled.value);
-    }
-    if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('AppSettingsCompanion(')
-          ..write('id: $id, ')
-          ..write('theme: $theme, ')
-          ..write('currency: $currency, ')
-          ..write('allowNotification: $allowNotification, ')
-          ..write('autoBudget: $autoBudget, ')
-          ..write('syncEnabled: $syncEnabled, ')
-          ..write('updatedAt: $updatedAt')
           ..write(')'))
         .toString();
   }
@@ -2706,23 +2312,35 @@ class $UserProfilesTable extends UserProfiles
   late final GeneratedColumn<String> riskAppetite = GeneratedColumn<String>(
       'risk_appetite', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _monthlyIncomeMeta =
-      const VerificationMeta('monthlyIncome');
-  @override
-  late final GeneratedColumn<double> monthlyIncome = GeneratedColumn<double>(
-      'monthly_income', aliasedName, false,
-      type: DriftSqlType.double, requiredDuringInsert: true);
-  static const VerificationMeta _emergencyFundTargetMeta =
-      const VerificationMeta('emergencyFundTarget');
-  @override
-  late final GeneratedColumn<double> emergencyFundTarget =
-      GeneratedColumn<double>('emergency_fund_target', aliasedName, false,
-          type: DriftSqlType.double, requiredDuringInsert: true);
   static const VerificationMeta _financialLiteracyMeta =
       const VerificationMeta('financialLiteracy');
   @override
   late final GeneratedColumn<String> financialLiteracy =
       GeneratedColumn<String>('financial_literacy', aliasedName, false,
+          type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _financialPriorityMeta =
+      const VerificationMeta('financialPriority');
+  @override
+  late final GeneratedColumn<String> financialPriority =
+      GeneratedColumn<String>('financial_priority', aliasedName, false,
+          type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _savingHabitMeta =
+      const VerificationMeta('savingHabit');
+  @override
+  late final GeneratedColumn<String> savingHabit = GeneratedColumn<String>(
+      'saving_habit', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _financialStressLevelMeta =
+      const VerificationMeta('financialStressLevel');
+  @override
+  late final GeneratedColumn<String> financialStressLevel =
+      GeneratedColumn<String>('financial_stress_level', aliasedName, false,
+          type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _technologyAdoptionMeta =
+      const VerificationMeta('technologyAdoption');
+  @override
+  late final GeneratedColumn<String> technologyAdoption =
+      GeneratedColumn<String>('technology_adoption', aliasedName, false,
           type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
@@ -2758,9 +2376,11 @@ class $UserProfilesTable extends UserProfiles
         incomeStability,
         spendingMentality,
         riskAppetite,
-        monthlyIncome,
-        emergencyFundTarget,
         financialLiteracy,
+        financialPriority,
+        savingHabit,
+        financialStressLevel,
+        technologyAdoption,
         createdAt,
         updatedAt,
         dataConsentAcceptedAt,
@@ -2811,22 +2431,6 @@ class $UserProfilesTable extends UserProfiles
     } else if (isInserting) {
       context.missing(_riskAppetiteMeta);
     }
-    if (data.containsKey('monthly_income')) {
-      context.handle(
-          _monthlyIncomeMeta,
-          monthlyIncome.isAcceptableOrUnknown(
-              data['monthly_income']!, _monthlyIncomeMeta));
-    } else if (isInserting) {
-      context.missing(_monthlyIncomeMeta);
-    }
-    if (data.containsKey('emergency_fund_target')) {
-      context.handle(
-          _emergencyFundTargetMeta,
-          emergencyFundTarget.isAcceptableOrUnknown(
-              data['emergency_fund_target']!, _emergencyFundTargetMeta));
-    } else if (isInserting) {
-      context.missing(_emergencyFundTargetMeta);
-    }
     if (data.containsKey('financial_literacy')) {
       context.handle(
           _financialLiteracyMeta,
@@ -2834,6 +2438,38 @@ class $UserProfilesTable extends UserProfiles
               data['financial_literacy']!, _financialLiteracyMeta));
     } else if (isInserting) {
       context.missing(_financialLiteracyMeta);
+    }
+    if (data.containsKey('financial_priority')) {
+      context.handle(
+          _financialPriorityMeta,
+          financialPriority.isAcceptableOrUnknown(
+              data['financial_priority']!, _financialPriorityMeta));
+    } else if (isInserting) {
+      context.missing(_financialPriorityMeta);
+    }
+    if (data.containsKey('saving_habit')) {
+      context.handle(
+          _savingHabitMeta,
+          savingHabit.isAcceptableOrUnknown(
+              data['saving_habit']!, _savingHabitMeta));
+    } else if (isInserting) {
+      context.missing(_savingHabitMeta);
+    }
+    if (data.containsKey('financial_stress_level')) {
+      context.handle(
+          _financialStressLevelMeta,
+          financialStressLevel.isAcceptableOrUnknown(
+              data['financial_stress_level']!, _financialStressLevelMeta));
+    } else if (isInserting) {
+      context.missing(_financialStressLevelMeta);
+    }
+    if (data.containsKey('technology_adoption')) {
+      context.handle(
+          _technologyAdoptionMeta,
+          technologyAdoption.isAcceptableOrUnknown(
+              data['technology_adoption']!, _technologyAdoptionMeta));
+    } else if (isInserting) {
+      context.missing(_technologyAdoptionMeta);
     }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
@@ -2880,13 +2516,17 @@ class $UserProfilesTable extends UserProfiles
           DriftSqlType.string, data['${effectivePrefix}spending_mentality'])!,
       riskAppetite: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}risk_appetite'])!,
-      monthlyIncome: attachedDatabase.typeMapping
-          .read(DriftSqlType.double, data['${effectivePrefix}monthly_income'])!,
-      emergencyFundTarget: attachedDatabase.typeMapping.read(
-          DriftSqlType.double,
-          data['${effectivePrefix}emergency_fund_target'])!,
       financialLiteracy: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}financial_literacy'])!,
+      financialPriority: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}financial_priority'])!,
+      savingHabit: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}saving_habit'])!,
+      financialStressLevel: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}financial_stress_level'])!,
+      technologyAdoption: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}technology_adoption'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -2911,9 +2551,11 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
   final String incomeStability;
   final String spendingMentality;
   final String riskAppetite;
-  final double monthlyIncome;
-  final double emergencyFundTarget;
   final String financialLiteracy;
+  final String financialPriority;
+  final String savingHabit;
+  final String financialStressLevel;
+  final String technologyAdoption;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? dataConsentAcceptedAt;
@@ -2924,9 +2566,11 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       required this.incomeStability,
       required this.spendingMentality,
       required this.riskAppetite,
-      required this.monthlyIncome,
-      required this.emergencyFundTarget,
       required this.financialLiteracy,
+      required this.financialPriority,
+      required this.savingHabit,
+      required this.financialStressLevel,
+      required this.technologyAdoption,
       required this.createdAt,
       required this.updatedAt,
       this.dataConsentAcceptedAt,
@@ -2939,9 +2583,11 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     map['income_stability'] = Variable<String>(incomeStability);
     map['spending_mentality'] = Variable<String>(spendingMentality);
     map['risk_appetite'] = Variable<String>(riskAppetite);
-    map['monthly_income'] = Variable<double>(monthlyIncome);
-    map['emergency_fund_target'] = Variable<double>(emergencyFundTarget);
     map['financial_literacy'] = Variable<String>(financialLiteracy);
+    map['financial_priority'] = Variable<String>(financialPriority);
+    map['saving_habit'] = Variable<String>(savingHabit);
+    map['financial_stress_level'] = Variable<String>(financialStressLevel);
+    map['technology_adoption'] = Variable<String>(technologyAdoption);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || dataConsentAcceptedAt != null) {
@@ -2959,9 +2605,11 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       incomeStability: Value(incomeStability),
       spendingMentality: Value(spendingMentality),
       riskAppetite: Value(riskAppetite),
-      monthlyIncome: Value(monthlyIncome),
-      emergencyFundTarget: Value(emergencyFundTarget),
       financialLiteracy: Value(financialLiteracy),
+      financialPriority: Value(financialPriority),
+      savingHabit: Value(savingHabit),
+      financialStressLevel: Value(financialStressLevel),
+      technologyAdoption: Value(technologyAdoption),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       dataConsentAcceptedAt: dataConsentAcceptedAt == null && nullToAbsent
@@ -2980,10 +2628,13 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       incomeStability: serializer.fromJson<String>(json['incomeStability']),
       spendingMentality: serializer.fromJson<String>(json['spendingMentality']),
       riskAppetite: serializer.fromJson<String>(json['riskAppetite']),
-      monthlyIncome: serializer.fromJson<double>(json['monthlyIncome']),
-      emergencyFundTarget:
-          serializer.fromJson<double>(json['emergencyFundTarget']),
       financialLiteracy: serializer.fromJson<String>(json['financialLiteracy']),
+      financialPriority: serializer.fromJson<String>(json['financialPriority']),
+      savingHabit: serializer.fromJson<String>(json['savingHabit']),
+      financialStressLevel:
+          serializer.fromJson<String>(json['financialStressLevel']),
+      technologyAdoption:
+          serializer.fromJson<String>(json['technologyAdoption']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       dataConsentAcceptedAt:
@@ -3000,9 +2651,11 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       'incomeStability': serializer.toJson<String>(incomeStability),
       'spendingMentality': serializer.toJson<String>(spendingMentality),
       'riskAppetite': serializer.toJson<String>(riskAppetite),
-      'monthlyIncome': serializer.toJson<double>(monthlyIncome),
-      'emergencyFundTarget': serializer.toJson<double>(emergencyFundTarget),
       'financialLiteracy': serializer.toJson<String>(financialLiteracy),
+      'financialPriority': serializer.toJson<String>(financialPriority),
+      'savingHabit': serializer.toJson<String>(savingHabit),
+      'financialStressLevel': serializer.toJson<String>(financialStressLevel),
+      'technologyAdoption': serializer.toJson<String>(technologyAdoption),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'dataConsentAcceptedAt':
@@ -3017,9 +2670,11 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
           String? incomeStability,
           String? spendingMentality,
           String? riskAppetite,
-          double? monthlyIncome,
-          double? emergencyFundTarget,
           String? financialLiteracy,
+          String? financialPriority,
+          String? savingHabit,
+          String? financialStressLevel,
+          String? technologyAdoption,
           DateTime? createdAt,
           DateTime? updatedAt,
           Value<DateTime?> dataConsentAcceptedAt = const Value.absent(),
@@ -3030,9 +2685,11 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
         incomeStability: incomeStability ?? this.incomeStability,
         spendingMentality: spendingMentality ?? this.spendingMentality,
         riskAppetite: riskAppetite ?? this.riskAppetite,
-        monthlyIncome: monthlyIncome ?? this.monthlyIncome,
-        emergencyFundTarget: emergencyFundTarget ?? this.emergencyFundTarget,
         financialLiteracy: financialLiteracy ?? this.financialLiteracy,
+        financialPriority: financialPriority ?? this.financialPriority,
+        savingHabit: savingHabit ?? this.savingHabit,
+        financialStressLevel: financialStressLevel ?? this.financialStressLevel,
+        technologyAdoption: technologyAdoption ?? this.technologyAdoption,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
         dataConsentAcceptedAt: dataConsentAcceptedAt.present
@@ -3053,15 +2710,20 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       riskAppetite: data.riskAppetite.present
           ? data.riskAppetite.value
           : this.riskAppetite,
-      monthlyIncome: data.monthlyIncome.present
-          ? data.monthlyIncome.value
-          : this.monthlyIncome,
-      emergencyFundTarget: data.emergencyFundTarget.present
-          ? data.emergencyFundTarget.value
-          : this.emergencyFundTarget,
       financialLiteracy: data.financialLiteracy.present
           ? data.financialLiteracy.value
           : this.financialLiteracy,
+      financialPriority: data.financialPriority.present
+          ? data.financialPriority.value
+          : this.financialPriority,
+      savingHabit:
+          data.savingHabit.present ? data.savingHabit.value : this.savingHabit,
+      financialStressLevel: data.financialStressLevel.present
+          ? data.financialStressLevel.value
+          : this.financialStressLevel,
+      technologyAdoption: data.technologyAdoption.present
+          ? data.technologyAdoption.value
+          : this.technologyAdoption,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       dataConsentAcceptedAt: data.dataConsentAcceptedAt.present
@@ -3080,9 +2742,11 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
           ..write('incomeStability: $incomeStability, ')
           ..write('spendingMentality: $spendingMentality, ')
           ..write('riskAppetite: $riskAppetite, ')
-          ..write('monthlyIncome: $monthlyIncome, ')
-          ..write('emergencyFundTarget: $emergencyFundTarget, ')
           ..write('financialLiteracy: $financialLiteracy, ')
+          ..write('financialPriority: $financialPriority, ')
+          ..write('savingHabit: $savingHabit, ')
+          ..write('financialStressLevel: $financialStressLevel, ')
+          ..write('technologyAdoption: $technologyAdoption, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('dataConsentAcceptedAt: $dataConsentAcceptedAt, ')
@@ -3098,9 +2762,11 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       incomeStability,
       spendingMentality,
       riskAppetite,
-      monthlyIncome,
-      emergencyFundTarget,
       financialLiteracy,
+      financialPriority,
+      savingHabit,
+      financialStressLevel,
+      technologyAdoption,
       createdAt,
       updatedAt,
       dataConsentAcceptedAt,
@@ -3114,9 +2780,11 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
           other.incomeStability == this.incomeStability &&
           other.spendingMentality == this.spendingMentality &&
           other.riskAppetite == this.riskAppetite &&
-          other.monthlyIncome == this.monthlyIncome &&
-          other.emergencyFundTarget == this.emergencyFundTarget &&
           other.financialLiteracy == this.financialLiteracy &&
+          other.financialPriority == this.financialPriority &&
+          other.savingHabit == this.savingHabit &&
+          other.financialStressLevel == this.financialStressLevel &&
+          other.technologyAdoption == this.technologyAdoption &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.dataConsentAcceptedAt == this.dataConsentAcceptedAt &&
@@ -3129,9 +2797,11 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
   final Value<String> incomeStability;
   final Value<String> spendingMentality;
   final Value<String> riskAppetite;
-  final Value<double> monthlyIncome;
-  final Value<double> emergencyFundTarget;
   final Value<String> financialLiteracy;
+  final Value<String> financialPriority;
+  final Value<String> savingHabit;
+  final Value<String> financialStressLevel;
+  final Value<String> technologyAdoption;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> dataConsentAcceptedAt;
@@ -3143,9 +2813,11 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     this.incomeStability = const Value.absent(),
     this.spendingMentality = const Value.absent(),
     this.riskAppetite = const Value.absent(),
-    this.monthlyIncome = const Value.absent(),
-    this.emergencyFundTarget = const Value.absent(),
     this.financialLiteracy = const Value.absent(),
+    this.financialPriority = const Value.absent(),
+    this.savingHabit = const Value.absent(),
+    this.financialStressLevel = const Value.absent(),
+    this.technologyAdoption = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.dataConsentAcceptedAt = const Value.absent(),
@@ -3158,9 +2830,11 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     required String incomeStability,
     required String spendingMentality,
     required String riskAppetite,
-    required double monthlyIncome,
-    required double emergencyFundTarget,
     required String financialLiteracy,
+    required String financialPriority,
+    required String savingHabit,
+    required String financialStressLevel,
+    required String technologyAdoption,
     required DateTime createdAt,
     required DateTime updatedAt,
     this.dataConsentAcceptedAt = const Value.absent(),
@@ -3171,9 +2845,11 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
         incomeStability = Value(incomeStability),
         spendingMentality = Value(spendingMentality),
         riskAppetite = Value(riskAppetite),
-        monthlyIncome = Value(monthlyIncome),
-        emergencyFundTarget = Value(emergencyFundTarget),
         financialLiteracy = Value(financialLiteracy),
+        financialPriority = Value(financialPriority),
+        savingHabit = Value(savingHabit),
+        financialStressLevel = Value(financialStressLevel),
+        technologyAdoption = Value(technologyAdoption),
         createdAt = Value(createdAt),
         updatedAt = Value(updatedAt),
         isComplete = Value(isComplete);
@@ -3183,9 +2859,11 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     Expression<String>? incomeStability,
     Expression<String>? spendingMentality,
     Expression<String>? riskAppetite,
-    Expression<double>? monthlyIncome,
-    Expression<double>? emergencyFundTarget,
     Expression<String>? financialLiteracy,
+    Expression<String>? financialPriority,
+    Expression<String>? savingHabit,
+    Expression<String>? financialStressLevel,
+    Expression<String>? technologyAdoption,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? dataConsentAcceptedAt,
@@ -3198,10 +2876,12 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
       if (incomeStability != null) 'income_stability': incomeStability,
       if (spendingMentality != null) 'spending_mentality': spendingMentality,
       if (riskAppetite != null) 'risk_appetite': riskAppetite,
-      if (monthlyIncome != null) 'monthly_income': monthlyIncome,
-      if (emergencyFundTarget != null)
-        'emergency_fund_target': emergencyFundTarget,
       if (financialLiteracy != null) 'financial_literacy': financialLiteracy,
+      if (financialPriority != null) 'financial_priority': financialPriority,
+      if (savingHabit != null) 'saving_habit': savingHabit,
+      if (financialStressLevel != null)
+        'financial_stress_level': financialStressLevel,
+      if (technologyAdoption != null) 'technology_adoption': technologyAdoption,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (dataConsentAcceptedAt != null)
@@ -3217,9 +2897,11 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
       Value<String>? incomeStability,
       Value<String>? spendingMentality,
       Value<String>? riskAppetite,
-      Value<double>? monthlyIncome,
-      Value<double>? emergencyFundTarget,
       Value<String>? financialLiteracy,
+      Value<String>? financialPriority,
+      Value<String>? savingHabit,
+      Value<String>? financialStressLevel,
+      Value<String>? technologyAdoption,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<DateTime?>? dataConsentAcceptedAt,
@@ -3231,9 +2913,11 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
       incomeStability: incomeStability ?? this.incomeStability,
       spendingMentality: spendingMentality ?? this.spendingMentality,
       riskAppetite: riskAppetite ?? this.riskAppetite,
-      monthlyIncome: monthlyIncome ?? this.monthlyIncome,
-      emergencyFundTarget: emergencyFundTarget ?? this.emergencyFundTarget,
       financialLiteracy: financialLiteracy ?? this.financialLiteracy,
+      financialPriority: financialPriority ?? this.financialPriority,
+      savingHabit: savingHabit ?? this.savingHabit,
+      financialStressLevel: financialStressLevel ?? this.financialStressLevel,
+      technologyAdoption: technologyAdoption ?? this.technologyAdoption,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       dataConsentAcceptedAt:
@@ -3261,15 +2945,21 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     if (riskAppetite.present) {
       map['risk_appetite'] = Variable<String>(riskAppetite.value);
     }
-    if (monthlyIncome.present) {
-      map['monthly_income'] = Variable<double>(monthlyIncome.value);
-    }
-    if (emergencyFundTarget.present) {
-      map['emergency_fund_target'] =
-          Variable<double>(emergencyFundTarget.value);
-    }
     if (financialLiteracy.present) {
       map['financial_literacy'] = Variable<String>(financialLiteracy.value);
+    }
+    if (financialPriority.present) {
+      map['financial_priority'] = Variable<String>(financialPriority.value);
+    }
+    if (savingHabit.present) {
+      map['saving_habit'] = Variable<String>(savingHabit.value);
+    }
+    if (financialStressLevel.present) {
+      map['financial_stress_level'] =
+          Variable<String>(financialStressLevel.value);
+    }
+    if (technologyAdoption.present) {
+      map['technology_adoption'] = Variable<String>(technologyAdoption.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -3298,9 +2988,11 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
           ..write('incomeStability: $incomeStability, ')
           ..write('spendingMentality: $spendingMentality, ')
           ..write('riskAppetite: $riskAppetite, ')
-          ..write('monthlyIncome: $monthlyIncome, ')
-          ..write('emergencyFundTarget: $emergencyFundTarget, ')
           ..write('financialLiteracy: $financialLiteracy, ')
+          ..write('financialPriority: $financialPriority, ')
+          ..write('savingHabit: $savingHabit, ')
+          ..write('financialStressLevel: $financialStressLevel, ')
+          ..write('technologyAdoption: $technologyAdoption, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('dataConsentAcceptedAt: $dataConsentAcceptedAt, ')
@@ -3597,7 +3289,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $ExpensesTable expenses = $ExpensesTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
-  late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $ExchangeRatesTable exchangeRates = $ExchangeRatesTable(this);
   late final $FinancialGoalsTable financialGoals = $FinancialGoalsTable(this);
   late final $GoalHistoryTable goalHistory = $GoalHistoryTable(this);
@@ -3606,8 +3297,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $AnalysisResultsTable(this);
   late final AnalysisResultDao analysisResultDao =
       AnalysisResultDao(this as AppDatabase);
-  late final AppSettingsDao appSettingsDao =
-      AppSettingsDao(this as AppDatabase);
   late final ExchangeRatesDao exchangeRatesDao =
       ExchangeRatesDao(this as AppDatabase);
   late final UserProfilesDao userProfilesDao =
@@ -3625,7 +3314,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
         expenses,
         budgets,
-        appSettings,
         exchangeRates,
         financialGoals,
         goalHistory,
@@ -4072,199 +3760,6 @@ typedef $$BudgetsTableProcessedTableManager = ProcessedTableManager<
     $$BudgetsTableUpdateCompanionBuilder,
     (Budget, BaseReferences<_$AppDatabase, $BudgetsTable, Budget>),
     Budget,
-    PrefetchHooks Function()>;
-typedef $$AppSettingsTableCreateCompanionBuilder = AppSettingsCompanion
-    Function({
-  Value<int> id,
-  Value<String> theme,
-  Value<String> currency,
-  Value<bool> allowNotification,
-  Value<bool> autoBudget,
-  Value<bool> syncEnabled,
-  required DateTime updatedAt,
-});
-typedef $$AppSettingsTableUpdateCompanionBuilder = AppSettingsCompanion
-    Function({
-  Value<int> id,
-  Value<String> theme,
-  Value<String> currency,
-  Value<bool> allowNotification,
-  Value<bool> autoBudget,
-  Value<bool> syncEnabled,
-  Value<DateTime> updatedAt,
-});
-
-class $$AppSettingsTableFilterComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
-  $$AppSettingsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get theme => $composableBuilder(
-      column: $table.theme, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get currency => $composableBuilder(
-      column: $table.currency, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<bool> get allowNotification => $composableBuilder(
-      column: $table.allowNotification,
-      builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<bool> get autoBudget => $composableBuilder(
-      column: $table.autoBudget, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<bool> get syncEnabled => $composableBuilder(
-      column: $table.syncEnabled, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnFilters(column));
-}
-
-class $$AppSettingsTableOrderingComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
-  $$AppSettingsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get id => $composableBuilder(
-      column: $table.id, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get theme => $composableBuilder(
-      column: $table.theme, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<String> get currency => $composableBuilder(
-      column: $table.currency, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<bool> get allowNotification => $composableBuilder(
-      column: $table.allowNotification,
-      builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<bool> get autoBudget => $composableBuilder(
-      column: $table.autoBudget, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<bool> get syncEnabled => $composableBuilder(
-      column: $table.syncEnabled, builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-      column: $table.updatedAt, builder: (column) => ColumnOrderings(column));
-}
-
-class $$AppSettingsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $AppSettingsTable> {
-  $$AppSettingsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get theme =>
-      $composableBuilder(column: $table.theme, builder: (column) => column);
-
-  GeneratedColumn<String> get currency =>
-      $composableBuilder(column: $table.currency, builder: (column) => column);
-
-  GeneratedColumn<bool> get allowNotification => $composableBuilder(
-      column: $table.allowNotification, builder: (column) => column);
-
-  GeneratedColumn<bool> get autoBudget => $composableBuilder(
-      column: $table.autoBudget, builder: (column) => column);
-
-  GeneratedColumn<bool> get syncEnabled => $composableBuilder(
-      column: $table.syncEnabled, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-}
-
-class $$AppSettingsTableTableManager extends RootTableManager<
-    _$AppDatabase,
-    $AppSettingsTable,
-    AppSetting,
-    $$AppSettingsTableFilterComposer,
-    $$AppSettingsTableOrderingComposer,
-    $$AppSettingsTableAnnotationComposer,
-    $$AppSettingsTableCreateCompanionBuilder,
-    $$AppSettingsTableUpdateCompanionBuilder,
-    (AppSetting, BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>),
-    AppSetting,
-    PrefetchHooks Function()> {
-  $$AppSettingsTableTableManager(_$AppDatabase db, $AppSettingsTable table)
-      : super(TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$AppSettingsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$AppSettingsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$AppSettingsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback: ({
-            Value<int> id = const Value.absent(),
-            Value<String> theme = const Value.absent(),
-            Value<String> currency = const Value.absent(),
-            Value<bool> allowNotification = const Value.absent(),
-            Value<bool> autoBudget = const Value.absent(),
-            Value<bool> syncEnabled = const Value.absent(),
-            Value<DateTime> updatedAt = const Value.absent(),
-          }) =>
-              AppSettingsCompanion(
-            id: id,
-            theme: theme,
-            currency: currency,
-            allowNotification: allowNotification,
-            autoBudget: autoBudget,
-            syncEnabled: syncEnabled,
-            updatedAt: updatedAt,
-          ),
-          createCompanionCallback: ({
-            Value<int> id = const Value.absent(),
-            Value<String> theme = const Value.absent(),
-            Value<String> currency = const Value.absent(),
-            Value<bool> allowNotification = const Value.absent(),
-            Value<bool> autoBudget = const Value.absent(),
-            Value<bool> syncEnabled = const Value.absent(),
-            required DateTime updatedAt,
-          }) =>
-              AppSettingsCompanion.insert(
-            id: id,
-            theme: theme,
-            currency: currency,
-            allowNotification: allowNotification,
-            autoBudget: autoBudget,
-            syncEnabled: syncEnabled,
-            updatedAt: updatedAt,
-          ),
-          withReferenceMapper: (p0) => p0
-              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
-              .toList(),
-          prefetchHooksCallback: null,
-        ));
-}
-
-typedef $$AppSettingsTableProcessedTableManager = ProcessedTableManager<
-    _$AppDatabase,
-    $AppSettingsTable,
-    AppSetting,
-    $$AppSettingsTableFilterComposer,
-    $$AppSettingsTableOrderingComposer,
-    $$AppSettingsTableAnnotationComposer,
-    $$AppSettingsTableCreateCompanionBuilder,
-    $$AppSettingsTableUpdateCompanionBuilder,
-    (AppSetting, BaseReferences<_$AppDatabase, $AppSettingsTable, AppSetting>),
-    AppSetting,
     PrefetchHooks Function()>;
 typedef $$ExchangeRatesTableCreateCompanionBuilder = ExchangeRatesCompanion
     Function({
@@ -4948,9 +4443,11 @@ typedef $$UserProfilesTableCreateCompanionBuilder = UserProfilesCompanion
   required String incomeStability,
   required String spendingMentality,
   required String riskAppetite,
-  required double monthlyIncome,
-  required double emergencyFundTarget,
   required String financialLiteracy,
+  required String financialPriority,
+  required String savingHabit,
+  required String financialStressLevel,
+  required String technologyAdoption,
   required DateTime createdAt,
   required DateTime updatedAt,
   Value<DateTime?> dataConsentAcceptedAt,
@@ -4964,9 +4461,11 @@ typedef $$UserProfilesTableUpdateCompanionBuilder = UserProfilesCompanion
   Value<String> incomeStability,
   Value<String> spendingMentality,
   Value<String> riskAppetite,
-  Value<double> monthlyIncome,
-  Value<double> emergencyFundTarget,
   Value<String> financialLiteracy,
+  Value<String> financialPriority,
+  Value<String> savingHabit,
+  Value<String> financialStressLevel,
+  Value<String> technologyAdoption,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<DateTime?> dataConsentAcceptedAt,
@@ -5000,15 +4499,23 @@ class $$UserProfilesTableFilterComposer
   ColumnFilters<String> get riskAppetite => $composableBuilder(
       column: $table.riskAppetite, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<double> get monthlyIncome => $composableBuilder(
-      column: $table.monthlyIncome, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<double> get emergencyFundTarget => $composableBuilder(
-      column: $table.emergencyFundTarget,
-      builder: (column) => ColumnFilters(column));
-
   ColumnFilters<String> get financialLiteracy => $composableBuilder(
       column: $table.financialLiteracy,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get financialPriority => $composableBuilder(
+      column: $table.financialPriority,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get savingHabit => $composableBuilder(
+      column: $table.savingHabit, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get financialStressLevel => $composableBuilder(
+      column: $table.financialStressLevel,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get technologyAdoption => $composableBuilder(
+      column: $table.technologyAdoption,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
@@ -5052,16 +4559,23 @@ class $$UserProfilesTableOrderingComposer
       column: $table.riskAppetite,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<double> get monthlyIncome => $composableBuilder(
-      column: $table.monthlyIncome,
-      builder: (column) => ColumnOrderings(column));
-
-  ColumnOrderings<double> get emergencyFundTarget => $composableBuilder(
-      column: $table.emergencyFundTarget,
-      builder: (column) => ColumnOrderings(column));
-
   ColumnOrderings<String> get financialLiteracy => $composableBuilder(
       column: $table.financialLiteracy,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get financialPriority => $composableBuilder(
+      column: $table.financialPriority,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get savingHabit => $composableBuilder(
+      column: $table.savingHabit, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get financialStressLevel => $composableBuilder(
+      column: $table.financialStressLevel,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get technologyAdoption => $composableBuilder(
+      column: $table.technologyAdoption,
       builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
@@ -5102,14 +4616,20 @@ class $$UserProfilesTableAnnotationComposer
   GeneratedColumn<String> get riskAppetite => $composableBuilder(
       column: $table.riskAppetite, builder: (column) => column);
 
-  GeneratedColumn<double> get monthlyIncome => $composableBuilder(
-      column: $table.monthlyIncome, builder: (column) => column);
-
-  GeneratedColumn<double> get emergencyFundTarget => $composableBuilder(
-      column: $table.emergencyFundTarget, builder: (column) => column);
-
   GeneratedColumn<String> get financialLiteracy => $composableBuilder(
       column: $table.financialLiteracy, builder: (column) => column);
+
+  GeneratedColumn<String> get financialPriority => $composableBuilder(
+      column: $table.financialPriority, builder: (column) => column);
+
+  GeneratedColumn<String> get savingHabit => $composableBuilder(
+      column: $table.savingHabit, builder: (column) => column);
+
+  GeneratedColumn<String> get financialStressLevel => $composableBuilder(
+      column: $table.financialStressLevel, builder: (column) => column);
+
+  GeneratedColumn<String> get technologyAdoption => $composableBuilder(
+      column: $table.technologyAdoption, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -5155,9 +4675,11 @@ class $$UserProfilesTableTableManager extends RootTableManager<
             Value<String> incomeStability = const Value.absent(),
             Value<String> spendingMentality = const Value.absent(),
             Value<String> riskAppetite = const Value.absent(),
-            Value<double> monthlyIncome = const Value.absent(),
-            Value<double> emergencyFundTarget = const Value.absent(),
             Value<String> financialLiteracy = const Value.absent(),
+            Value<String> financialPriority = const Value.absent(),
+            Value<String> savingHabit = const Value.absent(),
+            Value<String> financialStressLevel = const Value.absent(),
+            Value<String> technologyAdoption = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<DateTime?> dataConsentAcceptedAt = const Value.absent(),
@@ -5170,9 +4692,11 @@ class $$UserProfilesTableTableManager extends RootTableManager<
             incomeStability: incomeStability,
             spendingMentality: spendingMentality,
             riskAppetite: riskAppetite,
-            monthlyIncome: monthlyIncome,
-            emergencyFundTarget: emergencyFundTarget,
             financialLiteracy: financialLiteracy,
+            financialPriority: financialPriority,
+            savingHabit: savingHabit,
+            financialStressLevel: financialStressLevel,
+            technologyAdoption: technologyAdoption,
             createdAt: createdAt,
             updatedAt: updatedAt,
             dataConsentAcceptedAt: dataConsentAcceptedAt,
@@ -5185,9 +4709,11 @@ class $$UserProfilesTableTableManager extends RootTableManager<
             required String incomeStability,
             required String spendingMentality,
             required String riskAppetite,
-            required double monthlyIncome,
-            required double emergencyFundTarget,
             required String financialLiteracy,
+            required String financialPriority,
+            required String savingHabit,
+            required String financialStressLevel,
+            required String technologyAdoption,
             required DateTime createdAt,
             required DateTime updatedAt,
             Value<DateTime?> dataConsentAcceptedAt = const Value.absent(),
@@ -5200,9 +4726,11 @@ class $$UserProfilesTableTableManager extends RootTableManager<
             incomeStability: incomeStability,
             spendingMentality: spendingMentality,
             riskAppetite: riskAppetite,
-            monthlyIncome: monthlyIncome,
-            emergencyFundTarget: emergencyFundTarget,
             financialLiteracy: financialLiteracy,
+            financialPriority: financialPriority,
+            savingHabit: savingHabit,
+            financialStressLevel: financialStressLevel,
+            technologyAdoption: technologyAdoption,
             createdAt: createdAt,
             updatedAt: updatedAt,
             dataConsentAcceptedAt: dataConsentAcceptedAt,
@@ -5399,8 +4927,6 @@ class $AppDatabaseManager {
       $$ExpensesTableTableManager(_db, _db.expenses);
   $$BudgetsTableTableManager get budgets =>
       $$BudgetsTableTableManager(_db, _db.budgets);
-  $$AppSettingsTableTableManager get appSettings =>
-      $$AppSettingsTableTableManager(_db, _db.appSettings);
   $$ExchangeRatesTableTableManager get exchangeRates =>
       $$ExchangeRatesTableTableManager(_db, _db.exchangeRates);
   $$FinancialGoalsTableTableManager get financialGoals =>

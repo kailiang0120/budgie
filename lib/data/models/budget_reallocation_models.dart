@@ -54,9 +54,11 @@ class ReallocationUserProfileData {
   final String incomeStability;
   final String spendingMentality;
   final String riskAppetite;
-  final double monthlyIncome;
-  final double emergencyFundTarget;
   final String financialLiteracyLevel;
+  final String financialPriority;
+  final String savingHabit;
+  final String financialStressLevel;
+  final String technologyAdoption;
   final bool hasDataConsent;
 
   ReallocationUserProfileData({
@@ -64,9 +66,11 @@ class ReallocationUserProfileData {
     required this.incomeStability,
     required this.spendingMentality,
     required this.riskAppetite,
-    required this.monthlyIncome,
-    required this.emergencyFundTarget,
     required this.financialLiteracyLevel,
+    required this.financialPriority,
+    required this.savingHabit,
+    required this.financialStressLevel,
+    required this.technologyAdoption,
     required this.hasDataConsent,
   });
 
@@ -76,9 +80,11 @@ class ReallocationUserProfileData {
       incomeStability: profile.incomeStability.name,
       spendingMentality: profile.spendingMentality.name,
       riskAppetite: profile.riskAppetite.name,
-      monthlyIncome: profile.monthlyIncome,
-      emergencyFundTarget: profile.emergencyFundTarget,
       financialLiteracyLevel: profile.financialLiteracyLevel.name,
+      financialPriority: profile.financialPriority.name,
+      savingHabit: profile.savingHabit.name,
+      financialStressLevel: profile.financialStressLevel.name,
+      technologyAdoption: profile.technologyAdoption.name,
       hasDataConsent: profile.hasDataConsent,
     );
   }
@@ -89,9 +95,11 @@ class ReallocationUserProfileData {
       'incomeStability': incomeStability,
       'spendingMentality': spendingMentality,
       'riskAppetite': riskAppetite,
-      'monthlyIncome': monthlyIncome,
-      'emergencyFundTarget': emergencyFundTarget,
       'financialLiteracyLevel': financialLiteracyLevel,
+      'financialPriority': financialPriority,
+      'savingHabit': savingHabit,
+      'financialStressLevel': financialStressLevel,
+      'technologyAdoption': technologyAdoption,
       'hasDataConsent': hasDataConsent,
       'adviceComplexityLevel': _getAdviceComplexityLevel(),
       'adviceTone': _getAdviceTone(),

@@ -380,7 +380,7 @@ class _ExpenseCardState extends State<ExpenseCard>
                               children: [
                                 // Remarks text with proper wrapping
                                 Expanded(
-                                  flex: 2,
+                                  flex: 1,
                                   child: Text(
                                     expense.remark.isNotEmpty
                                         ? expense.remark
@@ -395,7 +395,7 @@ class _ExpenseCardState extends State<ExpenseCard>
                                           ? FontStyle.normal
                                           : FontStyle.italic,
                                     ),
-                                    maxLines: 2,
+                                    maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     softWrap: true,
                                   ),
@@ -403,7 +403,7 @@ class _ExpenseCardState extends State<ExpenseCard>
                                 SizedBox(width: AppConstants.spacingSmall.w),
                                 // Date and time section
                                 Expanded(
-                                  flex: 1,
+                                  flex: 2,
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     mainAxisSize: MainAxisSize.min,

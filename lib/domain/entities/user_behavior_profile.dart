@@ -48,6 +48,33 @@ enum FinancialLiteracyLevel {
   final String description;
 }
 
+enum FinancialPriority {
+  saving,
+  spending,
+  investing,
+  debtRepayment,
+  other,
+}
+
+enum SavingHabit {
+  regular,
+  occasional,
+  rarely,
+  never,
+}
+
+enum FinancialStressLevel {
+  low,
+  moderate,
+  high,
+}
+
+enum TechnologyAdoption {
+  earlyAdopter,
+  average,
+  reluctant,
+}
+
 /// Comprehensive user behavior profile
 class UserBehaviorProfile extends Equatable {
   final String id;
@@ -55,9 +82,11 @@ class UserBehaviorProfile extends Equatable {
   final IncomeStability incomeStability;
   final SpendingMentality spendingMentality;
   final RiskAppetite riskAppetite;
-  final double monthlyIncome;
-  final double emergencyFundTarget; // In months of expenses
   final FinancialLiteracyLevel financialLiteracyLevel;
+  final FinancialPriority financialPriority;
+  final SavingHabit savingHabit;
+  final FinancialStressLevel financialStressLevel;
+  final TechnologyAdoption technologyAdoption;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? dataConsentAcceptedAt; // Track when user accepted data usage
@@ -69,9 +98,11 @@ class UserBehaviorProfile extends Equatable {
     required this.incomeStability,
     required this.spendingMentality,
     required this.riskAppetite,
-    required this.monthlyIncome,
-    required this.emergencyFundTarget,
     required this.financialLiteracyLevel,
+    required this.financialPriority,
+    required this.savingHabit,
+    required this.financialStressLevel,
+    required this.technologyAdoption,
     required this.createdAt,
     required this.updatedAt,
     this.dataConsentAcceptedAt,
@@ -85,9 +116,11 @@ class UserBehaviorProfile extends Equatable {
         incomeStability,
         spendingMentality,
         riskAppetite,
-        monthlyIncome,
-        emergencyFundTarget,
         financialLiteracyLevel,
+        financialPriority,
+        savingHabit,
+        financialStressLevel,
+        technologyAdoption,
         createdAt,
         updatedAt,
         dataConsentAcceptedAt,
@@ -100,9 +133,11 @@ class UserBehaviorProfile extends Equatable {
     IncomeStability? incomeStability,
     SpendingMentality? spendingMentality,
     RiskAppetite? riskAppetite,
-    double? monthlyIncome,
-    double? emergencyFundTarget,
     FinancialLiteracyLevel? financialLiteracyLevel,
+    FinancialPriority? financialPriority,
+    SavingHabit? savingHabit,
+    FinancialStressLevel? financialStressLevel,
+    TechnologyAdoption? technologyAdoption,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? dataConsentAcceptedAt,
@@ -114,10 +149,12 @@ class UserBehaviorProfile extends Equatable {
       incomeStability: incomeStability ?? this.incomeStability,
       spendingMentality: spendingMentality ?? this.spendingMentality,
       riskAppetite: riskAppetite ?? this.riskAppetite,
-      monthlyIncome: monthlyIncome ?? this.monthlyIncome,
-      emergencyFundTarget: emergencyFundTarget ?? this.emergencyFundTarget,
       financialLiteracyLevel:
           financialLiteracyLevel ?? this.financialLiteracyLevel,
+      financialPriority: financialPriority ?? this.financialPriority,
+      savingHabit: savingHabit ?? this.savingHabit,
+      financialStressLevel: financialStressLevel ?? this.financialStressLevel,
+      technologyAdoption: technologyAdoption ?? this.technologyAdoption,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       dataConsentAcceptedAt:
@@ -133,9 +170,11 @@ class UserBehaviorProfile extends Equatable {
       'incomeStability': incomeStability.name,
       'spendingMentality': spendingMentality.name,
       'riskAppetite': riskAppetite.name,
-      'monthlyIncome': monthlyIncome,
-      'emergencyFundTarget': emergencyFundTarget,
       'financialLiteracyLevel': financialLiteracyLevel.name,
+      'financialPriority': financialPriority.name,
+      'savingHabit': savingHabit.name,
+      'financialStressLevel': financialStressLevel.name,
+      'technologyAdoption': technologyAdoption.name,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'dataConsentAcceptedAt': dataConsentAcceptedAt?.toIso8601String(),
@@ -159,11 +198,25 @@ class UserBehaviorProfile extends Equatable {
         (risk) => risk.name == map['riskAppetite'],
         orElse: () => RiskAppetite.medium,
       ),
-      monthlyIncome: (map['monthlyIncome'] ?? 0.0).toDouble(),
-      emergencyFundTarget: (map['emergencyFundTarget'] ?? 3.0).toDouble(),
       financialLiteracyLevel: FinancialLiteracyLevel.values.firstWhere(
         (level) => level.name == map['financialLiteracyLevel'],
         orElse: () => FinancialLiteracyLevel.intermediate,
+      ),
+      financialPriority: FinancialPriority.values.firstWhere(
+        (priority) => priority.name == map['financialPriority'],
+        orElse: () => FinancialPriority.saving,
+      ),
+      savingHabit: SavingHabit.values.firstWhere(
+        (habit) => habit.name == map['savingHabit'],
+        orElse: () => SavingHabit.regular,
+      ),
+      financialStressLevel: FinancialStressLevel.values.firstWhere(
+        (level) => level.name == map['financialStressLevel'],
+        orElse: () => FinancialStressLevel.moderate,
+      ),
+      technologyAdoption: TechnologyAdoption.values.firstWhere(
+        (adoption) => adoption.name == map['technologyAdoption'],
+        orElse: () => TechnologyAdoption.average,
       ),
       createdAt: DateTime.parse(map['createdAt']),
       updatedAt: DateTime.parse(map['updatedAt']),
@@ -183,9 +236,11 @@ class UserBehaviorProfile extends Equatable {
       incomeStability: IncomeStability.stable,
       spendingMentality: SpendingMentality.balanced,
       riskAppetite: RiskAppetite.medium,
-      monthlyIncome: 0.0,
-      emergencyFundTarget: 3.0,
       financialLiteracyLevel: FinancialLiteracyLevel.intermediate,
+      financialPriority: FinancialPriority.saving,
+      savingHabit: SavingHabit.regular,
+      financialStressLevel: FinancialStressLevel.moderate,
+      technologyAdoption: TechnologyAdoption.average,
       createdAt: now,
       updatedAt: now,
       dataConsentAcceptedAt: null,

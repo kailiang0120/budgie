@@ -80,7 +80,6 @@ Future<void> init() async {
   sl.registerLazySingleton(() => AppDatabase());
 
   // Register DAOs
-  sl.registerLazySingleton(() => sl<AppDatabase>().appSettingsDao);
   sl.registerLazySingleton(() => sl<AppDatabase>().exchangeRatesDao);
   sl.registerLazySingleton(() => sl<AppDatabase>().userProfilesDao);
   sl.registerLazySingleton(() => sl<AppDatabase>().analysisResultDao);

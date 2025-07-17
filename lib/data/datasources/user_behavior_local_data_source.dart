@@ -139,14 +139,20 @@ class UserBehaviorLocalDataSourceImpl implements UserBehaviorLocalDataSource {
       riskAppetite: updates.containsKey('riskAppetite')
           ? Value(updates['riskAppetite'])
           : const Value.absent(),
-      monthlyIncome: updates.containsKey('monthlyIncome')
-          ? Value(updates['monthlyIncome'])
-          : const Value.absent(),
-      emergencyFundTarget: updates.containsKey('emergencyFundTarget')
-          ? Value(updates['emergencyFundTarget'])
-          : const Value.absent(),
       financialLiteracy: updates.containsKey('financialLiteracyLevel')
           ? Value(updates['financialLiteracyLevel'])
+          : const Value.absent(),
+      financialPriority: updates.containsKey('financialPriority')
+          ? Value(updates['financialPriority'])
+          : const Value.absent(),
+      savingHabit: updates.containsKey('savingHabit')
+          ? Value(updates['savingHabit'])
+          : const Value.absent(),
+      financialStressLevel: updates.containsKey('financialStressLevel')
+          ? Value(updates['financialStressLevel'])
+          : const Value.absent(),
+      technologyAdoption: updates.containsKey('technologyAdoption')
+          ? Value(updates['technologyAdoption'])
           : const Value.absent(),
       dataConsentAcceptedAt: updates.containsKey('dataConsentAcceptedAt')
           ? Value(updates['dataConsentAcceptedAt'])
@@ -183,10 +189,15 @@ class UserBehaviorLocalDataSourceImpl implements UserBehaviorLocalDataSource {
       spendingMentality:
           SpendingMentality.values.byName(data.spendingMentality),
       riskAppetite: RiskAppetite.values.byName(data.riskAppetite),
-      monthlyIncome: data.monthlyIncome,
-      emergencyFundTarget: data.emergencyFundTarget,
       financialLiteracyLevel:
           FinancialLiteracyLevel.values.byName(data.financialLiteracy),
+      financialPriority:
+          FinancialPriority.values.byName(data.financialPriority),
+      savingHabit: SavingHabit.values.byName(data.savingHabit),
+      financialStressLevel:
+          FinancialStressLevel.values.byName(data.financialStressLevel),
+      technologyAdoption:
+          TechnologyAdoption.values.byName(data.technologyAdoption),
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
       dataConsentAcceptedAt: data.dataConsentAcceptedAt,
@@ -202,9 +213,11 @@ class UserBehaviorLocalDataSourceImpl implements UserBehaviorLocalDataSource {
       incomeStability: Value(entity.incomeStability.name),
       spendingMentality: Value(entity.spendingMentality.name),
       riskAppetite: Value(entity.riskAppetite.name),
-      monthlyIncome: Value(entity.monthlyIncome),
-      emergencyFundTarget: Value(entity.emergencyFundTarget),
       financialLiteracy: Value(entity.financialLiteracyLevel.name),
+      financialPriority: Value(entity.financialPriority.name),
+      savingHabit: Value(entity.savingHabit.name),
+      financialStressLevel: Value(entity.financialStressLevel.name),
+      technologyAdoption: Value(entity.technologyAdoption.name),
       createdAt: Value(entity.createdAt),
       updatedAt: Value(entity.updatedAt),
       dataConsentAcceptedAt: Value(entity.dataConsentAcceptedAt),

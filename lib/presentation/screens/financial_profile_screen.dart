@@ -33,14 +33,17 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
   final int _totalSteps = 3;
 
   // Form controllers and state
-  final _monthlyIncomeController = TextEditingController();
-  final _emergencyFundController = TextEditingController();
-
   IncomeStability _selectedIncomeStability = IncomeStability.stable;
   SpendingMentality _selectedSpendingMentality = SpendingMentality.balanced;
   RiskAppetite _selectedRiskAppetite = RiskAppetite.medium;
   FinancialLiteracyLevel _selectedFinancialLiteracy =
       FinancialLiteracyLevel.intermediate;
+
+  FinancialPriority _selectedFinancialPriority = FinancialPriority.saving;
+  SavingHabit _selectedSavingHabit = SavingHabit.regular;
+  FinancialStressLevel _selectedFinancialStressLevel =
+      FinancialStressLevel.moderate;
+  TechnologyAdoption _selectedTechnologyAdoption = TechnologyAdoption.average;
 
   // Data consent preferences
   bool _dataConsentAccepted = false;
@@ -53,8 +56,6 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
 
   @override
   void dispose() {
-    _monthlyIncomeController.dispose();
-    _emergencyFundController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -62,12 +63,14 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
   void _initializeFromExistingProfile() {
     if (widget.existingProfile != null) {
       final profile = widget.existingProfile!;
-      _monthlyIncomeController.text = profile.monthlyIncome.toString();
-      _emergencyFundController.text = profile.emergencyFundTarget.toString();
       _selectedIncomeStability = profile.incomeStability;
       _selectedSpendingMentality = profile.spendingMentality;
       _selectedRiskAppetite = profile.riskAppetite;
       _selectedFinancialLiteracy = profile.financialLiteracyLevel;
+      _selectedFinancialPriority = profile.financialPriority;
+      _selectedSavingHabit = profile.savingHabit;
+      _selectedFinancialStressLevel = profile.financialStressLevel;
+      _selectedTechnologyAdoption = profile.technologyAdoption;
       _dataConsentAccepted = profile.hasDataConsent;
     }
   }
@@ -137,10 +140,11 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
         incomeStability: _selectedIncomeStability,
         spendingMentality: _selectedSpendingMentality,
         riskAppetite: _selectedRiskAppetite,
-        monthlyIncome: double.tryParse(_monthlyIncomeController.text) ?? 0.0,
-        emergencyFundTarget:
-            double.tryParse(_emergencyFundController.text) ?? 0.0,
         financialLiteracyLevel: _selectedFinancialLiteracy,
+        financialPriority: _selectedFinancialPriority,
+        savingHabit: _selectedSavingHabit,
+        financialStressLevel: _selectedFinancialStressLevel,
+        technologyAdoption: _selectedTechnologyAdoption,
         createdAt: widget.existingProfile?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
         dataConsentAcceptedAt: _dataConsentAccepted ? DateTime.now() : null,
@@ -269,51 +273,6 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
           ),
           SizedBox(height: AppConstants.spacingXLarge.h),
           CustomCard.withTitle(
-            title: 'Monthly Income',
-            icon: Icons.payments_rounded,
-            iconColor: AppTheme.successColor,
-            child: CustomTextField.currency(
-              controller: _monthlyIncomeController,
-              labelText: 'Your monthly income',
-              currencySymbol: CurrencyFormatter.getCurrencySymbol('MYR'),
-              isRequired: true,
-              allowZero: false,
-            ),
-          ),
-          SizedBox(height: AppConstants.spacingLarge.h),
-          CustomCard.withTitle(
-            title: 'Emergency Fund Target',
-            icon: Icons.security_rounded,
-            iconColor: AppTheme.warningColor,
-            child: Column(
-              children: [
-                CustomTextField.number(
-                  controller: _emergencyFundController,
-                  labelText: 'Target emergency fund (months of expenses)',
-                  isRequired: true,
-                ),
-                SizedBox(height: AppConstants.spacingMedium.h),
-                Container(
-                  padding: AppConstants.containerPaddingMedium,
-                  decoration: BoxDecoration(
-                    color: AppTheme.warningColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(
-                        AppConstants.borderRadiusMedium.r),
-                  ),
-                  child: Text(
-                    'Financial experts recommend 3-6 months of expenses for emergencies.',
-                    style: TextStyle(
-                      fontSize: AppConstants.textSizeSmall.sp,
-                      color: AppTheme.greyTextDark,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: AppConstants.spacingLarge.h),
-          CustomCard.withTitle(
             title: 'Income Stability',
             icon: Icons.work_rounded,
             iconColor: AppTheme.primaryColor,
@@ -350,6 +309,82 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
                   ),
                 ),
               ],
+            ),
+          ),
+          SizedBox(height: AppConstants.spacingLarge.h),
+          CustomCard.withTitle(
+            title: 'Financial Priority',
+            icon: Icons.flag_rounded,
+            iconColor: AppTheme.successColor,
+            child: CustomDropdownField<FinancialPriority>(
+              value: _selectedFinancialPriority,
+              items: FinancialPriority.values,
+              labelText: 'What is your current financial priority?',
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _selectedFinancialPriority = value;
+                  });
+                }
+              },
+              itemLabelBuilder: (item) => item.name,
+            ),
+          ),
+          SizedBox(height: AppConstants.spacingLarge.h),
+          CustomCard.withTitle(
+            title: 'Saving Habit',
+            icon: Icons.savings_rounded,
+            iconColor: AppTheme.primaryColor,
+            child: CustomDropdownField<SavingHabit>(
+              value: _selectedSavingHabit,
+              items: SavingHabit.values,
+              labelText: 'How often do you save?',
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _selectedSavingHabit = value;
+                  });
+                }
+              },
+              itemLabelBuilder: (item) => item.name,
+            ),
+          ),
+          SizedBox(height: AppConstants.spacingLarge.h),
+          CustomCard.withTitle(
+            title: 'Financial Stress Level',
+            icon: Icons.sentiment_satisfied_alt_rounded,
+            iconColor: AppTheme.warningColor,
+            child: CustomDropdownField<FinancialStressLevel>(
+              value: _selectedFinancialStressLevel,
+              items: FinancialStressLevel.values,
+              labelText: 'How stressed do you feel about your finances?',
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _selectedFinancialStressLevel = value;
+                  });
+                }
+              },
+              itemLabelBuilder: (item) => item.name,
+            ),
+          ),
+          SizedBox(height: AppConstants.spacingLarge.h),
+          CustomCard.withTitle(
+            title: 'Technology Adoption',
+            icon: Icons.devices_rounded,
+            iconColor: AppTheme.primaryColor,
+            child: CustomDropdownField<TechnologyAdoption>(
+              value: _selectedTechnologyAdoption,
+              items: TechnologyAdoption.values,
+              labelText: 'How do you feel about using new technology?',
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    _selectedTechnologyAdoption = value;
+                  });
+                }
+              },
+              itemLabelBuilder: (item) => item.name,
             ),
           ),
           SizedBox(height: AppConstants.spacingLarge.h),
