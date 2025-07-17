@@ -128,6 +128,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _currency.value = 'MYR'; // Default to MYR if no currency detected
     }
 
+    // Set suggested category if extracted
+    if (data['category'] != null || data['suggestedCategory'] != null) {
+      final suggestedCategory = data['category'] ?? data['suggestedCategory'];
+      final mappedCategory =
+          _mapSuggestedCategory(suggestedCategory.toString());
+      if (mappedCategory != null) {
+        _selectedCategory.value = mappedCategory;
+        debugPrint(
+            '📱 AddExpenseScreen: Set category to: ${mappedCategory.id}');
+      }
+    }
+
     // Set payment method if extracted
     if (data['paymentMethod'] != null ||
         (data['metadata'] != null &&
@@ -164,7 +176,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
 
     debugPrint(
-        '📱 AddExpenseScreen: Preloaded data - Amount: ${_amountController.text}, Remarks: ${_remarkController.text}, Currency: ${_currency.value}, Payment Method: ${_selectedPaymentMethod.value}');
+        '📱 AddExpenseScreen: Preloaded data - Amount: ${_amountController.text}, Remarks: ${_remarkController.text}, Currency: ${_currency.value}, Payment Method: ${_selectedPaymentMethod.value}, Category: ${_selectedCategory.value.id}');
   }
 
   /// Normalize extracted payment method to match app's payment method options
@@ -191,6 +203,28 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     }
 
     return null; // Return null if no match found, will use default
+  }
+
+  /// Map suggested category string to Category enum
+  /// Since the API backend returns one of the 10 predefined categories,
+  /// we only need direct mapping to the Category enum
+  Category? _mapSuggestedCategory(String suggestedCategory) {
+    if (suggestedCategory.trim().isEmpty) return null;
+
+    final categoryLower = suggestedCategory.toLowerCase().trim();
+
+    // Direct ID mapping - this should handle all cases from the backend
+    final directCategory = CategoryExtension.fromId(categoryLower);
+    if (directCategory != null) {
+      debugPrint(
+          '📱 AddExpenseScreen: Mapped category "$suggestedCategory" to ${directCategory.id}');
+      return directCategory;
+    }
+
+    // Fallback - if somehow the backend returns an unexpected category
+    debugPrint(
+        '📱 AddExpenseScreen: Unknown category "$suggestedCategory" from backend, defaulting to others');
+    return Category.others;
   }
 
   @override
