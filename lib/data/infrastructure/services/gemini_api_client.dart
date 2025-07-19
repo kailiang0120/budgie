@@ -20,17 +20,18 @@ class GeminiApiClient {
   GeminiApiClient._internal();
 
   // API Configuration
-  static final String _baseUrl = kDebugMode
-      ? Platform.isAndroid
-          ? 'http://10.0.2.2:8000'
-          : 'http://localhost:8000'
-      : 'https://budgiefastapi.onrender.com'; // Replace with your production URL
+  // static final String _baseUrl = kDebugMode
+  //     ? Platform.isAndroid
+  //         ? 'http://10.0.2.2:8000'
+  //         : 'http://localhost:8000'
+  //     : 'https://budgiefastapi.onrender.com'; // Replace with your production URL\
+  static const String _baseUrl = 'https://budgiefastapi.onrender.com';
   static const String _apiVersion = 'v1';
-  static final String _apiBaseUrl = '$_baseUrl/$_apiVersion';
+  static const String _apiBaseUrl = '$_baseUrl/$_apiVersion';
 
   // Timeouts
   static const Duration _connectTimeout = Duration(seconds: 30);
-  static const Duration _receiveTimeout = Duration(seconds: 120);
+  static const Duration _receiveTimeout = Duration(seconds: 180);
   static const Duration _sendTimeout = Duration(seconds: 60);
 
   // HTTP Client
@@ -86,6 +87,8 @@ class GeminiApiClient {
     }
 
     final url = Uri.parse('$_apiBaseUrl$endpoint');
+    debugPrint(
+        '🤖 [API CALL] $method $url'); // <-- Add this line to log the full API URL and method
     final defaultHeaders = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',

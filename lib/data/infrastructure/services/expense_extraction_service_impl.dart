@@ -141,8 +141,8 @@ class ExpenseExtractionServiceImpl implements ExpenseExtractionService {
       debugPrint('🤖 Content tokens (${contentTokens.length}): $contentTokens');
 
       // Prepare input tensors
-      final titleInput = [titleTokens.map((t) => t.toDouble()).toList()];
-      final contentInput = [contentTokens.map((t) => t.toDouble()).toList()];
+      final titleInput = [Int32List.fromList(titleTokens)];
+      final contentInput = [Int32List.fromList(contentTokens)];
 
       // Prepare output tensor
       final output = List.filled(1, 0.0).reshape([1, 1]);

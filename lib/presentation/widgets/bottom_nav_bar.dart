@@ -125,7 +125,7 @@ class BottomNavBar extends StatelessWidget {
                 ? primaryColor
                 : textColor
                     .withAlpha((255 * AppConstants.opacityMedium).toInt()),
-            size: AppConstants.iconSizeLarge.sp,
+            size: AppConstants.iconSizeXLarge.sp,
           ),
         ),
       ),
