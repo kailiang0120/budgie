@@ -152,7 +152,8 @@ class AppConstants {
   static double iconSizeSmall = 16.sp;
   static double iconSizeMedium = 20.sp;
   static double iconSizeLarge = 24.sp;
-  static double iconSizeXLarge = 32.sp;
+  static double iconSizeXLarge = 28.sp;
+  static double iconSizeXXLarge = 32.sp;
 
   /// Border radius
   static double borderRadiusSmall = 8.sp;

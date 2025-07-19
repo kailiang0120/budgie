@@ -7,6 +7,8 @@ import 'dart:convert';
 import 'dart:async';
 
 import '../../models/expense_detection_models.dart';
+import 'package:budgie/core/constants/routes.dart';
+import 'package:budgie/main.dart'; // for navigatorKey
 
 /// Data class for navigation events triggered by notifications
 class NotificationNavigationAction {
@@ -38,14 +40,6 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
-
-  // Stream for handling navigation from notifications
-  final StreamController<NotificationNavigationAction>
-      _navigationStreamController =
-      StreamController<NotificationNavigationAction>.broadcast();
-
-  Stream<NotificationNavigationAction> get navigationStream =>
-      _navigationStreamController.stream;
 
   // Temporary storage for extracted expense data
   final Map<String, _TempExpenseData> _tempExpenseStorage = {};
@@ -87,8 +81,6 @@ class NotificationService {
       await _plugin.initialize(
         initializationSettings,
         onDidReceiveNotificationResponse: _onNotificationResponse,
-        onDidReceiveBackgroundNotificationResponse:
-            _onBackgroundNotificationResponse,
       );
 
       // Create notification channels for Android
@@ -589,114 +581,34 @@ class NotificationService {
     try {
       final extractionResult = getStoredExpenseData(detectionId);
 
-      if (extractionResult != null) {
-        // Map to arguments for AddExpenseScreen
-        final arguments = {
-          'amount': extractionResult.parsedAmount,
-          'currency': extractionResult.currency,
-          'remarks': extractionResult.merchantName,
-          'category': extractionResult.suggestedCategory,
-          'paymentMethod': extractionResult.paymentMethod,
-          'detectionId':
-              detectionId, // Include detection ID for cleanup after use
-        };
+      final arguments = extractionResult != null
+          ? {
+              'amount': extractionResult.parsedAmount,
+              'currency': extractionResult.currency,
+              'remarks': extractionResult.merchantName,
+              'category': extractionResult.suggestedCategory,
+              'paymentMethod': extractionResult.paymentMethod,
+              'detectionId': detectionId,
+            }
+          : null;
 
-        debugPrint(
-            '📤 NotificationService: Queuing navigation to add expense with stored data: $arguments');
-
-        _navigationStreamController.add(
-          NotificationNavigationAction(
-            route: '/add_expense',
-            arguments: arguments,
-          ),
-        );
-      } else {
-        debugPrint(
-            '📤 NotificationService: No stored data found for detection ID: $detectionId');
-        // Fallback - queue navigation without prefilled data
-        _navigationStreamController.add(
-          NotificationNavigationAction(route: '/add_expense'),
-        );
-      }
-    } catch (e) {
-      debugPrint(
-          '📤 NotificationService: Error queuing navigation from stored data: $e');
-
-      // Fallback - queue navigation without prefilled data
-      _navigationStreamController.add(
-        NotificationNavigationAction(route: '/add_expense'),
+      // Always ensure the home route is present before navigating to add expense
+      navigatorKey.currentState?.pushNamedAndRemoveUntil(
+        Routes.home,
+        (route) => false,
       );
-    }
-  }
-
-  /// Parses the payload and adds a navigation action to the stream (legacy method - kept for backward compatibility)
-  void _queueNavigationFromPayload(String payload) {
-    try {
-      // Parse the JSON payload
-      final payloadMap = jsonDecode(payload) as Map<String, dynamic>;
-      final detectionId = payloadMap['detectionId'] as String?;
-
-      if (detectionId != null) {
-        // Use the new method with stored data
-        _queueNavigationFromStoredData(detectionId);
-        return;
-      }
-
-      // Legacy fallback for old payload format
-      final extractedData =
-          payloadMap['extractedData'] as Map<String, dynamic>?;
-      if (extractedData != null) {
-        final result = ExpenseExtractionResult.fromJson(extractedData);
-
-        // Map to arguments for AddExpenseScreen
-        final arguments = {
-          'amount': result.parsedAmount,
-          'currency': result.currency,
-          'remarks': result.merchantName,
-          'category': result.suggestedCategory,
-          'paymentMethod': result.paymentMethod,
-        };
-
-        debugPrint(
-            '📤 NotificationService: Queuing navigation to add expense with legacy data: $arguments');
-
-        _navigationStreamController.add(
-          NotificationNavigationAction(
-            route: '/add_expense',
-            arguments: arguments,
-          ),
-        );
-      } else {
-        // Fallback - queue navigation without prefilled data
-        _navigationStreamController.add(
-          NotificationNavigationAction(route: '/add_expense'),
-        );
-      }
-    } catch (e) {
-      debugPrint(
-          '📤 NotificationService: Error queuing navigation from payload: $e');
-
-      // Fallback - queue navigation without prefilled data
-      _navigationStreamController.add(
-        NotificationNavigationAction(route: '/add_expense'),
+      // Then push the add expense screen
+      navigatorKey.currentState?.pushNamed(
+        '/add_expense',
+        arguments: arguments,
       );
+    } catch (e) {
+      debugPrint('Error navigating from notification: $e');
     }
-  }
-
-  /// Handle notification response when app is in background
-  @pragma('vm:entry-point')
-  static void _onBackgroundNotificationResponse(
-      NotificationResponse notificationResponse) {
-    final String? payload = notificationResponse.payload;
-    debugPrint(
-        '📤 NotificationService: Background notification tapped with payload: $payload');
-
-    // Additional handling can be added here based on payload
   }
 
   /// Cleanup resources
   void dispose() {
-    _navigationStreamController.close();
     _tempExpenseStorage.clear();
     debugPrint('📤 NotificationService: Service disposed');
   }

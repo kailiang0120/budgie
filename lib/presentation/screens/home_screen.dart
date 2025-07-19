@@ -32,7 +32,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   late DateTime _selectedDate;
   DateFilterMode _filterMode = DateFilterMode.month;
-  StreamSubscription<NotificationNavigationAction>? _navigationSubscription;
+  // Removed: StreamSubscription<NotificationNavigationAction>? _navigationSubscription;
 
   @override
   void initState() {
@@ -41,7 +41,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     // Initialize with current date as default
     _selectedDate = DateTime.now();
-    _setupNavigationListener();
+    // Removed: _setupNavigationListener();
 
     // Initialize filters in post-frame callback to avoid build phase issues
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -88,22 +88,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  void _setupNavigationListener() {
-    try {
-      final notificationService = di.sl<NotificationService>();
-      _navigationSubscription =
-          notificationService.navigationStream.listen((action) {
-        if (mounted && ModalRoute.of(context)?.isCurrent == true) {
-          debugPrint(
-              '💡 HomeScreen: Received navigation action to ${action.route}');
-          Navigator.pushNamed(context, action.route,
-              arguments: action.arguments);
-        }
-      });
-    } catch (e) {
-      debugPrint('Error setting up navigation listener: $e');
-    }
-  }
+  // Removed: void _setupNavigationListener() { ... }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -119,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _navigationSubscription?.cancel();
+    // Removed: _navigationSubscription?.cancel();
     super.dispose();
   }
 
