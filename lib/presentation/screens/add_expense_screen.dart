@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import '../../domain/entities/category.dart';
@@ -84,7 +85,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   void _preloadDataFromExtraction() {
     final data = widget.prefilledData!;
 
-    debugPrint('📱 AddExpenseScreen: Processing extracted data: $data');
+    if (kDebugMode) {
+      debugPrint('📱 AddExpenseScreen: Processing extracted data: $data');
+    }
 
     // Set amount if available
     if (data['amount'] != null) {
@@ -135,8 +138,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           _mapSuggestedCategory(suggestedCategory.toString());
       if (mappedCategory != null) {
         _selectedCategory.value = mappedCategory;
-        debugPrint(
-            '📱 AddExpenseScreen: Set category to: ${mappedCategory.id}');
+        if (kDebugMode) {
+          debugPrint(
+              '📱 AddExpenseScreen: Set category to: ${mappedCategory.id}');
+        }
       }
     }
 
@@ -166,7 +171,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         _selectedDateTime.value = parsedDate;
       } catch (e) {
         // Keep current time if parsing fails
-        debugPrint('Failed to parse extracted datetime: $e');
+        if (kDebugMode) {
+          debugPrint('Failed to parse extracted datetime: $e');
+        }
       }
     }
 
@@ -175,8 +182,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       _detectionId = data['detectionId'].toString();
     }
 
-    debugPrint(
-        '📱 AddExpenseScreen: Preloaded data - Amount: ${_amountController.text}, Remarks: ${_remarkController.text}, Currency: ${_currency.value}, Payment Method: ${_selectedPaymentMethod.value}, Category: ${_selectedCategory.value.id}');
+    if (kDebugMode) {
+      debugPrint(
+          '📱 AddExpenseScreen: Preloaded data - Amount: ${_amountController.text}, Remarks: ${_remarkController.text}, Currency: ${_currency.value}, Payment Method: ${_selectedPaymentMethod.value}, Category: ${_selectedCategory.value.id}');
+    }
   }
 
   /// Normalize extracted payment method to match app's payment method options
@@ -216,14 +225,18 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     // Direct ID mapping - this should handle all cases from the backend
     final directCategory = CategoryExtension.fromId(categoryLower);
     if (directCategory != null) {
-      debugPrint(
-          '📱 AddExpenseScreen: Mapped category "$suggestedCategory" to ${directCategory.id}');
+      if (kDebugMode) {
+        debugPrint(
+            '📱 AddExpenseScreen: Mapped category "$suggestedCategory" to ${directCategory.id}');
+      }
       return directCategory;
     }
 
     // Fallback - if somehow the backend returns an unexpected category
-    debugPrint(
-        '📱 AddExpenseScreen: Unknown category "$suggestedCategory" from backend, defaulting to others');
+    if (kDebugMode) {
+      debugPrint(
+          '📱 AddExpenseScreen: Unknown category "$suggestedCategory" from backend, defaulting to others');
+    }
     return Category.others;
   }
 
@@ -326,8 +339,10 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
         // Cleanup after successful expense addition
         if (_detectionId != null) {
           _notificationService.cleanupAfterExpenseAdded(_detectionId!);
-          debugPrint(
-              '📱 Notification cleanup completed for detection ID: $_detectionId');
+          if (kDebugMode) {
+            debugPrint(
+                '📱 Notification cleanup completed for detection ID: $_detectionId');
+          }
         }
       } catch (e, stackTrace) {
         final error = AppError.from(e, stackTrace);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
@@ -66,7 +67,9 @@ class NotificationService {
     if (_isInitialized) return;
 
     try {
-      debugPrint('📤 NotificationService: Initializing...');
+      if (kDebugMode) {
+        debugPrint('📤 NotificationService: Initializing...');
+      }
 
       // Initialize timezone data for scheduled notifications
       if (!_isTimeZoneInitialized) {
@@ -89,10 +92,14 @@ class NotificationService {
       }
 
       _isInitialized = true;
-      debugPrint('✅ NotificationService: Initialization completed');
+      if (kDebugMode) {
+        debugPrint('✅ NotificationService: Initialization completed');
+      }
     } catch (e, stackTrace) {
-      debugPrint('❌ NotificationService: Initialization failed: $e');
-      debugPrint('📍 Stack trace: $stackTrace');
+      if (kDebugMode) {
+        debugPrint('❌ NotificationService: Initialization failed: $e');
+        debugPrint('📍 Stack trace: $stackTrace');
+      }
       // Don't throw - app should continue working even if notifications fail
     }
   }
@@ -122,10 +129,14 @@ class NotificationService {
         payload: payload,
       );
 
-      debugPrint('📤 NotificationService: Sent notification - $title');
+      if (kDebugMode) {
+        debugPrint('📤 NotificationService: Sent notification - $title');
+      }
       return true;
     } catch (e) {
-      debugPrint('❌ NotificationService: Failed to send notification: $e');
+      if (kDebugMode) {
+        debugPrint('❌ NotificationService: Failed to send notification: $e');
+      }
       return false;
     }
   }
@@ -185,12 +196,16 @@ class NotificationService {
         payload: payload,
       );
 
-      debugPrint(
-          '📤 NotificationService: Sent actionable expense notification');
+      if (kDebugMode) {
+        debugPrint(
+            '📤 NotificationService: Sent actionable expense notification');
+      }
       return true;
     } catch (e) {
-      debugPrint(
-          '❌ NotificationService: Failed to send actionable notification: $e');
+      if (kDebugMode) {
+        debugPrint(
+            '❌ NotificationService: Failed to send actionable notification: $e');
+      }
       return false;
     }
   }
@@ -222,8 +237,10 @@ class NotificationService {
   /// Clear stored expense data by detection ID
   void clearStoredExpenseData(String detectionId) {
     _tempExpenseStorage.remove(detectionId);
-    debugPrint(
-        '📤 NotificationService: Cleared stored data for detection ID: $detectionId');
+    if (kDebugMode) {
+      debugPrint(
+          '📤 NotificationService: Cleared stored data for detection ID: $detectionId');
+    }
   }
 
   /// Send a reminder notification
@@ -286,11 +303,16 @@ class NotificationService {
         payload: payload,
       );
 
-      debugPrint(
-          '📤 NotificationService: Scheduled notification for ${scheduledTime.toString()}');
+      if (kDebugMode) {
+        debugPrint(
+            '📤 NotificationService: Scheduled notification for ${scheduledTime.toString()}');
+      }
       return true;
     } catch (e) {
-      debugPrint('❌ NotificationService: Failed to schedule notification: $e');
+      if (kDebugMode) {
+        debugPrint(
+            '❌ NotificationService: Failed to schedule notification: $e');
+      }
 
       // Fallback to Future.delayed if zonedSchedule fails
       Future.delayed(delay, () async {
@@ -310,9 +332,13 @@ class NotificationService {
   Future<void> cancelNotification(int id) async {
     try {
       await _plugin.cancel(id);
-      debugPrint('📤 NotificationService: Cancelled notification $id');
+      if (kDebugMode) {
+        debugPrint('📤 NotificationService: Cancelled notification $id');
+      }
     } catch (e) {
-      debugPrint('❌ NotificationService: Failed to cancel notification: $e');
+      if (kDebugMode) {
+        debugPrint('❌ NotificationService: Failed to cancel notification: $e');
+      }
     }
   }
 
@@ -320,10 +346,14 @@ class NotificationService {
   Future<void> cancelAllNotifications() async {
     try {
       await _plugin.cancelAll();
-      debugPrint('📤 NotificationService: Cancelled all notifications');
+      if (kDebugMode) {
+        debugPrint('📤 NotificationService: Cancelled all notifications');
+      }
     } catch (e) {
-      debugPrint(
-          '❌ NotificationService: Failed to cancel all notifications: $e');
+      if (kDebugMode) {
+        debugPrint(
+            '❌ NotificationService: Failed to cancel all notifications: $e');
+      }
     }
   }
 
@@ -332,8 +362,10 @@ class NotificationService {
     try {
       return await _plugin.pendingNotificationRequests();
     } catch (e) {
-      debugPrint(
-          '❌ NotificationService: Failed to get pending notifications: $e');
+      if (kDebugMode) {
+        debugPrint(
+            '❌ NotificationService: Failed to get pending notifications: $e');
+      }
       return [];
     }
   }
@@ -345,8 +377,10 @@ class NotificationService {
         return await _plugin.getActiveNotifications();
       }
     } catch (e) {
-      debugPrint(
-          '❌ NotificationService: Failed to get active notifications: $e');
+      if (kDebugMode) {
+        debugPrint(
+            '❌ NotificationService: Failed to get active notifications: $e');
+      }
     }
     return [];
   }
@@ -354,7 +388,9 @@ class NotificationService {
   /// Set callback function to refresh app data after expense is added via notifications
   void setExpenseRefreshCallback(ExpenseRefreshCallback callback) {
     _expenseRefreshCallback = callback;
-    debugPrint('📤 NotificationService: Expense refresh callback registered');
+    if (kDebugMode) {
+      debugPrint('📤 NotificationService: Expense refresh callback registered');
+    }
   }
 
   /// Cleanup after expense is successfully added via notification
@@ -365,16 +401,24 @@ class NotificationService {
 
       // Trigger app data refresh
       if (_expenseRefreshCallback != null) {
-        debugPrint(
-            '📤 NotificationService: Triggering app data refresh after expense addition');
+        if (kDebugMode) {
+          debugPrint(
+              '📤 NotificationService: Triggering app data refresh after expense addition');
+        }
         await _expenseRefreshCallback!();
-        debugPrint('✅ NotificationService: App data refresh completed');
+        if (kDebugMode) {
+          debugPrint('✅ NotificationService: App data refresh completed');
+        }
       } else {
-        debugPrint('⚠️ NotificationService: No refresh callback registered');
+        if (kDebugMode) {
+          debugPrint('⚠️ NotificationService: No refresh callback registered');
+        }
       }
     } catch (e) {
-      debugPrint(
-          '❌ NotificationService: Error during cleanup after expense addition: $e');
+      if (kDebugMode) {
+        debugPrint(
+            '❌ NotificationService: Error during cleanup after expense addition: $e');
+      }
     }
   }
 
@@ -528,8 +572,10 @@ class NotificationService {
   void _onNotificationResponse(NotificationResponse notificationResponse) {
     final String? payload = notificationResponse.payload;
     final String? actionId = notificationResponse.actionId;
-    debugPrint(
-        '📤 NotificationService: Notification tapped with payload: $payload, action: $actionId');
+    if (kDebugMode) {
+      debugPrint(
+          '📤 NotificationService: Notification tapped with payload: $payload, action: $actionId');
+    }
 
     if (payload == null) return;
 
@@ -542,8 +588,10 @@ class NotificationService {
         _handleExpenseNotificationResponse(actionId, payload);
       }
     } catch (e) {
-      debugPrint(
-          '📤 NotificationService: Error handling notification response: $e');
+      if (kDebugMode) {
+        debugPrint(
+            '📤 NotificationService: Error handling notification response: $e');
+      }
     }
   }
 
@@ -554,7 +602,9 @@ class NotificationService {
       final detectionId = payloadMap['detectionId'] as String?;
 
       if (detectionId == null) {
-        debugPrint('📤 NotificationService: Missing detectionId in payload');
+        if (kDebugMode) {
+          debugPrint('📤 NotificationService: Missing detectionId in payload');
+        }
         return;
       }
 
@@ -564,15 +614,19 @@ class NotificationService {
         _queueNavigationFromStoredData(detectionId);
       } else if (actionId == 'dismiss') {
         // User dismissed - clear the stored data
-        debugPrint(
-            '📤 NotificationService: Expense notification dismissed by user.');
+        if (kDebugMode) {
+          debugPrint(
+              '📤 NotificationService: Expense notification dismissed by user.');
+        }
 
         // Clear the temporary storage
         clearStoredExpenseData(detectionId);
       }
     } catch (e) {
-      debugPrint(
-          '📤 NotificationService: Error handling expense notification: $e');
+      if (kDebugMode) {
+        debugPrint(
+            '📤 NotificationService: Error handling expense notification: $e');
+      }
     }
   }
 
@@ -603,14 +657,18 @@ class NotificationService {
         arguments: arguments,
       );
     } catch (e) {
-      debugPrint('Error navigating from notification: $e');
+      if (kDebugMode) {
+        debugPrint('Error navigating from notification: $e');
+      }
     }
   }
 
   /// Cleanup resources
   void dispose() {
     _tempExpenseStorage.clear();
-    debugPrint('📤 NotificationService: Service disposed');
+    if (kDebugMode) {
+      debugPrint('📤 NotificationService: Service disposed');
+    }
   }
 
   /// Check if service is initialized

@@ -31,6 +31,13 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.debug
+            
+            // Enable R8 code shrinking and obfuscation
+            minifyEnabled true
+            shrinkResources true
+
+            // Specify ProGuard rules for TensorFlow Lite
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 }

@@ -27,6 +27,8 @@ class NotificationListenerService {
       _onNotificationReceived;
   bool _isListening = false;
   bool _isInitialized = false;
+  bool _isServiceEnabled = false;
+  bool _hasPermissions = false;
 
   // Dependencies
   late final PermissionHandlerService _permissionHandler;
@@ -45,6 +47,9 @@ class NotificationListenerService {
       // Initialize service dependencies
       _permissionHandler = PermissionHandlerService();
 
+      // Check current state
+      await _updateServiceState();
+
       // Setup background processing
       await _setupBackgroundProcessing();
 
@@ -52,6 +57,7 @@ class NotificationListenerService {
       _isInitialized = true;
 
       debugPrint('✅ NotificationListenerService: Initialization completed');
+      debugPrint('📊 Service State: $_getDetailedStateString()');
     } catch (e, stackTrace) {
       debugPrint('❌ NotificationListenerService: Initialization failed: $e');
       debugPrint('📍 Stack trace: $stackTrace');
@@ -63,6 +69,7 @@ class NotificationListenerService {
   void setNotificationCallback(
       Function(String title, String content, String packageName) callback) {
     _onNotificationReceived = callback;
+    debugPrint('🔔 NotificationListenerService: Callback set');
   }
 
   /// Start notification listening service
@@ -76,14 +83,16 @@ class NotificationListenerService {
       debugPrint(
           '🔔 NotificationListenerService: Starting notification listener...');
 
+      // Update service state before starting
+      await _updateServiceState();
+
       // Check for native permissions before attempting to start
       final bool hasPermission =
           await platform.invokeMethod('isNotificationServiceEnabled');
       if (!hasPermission) {
         debugPrint(
             '❌ NotificationListenerService: Notification listener permission not granted at system level.');
-        // Optionally, trigger a request for permission here
-        // await requestNotificationPermissions(null); // Example context
+        _isServiceEnabled = false;
         return false;
       }
 
@@ -92,6 +101,7 @@ class NotificationListenerService {
           .hasPermissionsForFeature(PermissionFeature.notifications);
       if (!hasPermissions) {
         debugPrint('❌ NotificationListenerService: Insufficient permissions');
+        _hasPermissions = false;
         return false;
       }
 
@@ -103,9 +113,15 @@ class NotificationListenerService {
       // Start platform-specific listener
       await _startPlatformListener();
 
+      // Add a small delay to ensure the platform listener is fully started
+      if (Platform.isAndroid) {
+        await Future.delayed(const Duration(milliseconds: 300));
+      }
+
       _isListening = true;
       debugPrint(
           '✅ NotificationListenerService: Notification listening started');
+      debugPrint('📊 Service State: $_getDetailedStateString()');
       return true;
     } catch (e) {
       debugPrint(
@@ -138,6 +154,7 @@ class NotificationListenerService {
       _isListening = false;
       debugPrint(
           '✅ NotificationListenerService: Notification listening stopped');
+      debugPrint('📊 Service State: $_getDetailedStateString()');
     } catch (e) {
       debugPrint('❌ NotificationListenerService: Error stopping listener: $e');
       // Force stop even if there were errors
@@ -145,32 +162,109 @@ class NotificationListenerService {
     }
   }
 
-  /// Check service health status
+  /// Check service health status with detailed information
   Future<Map<String, dynamic>> getHealthStatus() async {
+    await _updateServiceState();
+
+    // Check if the listener is actually connected and working
+    bool isActuallyListening = _isListening;
+    if (Platform.isAndroid && _isListening) {
+      try {
+        // Try to verify the connection by checking if the service is responding
+        final isServiceEnabled = await checkNotificationServiceEnabled();
+        isActuallyListening = isServiceEnabled && _isListening;
+      } catch (e) {
+        debugPrint(
+            '⚠️ NotificationListenerService: Could not verify connection: $e');
+        isActuallyListening = false;
+      }
+    }
+
     return {
+      'isInitialized': _isInitialized,
       'isListening': _isListening,
-      'hasPermissions': await _permissionHandler
-          .hasPermissionsForFeature(PermissionFeature.notifications),
+      'isActuallyListening': isActuallyListening,
+      'isServiceEnabled': _isServiceEnabled,
+      'hasPermissions': _hasPermissions,
+      'hasBasicPermission':
+          await _permissionHandler.hasNotificationPermission(),
+      'hasListenerPermission':
+          await _permissionHandler.hasNotificationListenerPermission(),
       'backgroundServiceEnabled':
           true, // Always true since we don't use FlutterBackground
+      'detailedState': _getDetailedStateString(),
+      'timestamp': DateTime.now().toIso8601String(),
     };
   }
 
   /// Check if notification permission is granted
   Future<bool> checkNotificationPermission() async {
-    return await _permissionHandler.hasNotificationPermission();
+    final hasPermission = await _permissionHandler.hasNotificationPermission();
+    debugPrint(
+        '🔐 NotificationListenerService: Basic permission check: $hasPermission');
+    return hasPermission;
   }
 
   /// Check if notification listener permission is granted (Android only)
   Future<bool> checkNotificationListenerPermission() async {
-    return await _permissionHandler.hasNotificationListenerPermission();
+    final hasPermission =
+        await _permissionHandler.hasNotificationListenerPermission();
+    debugPrint(
+        '🔐 NotificationListenerService: Listener permission check: $hasPermission');
+    return hasPermission;
+  }
+
+  /// Check if notification service is enabled at system level
+  Future<bool> checkNotificationServiceEnabled() async {
+    try {
+      if (Platform.isAndroid) {
+        final result =
+            await platform.invokeMethod<bool>('isNotificationServiceEnabled');
+        final enabled = result ?? false;
+        debugPrint(
+            '⚙️ NotificationListenerService: Service enabled check: $enabled');
+        return enabled;
+      }
+      return true; // Non-Android platforms don't need this
+    } catch (e) {
+      debugPrint(
+          '❌ NotificationListenerService: Error checking service enabled: $e');
+      return false;
+    }
   }
 
   /// Request notification permissions
   Future<PermissionStatus> requestNotificationPermissions(
       BuildContext? context) async {
-    return await _permissionHandler.requestPermissionsForFeature(
+    debugPrint('🔐 NotificationListenerService: Requesting permissions...');
+    final result = await _permissionHandler.requestPermissionsForFeature(
         PermissionFeature.notifications, context);
+
+    // Update state after permission request
+    await _updateServiceState();
+
+    debugPrint(
+        '🔐 NotificationListenerService: Permission request result: ${result.message}');
+    return result;
+  }
+
+  /// Update internal service state
+  Future<void> _updateServiceState() async {
+    try {
+      _hasPermissions = await _permissionHandler
+          .hasPermissionsForFeature(PermissionFeature.notifications);
+      _isServiceEnabled = await checkNotificationServiceEnabled();
+
+      debugPrint(
+          '📊 NotificationListenerService: State updated - Permissions: $_hasPermissions, Service: $_isServiceEnabled');
+    } catch (e) {
+      debugPrint('❌ NotificationListenerService: Error updating state: $e');
+    }
+  }
+
+  /// Get detailed state string for logging
+  String _getDetailedStateString() {
+    return 'Initialized: $_isInitialized, Listening: $_isListening, Permissions: $_hasPermissions, Service: $_isServiceEnabled';
   }
 
   /// Process incoming notification using hybrid expense detection
@@ -314,7 +408,7 @@ class NotificationListenerService {
       // NotificationListenerService doesn't need FlutterBackground to function
       // It's a system service that runs independently
       debugPrint(
-          '✅ NotificationListenerService: Background service setup skipped (not needed)');
+          '✅ NotificationListenerService: Background service setup completed (system service)');
     } catch (e) {
       debugPrint(
           '❌ NotificationListenerService: Background service failed: $e');
@@ -338,6 +432,9 @@ class NotificationListenerService {
       final title = data['title'] ?? '';
       final content = data['content'] ?? '';
 
+      debugPrint(
+          '🔔 NotificationListenerService: Raw notification received from $packageName');
+
       // Filter out system notifications and other irrelevant sources
       if (_shouldIgnoreNotification(packageName, title, content)) {
         debugPrint(
@@ -349,6 +446,9 @@ class NotificationListenerService {
         debugPrint(
             '🔔 NotificationListenerService: Processing notification - $title: $content (from $packageName)');
         _onNotificationReceived!(title, content, packageName);
+      } else {
+        debugPrint(
+            '⚠️ NotificationListenerService: No callback set for notification processing');
       }
     }
   }
@@ -438,10 +538,14 @@ class NotificationListenerService {
   /// Getters for service state
   bool get isListening => _isListening;
   bool get isInitialized => _isInitialized;
+  bool get isServiceEnabled => _isServiceEnabled;
+  bool get hasPermissions => _hasPermissions;
 
   /// Cleanup resources
   void dispose() {
     _isListening = false;
     _isInitialized = false;
+    _isServiceEnabled = false;
+    _hasPermissions = false;
   }
 }

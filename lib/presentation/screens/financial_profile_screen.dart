@@ -43,7 +43,7 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
   SavingHabit _selectedSavingHabit = SavingHabit.regular;
   FinancialStressLevel _selectedFinancialStressLevel =
       FinancialStressLevel.moderate;
-  TechnologyAdoption _selectedTechnologyAdoption = TechnologyAdoption.average;
+  Occupation _selectedOccupation = Occupation.employed;
 
   // Data consent preferences
   bool _dataConsentAccepted = false;
@@ -63,15 +63,28 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
   void _initializeFromExistingProfile() {
     if (widget.existingProfile != null) {
       final profile = widget.existingProfile!;
-      _selectedIncomeStability = profile.incomeStability;
-      _selectedSpendingMentality = profile.spendingMentality;
-      _selectedRiskAppetite = profile.riskAppetite;
-      _selectedFinancialLiteracy = profile.financialLiteracyLevel;
-      _selectedFinancialPriority = profile.financialPriority;
-      _selectedSavingHabit = profile.savingHabit;
-      _selectedFinancialStressLevel = profile.financialStressLevel;
-      _selectedTechnologyAdoption = profile.technologyAdoption;
-      _dataConsentAccepted = profile.hasDataConsent;
+      debugPrint(
+          '📊 FinancialProfileScreen: Loading existing profile for user: ${profile.userId}');
+      debugPrint(
+          '📊 FinancialProfileScreen: Profile data - Income: ${profile.incomeStability.displayName}, Spending: ${profile.spendingMentality.displayName}');
+
+      setState(() {
+        _selectedIncomeStability = profile.incomeStability;
+        _selectedSpendingMentality = profile.spendingMentality;
+        _selectedRiskAppetite = profile.riskAppetite;
+        _selectedFinancialLiteracy = profile.financialLiteracyLevel;
+        _selectedFinancialPriority = profile.financialPriority;
+        _selectedSavingHabit = profile.savingHabit;
+        _selectedFinancialStressLevel = profile.financialStressLevel;
+        _selectedOccupation = profile.occupation;
+        _dataConsentAccepted = profile.hasDataConsent;
+      });
+
+      debugPrint(
+          '📊 FinancialProfileScreen: Profile loaded successfully - Data consent: $_dataConsentAccepted');
+    } else {
+      debugPrint(
+          '📊 FinancialProfileScreen: No existing profile found, using default values');
     }
   }
 
@@ -144,7 +157,7 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
         financialPriority: _selectedFinancialPriority,
         savingHabit: _selectedSavingHabit,
         financialStressLevel: _selectedFinancialStressLevel,
-        technologyAdoption: _selectedTechnologyAdoption,
+        occupation: _selectedOccupation,
         createdAt: widget.existingProfile?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
         dataConsentAcceptedAt: _dataConsentAccepted ? DateTime.now() : null,
@@ -314,20 +327,41 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
           SizedBox(height: AppConstants.spacingLarge.h),
           CustomCard.withTitle(
             title: 'Financial Priority',
-            icon: Icons.flag_rounded,
-            iconColor: AppTheme.successColor,
-            child: CustomDropdownField<FinancialPriority>(
-              value: _selectedFinancialPriority,
-              items: FinancialPriority.values,
-              labelText: 'What is your current financial priority?',
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedFinancialPriority = value;
-                  });
-                }
-              },
-              itemLabelBuilder: (item) => item.name,
+            icon: Icons.priority_high_rounded,
+            iconColor: AppTheme.primaryColor,
+            child: Column(
+              children: [
+                CustomDropdownField<FinancialPriority>(
+                  value: _selectedFinancialPriority,
+                  items: FinancialPriority.values,
+                  labelText: 'What is your current financial priority?',
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedFinancialPriority = value;
+                      });
+                    }
+                  },
+                  itemLabelBuilder: (item) => item.displayName,
+                ),
+                SizedBox(height: AppConstants.spacingMedium.h),
+                Container(
+                  padding: AppConstants.containerPaddingMedium,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadiusMedium.r),
+                  ),
+                  child: Text(
+                    _selectedFinancialPriority.description,
+                    style: TextStyle(
+                      fontSize: AppConstants.textSizeSmall.sp,
+                      color: AppTheme.greyTextDark,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           SizedBox(height: AppConstants.spacingLarge.h),
@@ -335,18 +369,39 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
             title: 'Saving Habit',
             icon: Icons.savings_rounded,
             iconColor: AppTheme.primaryColor,
-            child: CustomDropdownField<SavingHabit>(
-              value: _selectedSavingHabit,
-              items: SavingHabit.values,
-              labelText: 'How often do you save?',
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedSavingHabit = value;
-                  });
-                }
-              },
-              itemLabelBuilder: (item) => item.name,
+            child: Column(
+              children: [
+                CustomDropdownField<SavingHabit>(
+                  value: _selectedSavingHabit,
+                  items: SavingHabit.values,
+                  labelText: 'How often do you save?',
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedSavingHabit = value;
+                      });
+                    }
+                  },
+                  itemLabelBuilder: (item) => item.displayName,
+                ),
+                SizedBox(height: AppConstants.spacingMedium.h),
+                Container(
+                  padding: AppConstants.containerPaddingMedium,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadiusMedium.r),
+                  ),
+                  child: Text(
+                    _selectedSavingHabit.description,
+                    style: TextStyle(
+                      fontSize: AppConstants.textSizeSmall.sp,
+                      color: AppTheme.greyTextDark,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           SizedBox(height: AppConstants.spacingLarge.h),
@@ -354,37 +409,79 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
             title: 'Financial Stress Level',
             icon: Icons.sentiment_satisfied_alt_rounded,
             iconColor: AppTheme.warningColor,
-            child: CustomDropdownField<FinancialStressLevel>(
-              value: _selectedFinancialStressLevel,
-              items: FinancialStressLevel.values,
-              labelText: 'How stressed do you feel about your finances?',
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedFinancialStressLevel = value;
-                  });
-                }
-              },
-              itemLabelBuilder: (item) => item.name,
+            child: Column(
+              children: [
+                CustomDropdownField<FinancialStressLevel>(
+                  value: _selectedFinancialStressLevel,
+                  items: FinancialStressLevel.values,
+                  labelText: 'How stressed do you feel about your finances?',
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedFinancialStressLevel = value;
+                      });
+                    }
+                  },
+                  itemLabelBuilder: (item) => item.displayName,
+                ),
+                SizedBox(height: AppConstants.spacingMedium.h),
+                Container(
+                  padding: AppConstants.containerPaddingMedium,
+                  decoration: BoxDecoration(
+                    color: AppTheme.warningColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadiusMedium.r),
+                  ),
+                  child: Text(
+                    _selectedFinancialStressLevel.description,
+                    style: TextStyle(
+                      fontSize: AppConstants.textSizeSmall.sp,
+                      color: AppTheme.greyTextDark,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           SizedBox(height: AppConstants.spacingLarge.h),
           CustomCard.withTitle(
-            title: 'Technology Adoption',
-            icon: Icons.devices_rounded,
+            title: 'Occupation',
+            icon: Icons.work_rounded,
             iconColor: AppTheme.primaryColor,
-            child: CustomDropdownField<TechnologyAdoption>(
-              value: _selectedTechnologyAdoption,
-              items: TechnologyAdoption.values,
-              labelText: 'How do you feel about using new technology?',
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedTechnologyAdoption = value;
-                  });
-                }
-              },
-              itemLabelBuilder: (item) => item.name,
+            child: Column(
+              children: [
+                CustomDropdownField<Occupation>(
+                  value: _selectedOccupation,
+                  items: Occupation.values,
+                  labelText: 'What is your current occupation?',
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        _selectedOccupation = value;
+                      });
+                    }
+                  },
+                  itemLabelBuilder: (item) => item.displayName,
+                ),
+                SizedBox(height: AppConstants.spacingMedium.h),
+                Container(
+                  padding: AppConstants.containerPaddingMedium,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(
+                        AppConstants.borderRadiusMedium.r),
+                  ),
+                  child: Text(
+                    _selectedOccupation.description,
+                    style: TextStyle(
+                      fontSize: AppConstants.textSizeSmall.sp,
+                      color: AppTheme.greyTextDark,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           SizedBox(height: AppConstants.spacingLarge.h),

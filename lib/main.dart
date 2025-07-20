@@ -7,6 +7,7 @@ import 'package:provider/single_child_widget.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
+import 'dart:io';
 
 import 'data/infrastructure/config/firebase_options.dart';
 import 'core/constants/routes.dart';
@@ -63,8 +64,10 @@ Future<void> main() async {
       }
     });
   } catch (e, stackTrace) {
-    debugPrint('❌ App initialization failed: $e');
-    debugPrint(stackTrace.toString());
+    if (kDebugMode) {
+      debugPrint('❌ App initialization failed: $e');
+      debugPrint(stackTrace.toString());
+    }
 
     // Run app with error state - let existing splash screen handle this
     runApp(const BudgieApp());
@@ -73,35 +76,57 @@ Future<void> main() async {
 
 /// Initialize core services required before UI rendering
 Future<void> _initializeCoreServices() async {
-  debugPrint('🚀 Initializing core services...');
+  if (kDebugMode) {
+    debugPrint('🚀 Initializing core services...');
+  }
 
   // Initialize Firebase with proper error handling
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  debugPrint('✅ Firebase initialized');
+  if (kDebugMode) {
+    debugPrint('✅ Firebase initialized');
+  }
 
   // Initialize dependency injection - Critical and Essential services only
   await di.init();
-  debugPrint('✅ Core services initialized');
+  if (kDebugMode) {
+    debugPrint('✅ Core services initialized');
+  }
 
   // Initialize SettingsService to load theme and other settings BEFORE UI renders
   try {
     final settingsService = di.sl<SettingsService>();
     final permissionHandler = di.sl<PermissionHandlerService>();
 
+    // Add a small delay to ensure Android method channels are properly initialized
+    if (Platform.isAndroid) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      if (kDebugMode) {
+        debugPrint('⏱️ Added delay for Android method channel initialization');
+      }
+    }
+
     // Initialize settings with permission handler to enable automatic notification listener management
     await settingsService.initialize(permissionHandler: permissionHandler);
-    debugPrint('✅ SettingsService initialized and settings loaded');
+    if (kDebugMode) {
+      debugPrint('✅ SettingsService initialized and settings loaded');
+    }
 
     // Refresh ThemeViewModel after settings are loaded to ensure theme persists
     try {
       final themeViewModel = di.sl<ThemeViewModel>();
       themeViewModel.refreshFromSettings();
-      debugPrint('✅ ThemeViewModel refreshed from loaded settings');
+      if (kDebugMode) {
+        debugPrint('✅ ThemeViewModel refreshed from loaded settings');
+      }
     } catch (e) {
-      debugPrint('⚠️ ThemeViewModel refresh error: $e');
+      if (kDebugMode) {
+        debugPrint('⚠️ ThemeViewModel refresh error: $e');
+      }
     }
   } catch (e) {
-    debugPrint('⚠️ SettingsService initialization error: $e');
+    if (kDebugMode) {
+      debugPrint('⚠️ SettingsService initialization error: $e');
+    }
   }
 }
 
@@ -111,7 +136,9 @@ void _initializeRemainingServices() {
 
   // Stage 1: Essential background services (500ms delay)
   Future.delayed(const Duration(milliseconds: 500), () async {
-    debugPrint('🔄 Initializing essential services...');
+    if (kDebugMode) {
+      debugPrint('🔄 Initializing essential services...');
+    }
 
     try {
       // Initialize services in parallel where possible
@@ -121,15 +148,21 @@ void _initializeRemainingServices() {
         di.sl<BackgroundTaskService>().initialize(),
       ]);
 
-      debugPrint('✅ Essential services initialized');
+      if (kDebugMode) {
+        debugPrint('✅ Essential services initialized');
+      }
     } catch (e) {
-      debugPrint('⚠️ Essential services initialization error: $e');
+      if (kDebugMode) {
+        debugPrint('⚠️ Essential services initialization error: $e');
+      }
     }
   });
 
   // Stage 2: Optional services (2s delay)
   Future.delayed(const Duration(seconds: 2), () async {
-    debugPrint('🎯 Initializing optional services...');
+    if (kDebugMode) {
+      debugPrint('🎯 Initializing optional services...');
+    }
 
     try {
       // Start recurring expense service
@@ -137,9 +170,13 @@ void _initializeRemainingServices() {
 
       // Background service permissions no longer needed for notification listener
 
-      debugPrint('✅ Optional services initialized');
+      if (kDebugMode) {
+        debugPrint('✅ Optional services initialized');
+      }
     } catch (e) {
-      debugPrint('⚠️ Optional services initialization error: $e');
+      if (kDebugMode) {
+        debugPrint('⚠️ Optional services initialization error: $e');
+      }
     }
   });
 
@@ -155,35 +192,49 @@ Future<void> _initializeNotificationServices() async {
     // Initialize notification services if permissions are granted
     final notificationService = di.sl<NotificationService>();
     await notificationService.initialize();
-    debugPrint('✅ Main: NotificationService initialized successfully');
+    if (kDebugMode) {
+      debugPrint('✅ Main: NotificationService initialized successfully');
+    }
 
     // Set up expense refresh callback for automatic app data refresh
     notificationService
         .setExpenseRefreshCallback(_refreshAppDataAfterExpenseAdded);
-    debugPrint('✅ Main: Expense refresh callback registered');
+    if (kDebugMode) {
+      debugPrint('✅ Main: Expense refresh callback registered');
+    }
 
     // Initialize expense extraction service for notification processing
     try {
       final extractionService = di.sl<ExpenseExtractionDomainService>();
       if (!extractionService.isInitialized) {
-        debugPrint('🔧 Main: Initializing expense extraction service...');
+        if (kDebugMode) {
+          debugPrint('🔧 Main: Initializing expense extraction service...');
+        }
         await extractionService.initialize();
-        debugPrint('✅ Main: Expense extraction service initialized');
+        if (kDebugMode) {
+          debugPrint('✅ Main: Expense extraction service initialized');
+        }
       }
     } catch (e) {
-      debugPrint(
-          '⚠️ Main: Failed to initialize expense extraction service: $e');
+      if (kDebugMode) {
+        debugPrint(
+            '⚠️ Main: Failed to initialize expense extraction service: $e');
+      }
     }
   } catch (e) {
-    debugPrint('❌ Main: Failed to initialize notification services: $e');
+    if (kDebugMode) {
+      debugPrint('❌ Main: Failed to initialize notification services: $e');
+    }
   }
 }
 
 /// Refresh app data after expense is added via notification extraction
 Future<void> _refreshAppDataAfterExpenseAdded() async {
   try {
-    debugPrint(
-        '🔄 Main: Refreshing app data after notification expense addition...');
+    if (kDebugMode) {
+      debugPrint(
+          '🔄 Main: Refreshing app data after notification expense addition...');
+    }
 
     // Small delay to ensure UI has finished updating
     await Future.delayed(const Duration(milliseconds: 500));
@@ -193,12 +244,19 @@ Future<void> _refreshAppDataAfterExpenseAdded() async {
       try {
         final expensesViewModel = di.sl<ExpensesViewModel>();
         await expensesViewModel.refreshData();
-        debugPrint('✅ Main: ExpensesViewModel refreshed');
+        if (kDebugMode) {
+          debugPrint('✅ Main: ExpensesViewModel refreshed');
+        }
       } catch (e) {
-        debugPrint('⚠️ Main: Failed to refresh ExpensesViewModel: $e');
+        if (kDebugMode) {
+          debugPrint('⚠️ Main: Failed to refresh ExpensesViewModel: $e');
+        }
       }
     } else {
-      debugPrint('ℹ️ Main: ExpensesViewModel not registered, skipping refresh');
+      if (kDebugMode) {
+        debugPrint(
+            'ℹ️ Main: ExpensesViewModel not registered, skipping refresh');
+      }
     }
 
     // Refresh BudgetViewModel for current month
@@ -208,17 +266,27 @@ Future<void> _refreshAppDataAfterExpenseAdded() async {
         final now = DateTime.now();
         final monthId = '${now.year}-${now.month.toString().padLeft(2, '0')}';
         await budgetViewModel.refreshBudget(monthId);
-        debugPrint('✅ Main: BudgetViewModel refreshed for month $monthId');
+        if (kDebugMode) {
+          debugPrint('✅ Main: BudgetViewModel refreshed for month $monthId');
+        }
       } catch (e) {
-        debugPrint('⚠️ Main: Failed to refresh BudgetViewModel: $e');
+        if (kDebugMode) {
+          debugPrint('⚠️ Main: Failed to refresh BudgetViewModel: $e');
+        }
       }
     } else {
-      debugPrint('ℹ️ Main: BudgetViewModel not registered, skipping refresh');
+      if (kDebugMode) {
+        debugPrint('ℹ️ Main: BudgetViewModel not registered, skipping refresh');
+      }
     }
 
-    debugPrint('🎉 Main: App data refresh completed successfully');
+    if (kDebugMode) {
+      debugPrint('🎉 Main: App data refresh completed successfully');
+    }
   } catch (e) {
-    debugPrint('❌ Main: Error refreshing app data: $e');
+    if (kDebugMode) {
+      debugPrint('❌ Main: Error refreshing app data: $e');
+    }
   }
 }
 
@@ -230,12 +298,16 @@ Future<void> _initializeSyncService() async {
 
     // Initialize sync service
     await syncService.initialize(startPeriodicSync: false);
-    debugPrint('✅ SyncService initialized');
+    if (kDebugMode) {
+      debugPrint('✅ SyncService initialized');
+    }
 
     // Enable periodic sync if enabled in settings
     if (settingsService.syncEnabled) {
       syncService.initialize(startPeriodicSync: true);
-      debugPrint('✅ SyncService periodic sync enabled');
+      if (kDebugMode) {
+        debugPrint('✅ SyncService periodic sync enabled');
+      }
 
       // Schedule background sync task
       final backgroundTaskService = di.sl<BackgroundTaskService>();
@@ -244,11 +316,15 @@ Future<void> _initializeSyncService() async {
       // Perform initial sync with a delay
       Future.delayed(const Duration(seconds: 3), () {
         syncService.forceFullSync();
-        debugPrint('🔄 Initial sync started');
+        if (kDebugMode) {
+          debugPrint('🔄 Initial sync started');
+        }
       });
     }
   } catch (e) {
-    debugPrint('⚠️ Sync service initialization error: $e');
+    if (kDebugMode) {
+      debugPrint('⚠️ Sync service initialization error: $e');
+    }
   }
 }
 
@@ -262,19 +338,27 @@ Future<void> _startRecurringExpenseService() async {
     // Also process immediately after startup (with delay)
     Future.delayed(const Duration(seconds: 10), () {
       di.sl<ProcessRecurringExpensesUseCase>().execute();
-      debugPrint('✅ Initial recurring expense processing completed');
+      if (kDebugMode) {
+        debugPrint('✅ Initial recurring expense processing completed');
+      }
     });
 
-    debugPrint('✅ Recurring expense service started');
+    if (kDebugMode) {
+      debugPrint('✅ Recurring expense service started');
+    }
   } catch (e) {
-    debugPrint('⚠️ Recurring expense service error: $e');
+    if (kDebugMode) {
+      debugPrint('⚠️ Recurring expense service error: $e');
+    }
   }
 }
 
 /// Check welcome screen status and handle accordingly
 Future<void> _checkWelcomeStatus() async {
   try {
-    debugPrint('🔑 Checking welcome screen status...');
+    if (kDebugMode) {
+      debugPrint('🔑 Checking welcome screen status...');
+    }
 
     final prefs = await SharedPreferences.getInstance();
     final welcomeCompleted = prefs.getBool('welcome_completed') ?? false;
@@ -282,12 +366,18 @@ Future<void> _checkWelcomeStatus() async {
     // If welcome screen was completed, user has already handled permissions
     // If not completed, welcome screen will handle permissions on last page
     if (welcomeCompleted) {
-      debugPrint('✅ Welcome completed - permissions already handled');
+      if (kDebugMode) {
+        debugPrint('✅ Welcome completed - permissions already handled');
+      }
     } else {
-      debugPrint('📱 Welcome screen will handle permissions on last page');
+      if (kDebugMode) {
+        debugPrint('📱 Welcome screen will handle permissions on last page');
+      }
     }
   } catch (e) {
-    debugPrint('⚠️ Welcome status check error: $e');
+    if (kDebugMode) {
+      debugPrint('⚠️ Welcome status check error: $e');
+    }
   }
 }
 
@@ -328,13 +418,17 @@ class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
     try {
       if (di.sl.isRegistered<SyncService>()) {
         final syncService = di.sl<SyncService>();
-        debugPrint('📱 App resumed - checking for pending syncs');
+        if (kDebugMode) {
+          debugPrint('📱 App resumed - checking for pending syncs');
+        }
         Future.delayed(const Duration(seconds: 1), () {
           syncService.syncData(fullSync: false);
         });
       }
     } catch (e) {
-      debugPrint('⚠️ Resume sync failed: $e');
+      if (kDebugMode) {
+        debugPrint('⚠️ Resume sync failed: $e');
+      }
     }
   }
 
@@ -343,10 +437,14 @@ class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
     try {
       if (di.sl.isRegistered<SyncService>()) {
         di.sl<SyncService>().dispose();
-        debugPrint('🧹 App detached: disposed SyncService');
+        if (kDebugMode) {
+          debugPrint('🧹 App detached: disposed SyncService');
+        }
       }
     } catch (e) {
-      debugPrint('⚠️ Cleanup failed: $e');
+      if (kDebugMode) {
+        debugPrint('⚠️ Cleanup failed: $e');
+      }
     }
   }
 
@@ -360,9 +458,11 @@ class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
         splitScreenMode: true,
         builder: (context, _) {
           // Debug text scaling on first build
-          Future.delayed(const Duration(milliseconds: 500), () {
-            AppConstants.debugTextSizes();
-          });
+          if (kDebugMode) {
+            Future.delayed(const Duration(milliseconds: 500), () {
+              AppConstants.debugTextSizes();
+            });
+          }
           return _buildMaterialApp(context);
         },
       ),

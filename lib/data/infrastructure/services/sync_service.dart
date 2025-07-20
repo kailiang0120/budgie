@@ -35,25 +35,33 @@ class SyncService {
 
   /// Initialize the sync service
   Future<void> initialize({bool startPeriodicSync = false}) async {
-    debugPrint('Initializing SyncService...');
+    if (kDebugMode) {
+      debugPrint('Initializing SyncService...');
+    }
 
     // Listen for connectivity changes and auto-sync when connection is restored
     _connectivityService.connectionStatusStream.listen((isConnected) async {
       if (isConnected) {
-        debugPrint('Connection restored - triggering data sync');
+        if (kDebugMode) {
+          debugPrint('Connection restored - triggering data sync');
+        }
         // Delay sync slightly to ensure connection is stable
         await Future.delayed(const Duration(seconds: 1));
         syncData(fullSync: true);
       } else {
-        debugPrint(
-            'Connection lost - sync will be performed when connection is restored');
+        if (kDebugMode) {
+          debugPrint(
+              'Connection lost - sync will be performed when connection is restored');
+        }
       }
     });
 
     // Check if we have connection now, and if so, perform initial sync
     final isConnected = await _connectivityService.isConnected;
     if (isConnected) {
-      debugPrint('Initial connection available - performing first sync');
+      if (kDebugMode) {
+        debugPrint('Initial connection available - performing first sync');
+      }
       // Delay to ensure app is fully initialized
       Future.delayed(const Duration(seconds: 3), () {
         syncData(fullSync: true);
@@ -65,7 +73,9 @@ class SyncService {
       _startPeriodicSync();
     }
 
-    debugPrint('SyncService initialized successfully');
+    if (kDebugMode) {
+      debugPrint('SyncService initialized successfully');
+    }
   }
 
   /// Start periodic synchronization timer
@@ -77,7 +87,9 @@ class SyncService {
         syncData(skipBudgets: false);
       }
     });
-    debugPrint('Started periodic sync timer (every 15 minutes)');
+    if (kDebugMode) {
+      debugPrint('Started periodic sync timer (every 15 minutes)');
+    }
   }
 
   /// Check if sync is enabled
@@ -85,7 +97,9 @@ class SyncService {
     try {
       return _settingsService.syncEnabled;
     } catch (e) {
-      debugPrint('Error checking sync enabled status: $e');
+      if (kDebugMode) {
+        debugPrint('Error checking sync enabled status: $e');
+      }
       return false;
     }
   }
@@ -94,7 +108,9 @@ class SyncService {
   Future<void> setSyncEnabled(bool enabled) async {
     try {
       await _settingsService.updateSyncSetting(enabled);
-      debugPrint('Sync ${enabled ? 'enabled' : 'disabled'} setting saved');
+      if (kDebugMode) {
+        debugPrint('Sync ${enabled ? 'enabled' : 'disabled'} setting saved');
+      }
 
       // If enabling sync, trigger a sync
       if (enabled) {
@@ -102,7 +118,9 @@ class SyncService {
         Future.microtask(() => syncData(fullSync: true));
       }
     } catch (e) {
-      debugPrint('Error setting sync enabled status: $e');
+      if (kDebugMode) {
+        debugPrint('Error setting sync enabled status: $e');
+      }
     }
   }
 
@@ -112,13 +130,17 @@ class SyncService {
     // First check if sync is enabled
     final syncEnabled = await isSyncEnabled();
     if (!syncEnabled) {
-      debugPrint('Sync is disabled in settings, skipping sync operation');
+      if (kDebugMode) {
+        debugPrint('Sync is disabled in settings, skipping sync operation');
+      }
       return;
     }
 
     // Prevent multiple syncs from running simultaneously
     if (_isSyncing) {
-      debugPrint('Sync already in progress, skipping new request');
+      if (kDebugMode) {
+        debugPrint('Sync already in progress, skipping new request');
+      }
       return;
     }
 
@@ -129,7 +151,10 @@ class SyncService {
       // Don't sync more than once every 5 seconds unless it's a full sync
       final now = DateTime.now();
       if (!fullSync && now.difference(_lastSyncTime).inSeconds < 5) {
-        debugPrint('Sync requested too soon after previous sync, skipping...');
+        if (kDebugMode) {
+          debugPrint(
+              'Sync requested too soon after previous sync, skipping...');
+        }
         _isSyncing = false;
         _syncStatusController.add(false);
         return;
@@ -139,13 +164,17 @@ class SyncService {
 
       final isConnected = await _connectivityService.isConnected;
       if (!isConnected) {
-        debugPrint('No network connection, skipping sync');
+        if (kDebugMode) {
+          debugPrint('No network connection, skipping sync');
+        }
         _isSyncing = false;
         _syncStatusController.add(false);
         return;
       }
 
-      debugPrint('Starting data synchronization');
+      if (kDebugMode) {
+        debugPrint('Starting data synchronization');
+      }
 
       // 1. Sync expenses first
       await _syncExpenses();
@@ -155,9 +184,13 @@ class SyncService {
         await _syncBudgets();
       }
 
-      debugPrint('Data synchronization completed successfully');
+      if (kDebugMode) {
+        debugPrint('Data synchronization completed successfully');
+      }
     } catch (e) {
-      debugPrint('Sync error: $e');
+      if (kDebugMode) {
+        debugPrint('Sync error: $e');
+      }
     } finally {
       _isSyncing = false;
       _syncStatusController.add(false); // Broadcast sync ended
@@ -172,24 +205,34 @@ class SyncService {
   /// Sync expenses between local database and Firebase
   Future<void> _syncExpenses() async {
     try {
-      debugPrint('Syncing expenses...');
+      if (kDebugMode) {
+        debugPrint('Syncing expenses...');
+      }
 
       // Get local expenses
       final expenses = await _expensesRepository.getExpenses();
-      debugPrint('Found ${expenses.length} expenses in local database');
+      if (kDebugMode) {
+        debugPrint('Found ${expenses.length} expenses in local database');
+      }
 
       // In a real app, we would sync with Firebase here
 
-      debugPrint('Expenses sync completed');
+      if (kDebugMode) {
+        debugPrint('Expenses sync completed');
+      }
     } catch (e) {
-      debugPrint('Error syncing expenses: $e');
+      if (kDebugMode) {
+        debugPrint('Error syncing expenses: $e');
+      }
     }
   }
 
   /// Sync budgets between local database and Firebase
   Future<void> _syncBudgets() async {
     try {
-      debugPrint('Syncing budgets...');
+      if (kDebugMode) {
+        debugPrint('Syncing budgets...');
+      }
 
       // Get current month ID
       final now = DateTime.now();
@@ -198,16 +241,24 @@ class SyncService {
       // Get local budget
       final budget = await _budgetRepository.getBudget(monthId);
       if (budget != null) {
-        debugPrint('Found budget for month $monthId in local database');
+        if (kDebugMode) {
+          debugPrint('Found budget for month $monthId in local database');
+        }
       } else {
-        debugPrint('No budget found for month $monthId');
+        if (kDebugMode) {
+          debugPrint('No budget found for month $monthId');
+        }
       }
 
       // In a real app, we would sync with Firebase here
 
-      debugPrint('Budget sync completed');
+      if (kDebugMode) {
+        debugPrint('Budget sync completed');
+      }
     } catch (e) {
-      debugPrint('Error syncing budgets: $e');
+      if (kDebugMode) {
+        debugPrint('Error syncing budgets: $e');
+      }
     }
   }
 
@@ -215,6 +266,8 @@ class SyncService {
   void dispose() {
     _syncTimer?.cancel();
     _syncStatusController.close();
-    debugPrint('SyncService disposed');
+    if (kDebugMode) {
+      debugPrint('SyncService disposed');
+    }
   }
 }

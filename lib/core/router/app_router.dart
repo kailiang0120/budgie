@@ -9,9 +9,13 @@ import '../../presentation/screens/analytic_screen.dart';
 import '../../presentation/screens/setting_screen.dart';
 import '../../presentation/screens/goals_screen.dart';
 import '../../presentation/screens/notification_test_screen.dart';
+import '../../presentation/screens/financial_profile_screen.dart';
 import '../../domain/entities/expense.dart';
+import '../../domain/entities/user_behavior_profile.dart';
+import '../../domain/repositories/user_behavior_repository.dart';
 import '../constants/routes.dart';
 import 'page_transition.dart';
+import '../../di/injection_container.dart' as di;
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -98,6 +102,50 @@ class AppRouter {
       case Routes.notificationTest:
         return PageTransition(
           child: const NotificationTestScreen(),
+          type: TransitionType.smoothFadeSlide,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOutQuart,
+          settings: settings,
+        );
+
+      case Routes.financialProfile:
+        return PageTransition(
+          child: FutureBuilder(
+            future: di
+                .sl<UserBehaviorRepository>()
+                .getUserBehaviorProfile('guest_user'),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return Scaffold(
+                  body: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 64, color: Colors.red),
+                        const SizedBox(height: 16),
+                        Text('Error loading profile: ${snapshot.error}'),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final existingProfile = snapshot.data as UserBehaviorProfile?;
+              return FinancialProfileScreen(
+                existingProfile: existingProfile,
+                userBehaviorRepository: di.sl<UserBehaviorRepository>(),
+              );
+            },
+          ),
           type: TransitionType.smoothFadeSlide,
           duration: const Duration(milliseconds: 400),
           curve: Curves.easeOutQuart,

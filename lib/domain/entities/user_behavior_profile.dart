@@ -48,31 +48,55 @@ enum FinancialLiteracyLevel {
   final String description;
 }
 
+/// Enumeration for financial priorities
 enum FinancialPriority {
-  saving,
-  spending,
-  investing,
-  debtRepayment,
-  other,
+  saving('Saving', 'Building emergency funds and long-term savings'),
+  spending('Spending', 'Maintaining current lifestyle and expenses'),
+  investing('Investing', 'Growing wealth through investments'),
+  debtRepayment('Debt Repayment', 'Paying off existing debts'),
+  other('Other', 'Other financial priorities');
+
+  const FinancialPriority(this.displayName, this.description);
+  final String displayName;
+  final String description;
 }
 
+/// Enumeration for saving habits
 enum SavingHabit {
-  regular,
-  occasional,
-  rarely,
-  never,
+  regular('Regular Saver', 'Save consistently every month'),
+  occasional('Occasional Saver', 'Save when possible but not consistently'),
+  rarely('Rare Saver', 'Save infrequently or only when necessary'),
+  never('Non-Saver', 'Do not save regularly');
+
+  const SavingHabit(this.displayName, this.description);
+  final String displayName;
+  final String description;
 }
 
+/// Enumeration for financial stress levels
 enum FinancialStressLevel {
-  low,
-  moderate,
-  high,
+  low('Low Stress', 'Generally comfortable with financial situation'),
+  moderate('Moderate Stress', 'Some financial concerns but manageable'),
+  high('High Stress', 'Significant financial stress and anxiety');
+
+  const FinancialStressLevel(this.displayName, this.description);
+  final String displayName;
+  final String description;
 }
 
-enum TechnologyAdoption {
-  earlyAdopter,
-  average,
-  reluctant,
+/// Enumeration for occupation types
+enum Occupation {
+  student('Student', 'Currently enrolled in education'),
+  employed('Employed', 'Full-time or part-time employment'),
+  selfEmployed('Self-Employed', 'Running own business or freelance work'),
+  retired('Retired', 'No longer working, living on retirement income'),
+  unemployed('Unemployed', 'Currently seeking employment'),
+  homemaker('Homemaker', 'Managing household and family'),
+  other('Other', 'Other occupation type');
+
+  const Occupation(this.displayName, this.description);
+  final String displayName;
+  final String description;
 }
 
 /// Comprehensive user behavior profile
@@ -86,7 +110,7 @@ class UserBehaviorProfile extends Equatable {
   final FinancialPriority financialPriority;
   final SavingHabit savingHabit;
   final FinancialStressLevel financialStressLevel;
-  final TechnologyAdoption technologyAdoption;
+  final Occupation occupation;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? dataConsentAcceptedAt; // Track when user accepted data usage
@@ -102,7 +126,7 @@ class UserBehaviorProfile extends Equatable {
     required this.financialPriority,
     required this.savingHabit,
     required this.financialStressLevel,
-    required this.technologyAdoption,
+    required this.occupation,
     required this.createdAt,
     required this.updatedAt,
     this.dataConsentAcceptedAt,
@@ -120,7 +144,7 @@ class UserBehaviorProfile extends Equatable {
         financialPriority,
         savingHabit,
         financialStressLevel,
-        technologyAdoption,
+        occupation,
         createdAt,
         updatedAt,
         dataConsentAcceptedAt,
@@ -137,7 +161,7 @@ class UserBehaviorProfile extends Equatable {
     FinancialPriority? financialPriority,
     SavingHabit? savingHabit,
     FinancialStressLevel? financialStressLevel,
-    TechnologyAdoption? technologyAdoption,
+    Occupation? occupation,
     DateTime? createdAt,
     DateTime? updatedAt,
     DateTime? dataConsentAcceptedAt,
@@ -154,7 +178,7 @@ class UserBehaviorProfile extends Equatable {
       financialPriority: financialPriority ?? this.financialPriority,
       savingHabit: savingHabit ?? this.savingHabit,
       financialStressLevel: financialStressLevel ?? this.financialStressLevel,
-      technologyAdoption: technologyAdoption ?? this.technologyAdoption,
+      occupation: occupation ?? this.occupation,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       dataConsentAcceptedAt:
@@ -174,7 +198,7 @@ class UserBehaviorProfile extends Equatable {
       'financialPriority': financialPriority.name,
       'savingHabit': savingHabit.name,
       'financialStressLevel': financialStressLevel.name,
-      'technologyAdoption': technologyAdoption.name,
+      'occupation': occupation.name,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'dataConsentAcceptedAt': dataConsentAcceptedAt?.toIso8601String(),
@@ -214,9 +238,9 @@ class UserBehaviorProfile extends Equatable {
         (level) => level.name == map['financialStressLevel'],
         orElse: () => FinancialStressLevel.moderate,
       ),
-      technologyAdoption: TechnologyAdoption.values.firstWhere(
-        (adoption) => adoption.name == map['technologyAdoption'],
-        orElse: () => TechnologyAdoption.average,
+      occupation: Occupation.values.firstWhere(
+        (occ) => occ.name == map['occupation'],
+        orElse: () => Occupation.employed,
       ),
       createdAt: DateTime.parse(map['createdAt']),
       updatedAt: DateTime.parse(map['updatedAt']),
@@ -240,7 +264,7 @@ class UserBehaviorProfile extends Equatable {
       financialPriority: FinancialPriority.saving,
       savingHabit: SavingHabit.regular,
       financialStressLevel: FinancialStressLevel.moderate,
-      technologyAdoption: TechnologyAdoption.average,
+      occupation: Occupation.employed,
       createdAt: now,
       updatedAt: now,
       dataConsentAcceptedAt: null,

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'dart:io';
 
 import '../../data/infrastructure/services/notification_service.dart';
 import '../../data/infrastructure/services/notification_listener_service.dart';
 import '../../data/infrastructure/services/permission_handler_service.dart';
+import '../../data/infrastructure/services/settings_service.dart';
 import '../../domain/services/expense_extraction_service.dart';
 import '../../data/models/expense_detection_models.dart';
 import '../../di/injection_container.dart' as di;
@@ -32,6 +34,16 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
   bool _isListening = false;
   bool _isServiceHealthy = false;
 
+  // Enhanced state tracking
+  bool _isInitialized = false;
+  bool _hasBasicPermission = false;
+  bool _hasListenerPermission = false;
+  bool _isServiceEnabled = false;
+  String _listenerState = 'Unknown';
+
+  // Settings state
+  bool _notificationSettingEnabled = false;
+
   // Logs
   final List<String> _logs = [];
   final ScrollController _logScrollController = ScrollController();
@@ -50,6 +62,17 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh state when screen becomes visible
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _refreshListenerState();
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _logScrollController.dispose();
     super.dispose();
@@ -57,7 +80,8 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
 
   Future<void> _setupNotificationListener() async {
     _listenerService.setNotificationCallback((title, content, packageName) {
-      _addLog('Notification received: $title - $content (from $packageName)');
+      _addLog(
+          '🔔 Notification received: $title - $content (from $packageName)');
 
       // Run the full classification and extraction pipeline
       _processReceivedNotification(title, content, packageName);
@@ -153,7 +177,18 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
     setState(() => _isLoading = true);
 
     try {
-      _addLog('Checking service health...');
+      _addLog('🔍 Checking service health...');
+
+      // Check notification setting from SettingsService
+      try {
+        final settingsService = di.sl<SettingsService>();
+        _notificationSettingEnabled = settingsService.allowNotification;
+        _addLog(
+            '⚙️ Notification Setting: ${_notificationSettingEnabled ? '✅ Enabled' : '❌ Disabled'}');
+      } catch (e) {
+        _addLog('❌ Error checking notification setting: $e');
+        _notificationSettingEnabled = false;
+      }
 
       // Check if extraction service is available
       bool extractionServiceHealthy = false;
@@ -161,7 +196,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
         await _extractionService.initialize();
         extractionServiceHealthy = _extractionService.isInitialized;
         _addLog(
-            'ExpenseExtractionDomainService: ${extractionServiceHealthy ? '✅ Ready' : '❌ Failed'}');
+            '🤖 ExpenseExtractionDomainService: ${extractionServiceHealthy ? '✅ Ready' : '❌ Failed'}');
       } catch (e) {
         _addLog('❌ ExpenseExtractionDomainService initialization failed: $e');
       }
@@ -169,15 +204,36 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
       // Check notification service
       try {
         await _notificationService.initialize();
-        _addLog('Notification Service: ✅ Initialized');
+        _addLog('📱 Notification Service: ✅ Initialized');
       } catch (e) {
         _addLog('❌ Notification Service failed: $e');
       }
 
-      // Check listener service
+      // Check listener service status (SettingsService handles the rest)
       try {
         await _listenerService.initialize();
-        _addLog('Listener Service: ✅ Initialized');
+        _addLog('🔔 Listener Service: ✅ Initialized');
+
+        // Get detailed health status
+        final healthStatus = await _listenerService.getHealthStatus();
+        _addLog('📊 Listener Health Status: $healthStatus');
+
+        // Check individual permissions
+        _hasBasicPermission =
+            await _permissionHandler.hasNotificationPermission();
+        _hasListenerPermission =
+            await _permissionHandler.hasNotificationListenerPermission();
+        _isServiceEnabled = await _checkNotificationServiceEnabled();
+
+        _addLog(
+            '🔐 Basic Notification Permission: ${_hasBasicPermission ? '✅ Granted' : '❌ Denied'}');
+        _addLog(
+            '🔐 Notification Listener Permission: ${_hasListenerPermission ? '✅ Granted' : '❌ Denied'}');
+        _addLog(
+            '⚙️ Notification Service Enabled: ${_isServiceEnabled ? '✅ Enabled' : '❌ Disabled'}');
+
+        // Determine listener state
+        _determineListenerState();
       } catch (e) {
         _addLog('❌ Listener Service failed: $e');
       }
@@ -185,39 +241,165 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
       setState(() {
         _isServiceHealthy = extractionServiceHealthy;
         _isListening = _listenerService.isListening;
-        _status = extractionServiceHealthy
-            ? 'Services initialized. Pipeline: Ready'
-            : 'Pipeline unavailable - check service initialization';
+        _isInitialized = _listenerService.isInitialized;
+        _status = _getDetailedStatusMessage();
       });
 
-      _addLog('Service health check completed');
+      _addLog('✅ Service health check completed');
+      _addLog('📋 Final Status: $_status');
     } catch (e) {
-      _addLog('Error checking service health: $e');
+      _addLog('❌ Error checking service health: $e');
       setState(() => _status = 'Error initializing services: $e');
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
+  /// Check if notification service is enabled at system level
+  Future<bool> _checkNotificationServiceEnabled() async {
+    try {
+      if (Platform.isAndroid) {
+        const platform = MethodChannel('com.kai.budgie/notification_listener');
+        final result =
+            await platform.invokeMethod<bool>('isNotificationServiceEnabled');
+        return result ?? false;
+      }
+      return true; // Non-Android platforms don't need this
+    } catch (e) {
+      _addLog('❌ Error checking notification service enabled: $e');
+      return false;
+    }
+  }
+
+  /// Determine the current listener state based on all checks
+  void _determineListenerState() {
+    // Update the listening state from the service to ensure accuracy
+    _isListening = _listenerService.isListening;
+
+    if (!_isInitialized) {
+      _listenerState = 'Not Initialized';
+    } else if (!_hasBasicPermission) {
+      _listenerState = 'No Basic Permission';
+    } else if (!_hasListenerPermission) {
+      _listenerState = 'No Listener Permission';
+    } else if (!_isServiceEnabled) {
+      _listenerState = 'Service Not Enabled';
+    } else if (!_isListening) {
+      _listenerState = 'Not Listening';
+    } else {
+      _listenerState = 'Active & Listening';
+    }
+
+    _addLog('🎯 Listener State: $_listenerState');
+    _addLog(
+        '📊 Detailed State - Initialized: $_isInitialized, Listening: $_isListening, Basic: $_hasBasicPermission, Listener: $_hasListenerPermission, Service: $_isServiceEnabled');
+  }
+
+  /// Get detailed status message
+  String _getDetailedStatusMessage() {
+    if (!_notificationSettingEnabled) {
+      return 'Notification setting is disabled - enable in Settings screen';
+    }
+
+    if (!_isServiceHealthy) {
+      return 'Pipeline unavailable - check service initialization';
+    }
+
+    if (!_hasBasicPermission) {
+      return 'Basic notification permission required';
+    }
+
+    if (!_hasListenerPermission) {
+      return 'Notification listener permission required';
+    }
+
+    if (!_isServiceEnabled) {
+      return 'Notification service not enabled in system settings';
+    }
+
+    if (!_isListening) {
+      return 'Listener not started - use Start Listener button';
+    }
+
+    return 'All systems ready - listening for notifications';
+  }
+
   Future<void> _startStopListener() async {
+    // Check if notification setting is enabled
+    if (!_notificationSettingEnabled) {
+      _addLog('❌ Cannot start listener - notification setting is disabled');
+      _addLog('💡 Please enable notification setting in Settings screen first');
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
       if (_isListening) {
-        _addLog('Stopping notification listener...');
+        _addLog('🛑 Stopping notification listener...');
         await _listenerService.stopListening();
         setState(() => _isListening = false);
-        _addLog('Notification listener stopped');
+        _addLog('✅ Notification listener stopped');
       } else {
-        _addLog('Starting notification listener...');
+        _addLog('▶️ Starting notification listener...');
+
+        // Check permissions before starting
+        if (!_hasBasicPermission || !_hasListenerPermission) {
+          _addLog('⚠️ Insufficient permissions - requesting permissions first');
+          await _requestPermissions();
+          // Re-check permissions after request
+          await _checkServiceHealth();
+        }
+
         final success = await _listenerService.startListening();
         setState(() => _isListening = success);
-        _addLog(success
-            ? 'Notification listener started'
-            : 'Failed to start listener');
+
+        if (success) {
+          _addLog('✅ Notification listener started successfully');
+          _addLog('🔔 Now listening for notifications in background');
+        } else {
+          _addLog(
+              '❌ Failed to start listener - check permissions and service status');
+        }
       }
+
+      // Update state after operation
+      _determineListenerState();
     } catch (e) {
-      _addLog('Error toggling listener: $e');
+      _addLog('❌ Error toggling listener: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  /// Force refresh the listener state specifically
+  Future<void> _refreshListenerState() async {
+    setState(() => _isLoading = true);
+
+    try {
+      _addLog('🔄 Force refreshing listener state...');
+
+      // Re-check all listener-related states
+      _hasBasicPermission =
+          await _permissionHandler.hasNotificationPermission();
+      _hasListenerPermission =
+          await _permissionHandler.hasNotificationListenerPermission();
+      _isServiceEnabled = await _checkNotificationServiceEnabled();
+
+      // Force update the listening state from the service
+      _isListening = _listenerService.isListening;
+      _isInitialized = _listenerService.isInitialized;
+
+      // Determine the current state
+      _determineListenerState();
+
+      setState(() {
+        _status = _getDetailedStatusMessage();
+      });
+
+      _addLog('✅ Listener state refresh completed');
+    } catch (e) {
+      _addLog('❌ Error refreshing listener state: $e');
     } finally {
       setState(() => _isLoading = false);
     }
@@ -227,7 +409,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
     setState(() => _isLoading = true);
 
     try {
-      _addLog('Requesting notification permissions...');
+      _addLog('🔐 Requesting comprehensive notification permissions...');
 
       final result = await _permissionHandler.requestPermissionsForFeature(
         PermissionFeature.notifications,
@@ -235,9 +417,19 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
       );
 
       setState(() => _status = 'Permission result: ${result.message}');
-      _addLog('Permission result: ${result.message}');
+      _addLog('📋 Permission result: ${result.message}');
+
+      if (result.isGranted) {
+        _addLog('✅ All notification permissions granted');
+        _addLog('🔄 Re-checking service status...');
+        await _checkServiceHealth();
+      } else {
+        _addLog('❌ Some permissions were denied');
+        _addLog(
+            '💡 You may need to manually enable notification access in system settings');
+      }
     } catch (e) {
-      _addLog('Error requesting permissions: $e');
+      _addLog('❌ Error requesting permissions: $e');
       setState(() => _status = 'Permission error: $e');
     } finally {
       setState(() => _isLoading = false);
@@ -323,7 +515,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                 children: [
                   _buildInfoCard(),
                   SizedBox(height: AppConstants.spacingLarge.h),
-                  _buildStatusCard(),
+                  _buildDetailedStatusCard(),
                   SizedBox(height: AppConstants.spacingLarge.h),
                   _buildServiceControlCard(),
                   SizedBox(height: AppConstants.spacingLarge.h),
@@ -396,7 +588,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
     );
   }
 
-  Widget _buildStatusCard() {
+  Widget _buildDetailedStatusCard() {
     return Card(
       elevation: AppConstants.elevationStandard,
       shape: RoundedRectangleBorder(
@@ -411,7 +603,7 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'System Status',
+                  'Detailed System Status',
                   style: TextStyle(
                     fontSize: AppConstants.textSizeLarge.sp,
                     fontWeight: FontWeight.w600,
@@ -439,20 +631,69 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
             _buildStatusRow('Current Status', _status),
             SizedBox(height: AppConstants.spacingSmall.h),
             _buildStatusRow(
+              'Notification Setting',
+              _notificationSettingEnabled ? 'Enabled' : 'Disabled',
+              _notificationSettingEnabled ? Colors.green : Colors.red,
+            ),
+            SizedBox(height: AppConstants.spacingSmall.h),
+            _buildStatusRow(
               'Detection Models',
               _isServiceHealthy ? 'Ready' : 'Unavailable',
               _isServiceHealthy ? Colors.green : Colors.red,
             ),
             SizedBox(height: AppConstants.spacingSmall.h),
             _buildStatusRow(
-              'Notification Listener',
-              _isListening ? 'Active' : 'Inactive',
-              _isListening ? Colors.green : Colors.orange,
+              'Service Initialized',
+              _isInitialized ? 'Yes' : 'No',
+              _isInitialized ? Colors.green : Colors.orange,
+            ),
+            SizedBox(height: AppConstants.spacingSmall.h),
+            _buildStatusRow(
+              'Basic Permission',
+              _hasBasicPermission ? 'Granted' : 'Denied',
+              _hasBasicPermission ? Colors.green : Colors.red,
+            ),
+            SizedBox(height: AppConstants.spacingSmall.h),
+            _buildStatusRow(
+              'Listener Permission',
+              _hasListenerPermission ? 'Granted' : 'Denied',
+              _hasListenerPermission ? Colors.green : Colors.red,
+            ),
+            SizedBox(height: AppConstants.spacingSmall.h),
+            _buildStatusRow(
+              'Service Enabled',
+              _isServiceEnabled ? 'Yes' : 'No',
+              _isServiceEnabled ? Colors.green : Colors.red,
+            ),
+            SizedBox(height: AppConstants.spacingSmall.h),
+            _buildStatusRow(
+              'Listener State',
+              _listenerState,
+              _getListenerStateColor(),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Color _getListenerStateColor() {
+    switch (_listenerState) {
+      case 'Active & Listening':
+        return Colors.green;
+      case 'Not Listening':
+        return Colors.orange;
+      case 'Service Not Enabled':
+        return Colors.red;
+      case 'No Listener Permission':
+        return Colors.red;
+      case 'No Basic Permission':
+        return Colors.red;
+      case 'Not Initialized':
+        return Colors.grey;
+      default:
+        return Colors.grey;
+    }
   }
 
   Widget _buildStatusRow(String label, String value, [Color? valueColor]) {
@@ -526,18 +767,22 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                 SizedBox(width: AppConstants.spacingMedium.w),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _startStopListener,
+                    onPressed:
+                        _notificationSettingEnabled ? _startStopListener : null,
                     icon: Icon(
                       _isListening ? Icons.stop : Icons.play_arrow,
                       size: AppConstants.iconSizeSmall.sp,
                     ),
                     label: Text(
-                      _isListening ? 'Stop Listener' : 'Start Listener',
+                      _notificationSettingEnabled
+                          ? (_isListening ? 'Stop Listener' : 'Start Listener')
+                          : 'Setting Disabled',
                       style: TextStyle(fontSize: AppConstants.textSizeSmall.sp),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          _isListening ? Colors.orange : Colors.green,
+                      backgroundColor: _notificationSettingEnabled
+                          ? (_isListening ? Colors.orange : Colors.green)
+                          : Colors.grey,
                       minimumSize: Size(double.infinity,
                           AppConstants.componentHeightStandard.h),
                     ),

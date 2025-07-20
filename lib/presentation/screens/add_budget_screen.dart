@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import '../../domain/entities/budget.dart';
@@ -102,7 +103,9 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     final settingsService = SettingsService.instance;
     if (settingsService != null) {
       _currency = settingsService.currency;
-      debugPrint('Using currency from settings: $_currency');
+      if (kDebugMode) {
+        debugPrint('Using currency from settings: $_currency');
+      }
     }
 
     _setupListeners();
@@ -195,12 +198,16 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     if (!mounted) return;
 
     final budget = budgetVM.budget;
-    debugPrint('📊 Loading budget data for monthId: $monthId');
-    debugPrint('📊 Budget exists: ${budget != null}');
+    if (kDebugMode) {
+      debugPrint('📊 Loading budget data for monthId: $monthId');
+      debugPrint('📊 Budget exists: ${budget != null}');
+    }
 
     if (budget != null) {
-      debugPrint(
-          '📊 Budget total: ${budget.total}, currency: ${budget.currency}');
+      if (kDebugMode) {
+        debugPrint(
+            '📊 Budget total: ${budget.total}, currency: ${budget.currency}');
+      }
 
       // Update currency from the loaded budget if it exists
       if (_currency != budget.currency) {
@@ -215,8 +222,10 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       // Update controller and notifier with the budget total value
       if (_totalBudgetController.text != newTotalBudget.toString()) {
         _totalBudgetController.text = newTotalBudget.toString();
-        debugPrint(
-            '📊 Updated total budget controller to: ${_totalBudgetController.text}');
+        if (kDebugMode) {
+          debugPrint(
+              '📊 Updated total budget controller to: ${_totalBudgetController.text}');
+        }
       }
 
       // The controller listener will automatically update the notifier
@@ -245,7 +254,9 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
         }
       }
     } else {
-      debugPrint('📊 No budget found for monthId: $monthId');
+      if (kDebugMode) {
+        debugPrint('📊 No budget found for monthId: $monthId');
+      }
 
       // If no budget exists, get currency from settings
       final settingsService = SettingsService.instance;
@@ -258,7 +269,9 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       // Clear the controller - the listener will handle updating the notifier
       if (_totalBudgetController.text.isNotEmpty) {
         _totalBudgetController.text = '';
-        debugPrint('📊 Cleared total budget controller');
+        if (kDebugMode) {
+          debugPrint('📊 Cleared total budget controller');
+        }
       }
 
       // Clear category controllers
@@ -324,7 +337,9 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
           final val = text.isNotEmpty ? (double.tryParse(text) ?? 0.0) : 0.0;
           // Initially set budget left = budget
           cats[catId] = CategoryBudget(budget: val, left: val);
-          debugPrint('💰 AddBudgetScreen: Category $catId budget: $val');
+          if (kDebugMode) {
+            debugPrint('💰 AddBudgetScreen: Category $catId budget: $val');
+          }
         }
       }
 
@@ -343,14 +358,18 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       // Ensure month ID is properly formatted
       if (!_currentMonthId.contains('-') ||
           _currentMonthId.split('-').length != 2) {
-        debugPrint(
-            '💰 AddBudgetScreen: Invalid month ID format: $_currentMonthId');
+        if (kDebugMode) {
+          debugPrint(
+              '💰 AddBudgetScreen: Invalid month ID format: $_currentMonthId');
+        }
 
         // Fix the month ID format if needed
         final now = DateTime.now();
         _currentMonthId = '${now.year}-${now.month.toString().padLeft(2, '0')}';
-        debugPrint(
-            '💰 AddBudgetScreen: Using corrected month ID: $_currentMonthId');
+        if (kDebugMode) {
+          debugPrint(
+              '💰 AddBudgetScreen: Using corrected month ID: $_currentMonthId');
+        }
       }
 
       // Get year and month from month ID and calculate remaining budget
@@ -393,8 +412,10 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
           }
         }
       } catch (e) {
-        debugPrint(
-            '💰 AddBudgetScreen: Error calculating budget during save: $e');
+        if (kDebugMode) {
+          debugPrint(
+              '💰 AddBudgetScreen: Error calculating budget during save: $e');
+        }
         rethrow; // Re-throw to show error message
       }
 

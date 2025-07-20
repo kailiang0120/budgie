@@ -101,7 +101,7 @@ class UserProfiles extends Table {
   TextColumn get financialPriority => text()();
   TextColumn get savingHabit => text()();
   TextColumn get financialStressLevel => text()();
-  TextColumn get technologyAdoption => text()();
+  TextColumn get occupation => text()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
   DateTimeColumn get dataConsentAcceptedAt => dateTime().nullable()();
@@ -238,7 +238,7 @@ class AppDatabase extends _$AppDatabase {
   GoalHistoryDao get goalHistoryDao => GoalHistoryDao(this);
 
   @override
-  int get schemaVersion => 17;
+  int get schemaVersion => 18;
 
   /// Create performance indexes for better query performance
   Future<void> _createPerformanceIndexes() async {
@@ -401,6 +401,56 @@ class AppDatabase extends _$AppDatabase {
           } catch (e) {
             debugPrint(
                 'Error migrating user profiles schema to v17: ' + e.toString());
+          }
+        }
+        if (from < 18) {
+          // Migrate user_profiles to replace technologyAdoption with occupation
+          try {
+            await customStatement('''
+              CREATE TABLE user_profiles_new (
+                id TEXT PRIMARY KEY NOT NULL,
+                user_id TEXT NOT NULL,
+                income_stability TEXT NOT NULL,
+                spending_mentality TEXT NOT NULL,
+                risk_appetite TEXT NOT NULL,
+                financial_literacy TEXT NOT NULL DEFAULT 'intermediate',
+                financial_priority TEXT NOT NULL DEFAULT 'saving',
+                saving_habit TEXT NOT NULL DEFAULT 'regular',
+                financial_stress_level TEXT NOT NULL DEFAULT 'moderate',
+                occupation TEXT NOT NULL DEFAULT 'employed',
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                data_consent_accepted_at INTEGER,
+                is_complete INTEGER NOT NULL
+              )
+            ''');
+
+            // Copy data from old table, mapping technology_adoption to occupation
+            await customStatement('''
+              INSERT INTO user_profiles_new (
+                id, user_id, income_stability, spending_mentality, risk_appetite,
+                financial_literacy, financial_priority, saving_habit, financial_stress_level, occupation,
+                created_at, updated_at, data_consent_accepted_at, is_complete
+              )
+              SELECT
+                id, user_id, income_stability, spending_mentality, risk_appetite,
+                financial_literacy, financial_priority, saving_habit, financial_stress_level, 
+                CASE 
+                  WHEN technology_adoption = 'earlyAdopter' THEN 'employed'
+                  WHEN technology_adoption = 'average' THEN 'employed'
+                  WHEN technology_adoption = 'reluctant' THEN 'employed'
+                  ELSE 'employed'
+                END,
+                created_at, updated_at, data_consent_accepted_at, is_complete
+              FROM user_profiles
+            ''');
+
+            await customStatement('DROP TABLE user_profiles');
+            await customStatement(
+                'ALTER TABLE user_profiles_new RENAME TO user_profiles');
+          } catch (e) {
+            debugPrint(
+                'Error migrating user profiles schema to v18: ' + e.toString());
           }
         }
         if (from < 12) {

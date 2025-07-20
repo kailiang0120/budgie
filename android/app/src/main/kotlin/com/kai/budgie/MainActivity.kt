@@ -9,6 +9,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import android.util.Log
+import android.os.Build
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 
@@ -24,32 +25,50 @@ class MainActivity : FlutterActivity() {
         // Create method channel for communication with Flutter
         methodChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         methodChannel?.setMethodCallHandler { call, result ->
-            when (call.method) {
-                "checkNotificationAccess" -> {
-                    result.success(isNotificationServiceEnabled())
+            try {
+                when (call.method) {
+                    "getAndroidSdkVersion" -> {
+                        Log.d(TAG, "getAndroidSdkVersion called, returning: ${Build.VERSION.SDK_INT}")
+                        result.success(Build.VERSION.SDK_INT)
+                    }
+                    "checkNotificationAccess" -> {
+                        val isEnabled = isNotificationServiceEnabled()
+                        Log.d(TAG, "checkNotificationAccess called, returning: $isEnabled")
+                        result.success(isEnabled)
+                    }
+                    "requestNotificationAccess" -> {
+                        Log.d(TAG, "requestNotificationAccess called")
+                        requestNotificationAccess()
+                        result.success(null)
+                    }
+                    "openNotificationSettings" -> {
+                        Log.d(TAG, "openNotificationSettings called")
+                        openNotificationSettings()
+                        result.success(null)
+                    }
+                    "startListening" -> {
+                        Log.d(TAG, "startListening called")
+                        startNotificationListener()
+                        result.success(null)
+                    }
+                    "stopListening" -> {
+                        Log.d(TAG, "stopListening called")
+                        stopNotificationListener()
+                        result.success(null)
+                    }
+                    "isNotificationServiceEnabled" -> {
+                        val isEnabled = isNotificationServiceEnabled()
+                        Log.d(TAG, "isNotificationServiceEnabled called, returning: $isEnabled")
+                        result.success(isEnabled)
+                    }
+                    else -> {
+                        Log.w(TAG, "Unknown method called: ${call.method}")
+                        result.notImplemented()
+                    }
                 }
-                "requestNotificationAccess" -> {
-                    requestNotificationAccess()
-                    result.success(null)
-                }
-                "openNotificationSettings" -> {
-                    openNotificationSettings()
-                    result.success(null)
-                }
-                "startListening" -> {
-                    startNotificationListener()
-                    result.success(null)
-                }
-                "stopListening" -> {
-                    stopNotificationListener()
-                    result.success(null)
-                }
-                "isNotificationServiceEnabled" -> {
-                    result.success(isNotificationServiceEnabled())
-                }
-                else -> {
-                    result.notImplemented()
-                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error handling method call: ${call.method}", e)
+                result.error("METHOD_ERROR", "Error handling method call: ${call.method}", e.message)
             }
         }
         
@@ -62,7 +81,16 @@ class MainActivity : FlutterActivity() {
     override fun onResume() {
         super.onResume()
         // Reconnect to notification listener on activity resume
+        Log.d(TAG, "App resumed - reconnecting to notification listener")
         connectToNotificationListener()
+        
+        // Check if we need to start listening
+        if (isNotificationServiceEnabled()) {
+            Log.d(TAG, "Notification service is enabled, ensuring listener is active")
+            startNotificationListener()
+        } else {
+            Log.w(TAG, "Notification service is not enabled, user may need to grant permission")
+        }
     }
     
     override fun onPause() {
@@ -218,19 +246,32 @@ class MainActivity : FlutterActivity() {
                 Log.e(TAG, "Notification service is not enabled at the system level")
                 // Prompt user to enable service if not already enabled
                 requestNotificationAccess()
+            } else {
+                Log.d(TAG, "Notification service is enabled and listener should be active")
+                // Double-check that the listener is actually listening
+                if (notificationListener?.isListening == true) {
+                    Log.d(TAG, "✅ Notification listener is confirmed to be listening")
+                } else {
+                    Log.w(TAG, "⚠️ Notification listener service exists but may not be listening")
+                }
             }
         } else {
             Log.e(TAG, "Cannot start listening - notification listener service not available")
             
             // Try to connect one more time after a delay
             android.os.Handler().postDelayed({
+                Log.d(TAG, "Retrying notification listener connection after delay...")
                 notificationListener = NotificationListener.getInstance()
                 if (notificationListener != null && methodChannel != null) {
                     notificationListener?.setMethodChannel(methodChannel!!)
                     notificationListener?.startListening()
-                    Log.d(TAG, "Started notification listener after delay")
+                    Log.d(TAG, "✅ Started notification listener after delay")
+                    
+                    // Verify it's working
+                    val isEnabled = isNotificationServiceEnabled()
+                    Log.d(TAG, "Service enabled after retry: $isEnabled")
                 } else {
-                    Log.e(TAG, "Still cannot start listening after delay")
+                    Log.e(TAG, "❌ Still cannot start listening after delay - listener: ${notificationListener != null}, channel: ${methodChannel != null}")
                 }
             }, 1000)
         }
@@ -239,6 +280,7 @@ class MainActivity : FlutterActivity() {
     override fun onStart() {
         super.onStart()
         // Ensure notification listener is started when app comes to foreground
+        Log.d(TAG, "App started - ensuring notification listener is active")
         startNotificationListener()
     }
 

@@ -58,7 +58,7 @@ class ReallocationUserProfileData {
   final String financialPriority;
   final String savingHabit;
   final String financialStressLevel;
-  final String technologyAdoption;
+  final String occupation;
   final bool hasDataConsent;
 
   ReallocationUserProfileData({
@@ -70,21 +70,21 @@ class ReallocationUserProfileData {
     required this.financialPriority,
     required this.savingHabit,
     required this.financialStressLevel,
-    required this.technologyAdoption,
+    required this.occupation,
     required this.hasDataConsent,
   });
 
   factory ReallocationUserProfileData.fromProfile(UserBehaviorProfile profile) {
     return ReallocationUserProfileData(
       userId: profile.userId,
-      incomeStability: profile.incomeStability.name,
-      spendingMentality: profile.spendingMentality.name,
-      riskAppetite: profile.riskAppetite.name,
-      financialLiteracyLevel: profile.financialLiteracyLevel.name,
-      financialPriority: profile.financialPriority.name,
-      savingHabit: profile.savingHabit.name,
-      financialStressLevel: profile.financialStressLevel.name,
-      technologyAdoption: profile.technologyAdoption.name,
+      incomeStability: profile.incomeStability.displayName,
+      spendingMentality: profile.spendingMentality.displayName,
+      riskAppetite: profile.riskAppetite.displayName,
+      financialLiteracyLevel: profile.financialLiteracyLevel.displayName,
+      financialPriority: profile.financialPriority.displayName,
+      savingHabit: profile.savingHabit.displayName,
+      financialStressLevel: profile.financialStressLevel.displayName,
+      occupation: profile.occupation.displayName,
       hasDataConsent: profile.hasDataConsent,
     );
   }
@@ -99,7 +99,7 @@ class ReallocationUserProfileData {
       'financialPriority': financialPriority,
       'savingHabit': savingHabit,
       'financialStressLevel': financialStressLevel,
-      'technologyAdoption': technologyAdoption,
+      'occupation': occupation,
       'hasDataConsent': hasDataConsent,
       'adviceComplexityLevel': _getAdviceComplexityLevel(),
       'adviceTone': _getAdviceTone(),

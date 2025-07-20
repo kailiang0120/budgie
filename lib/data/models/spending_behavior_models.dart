@@ -230,7 +230,7 @@ class AnalysisUserProfileData {
   final String financialPriority;
   final String savingHabit;
   final String financialStressLevel;
-  final String technologyAdoption;
+  final String occupation;
   final DateTime? dataConsentAcceptedAt;
 
   AnalysisUserProfileData({
@@ -242,7 +242,7 @@ class AnalysisUserProfileData {
     required this.financialPriority,
     required this.savingHabit,
     required this.financialStressLevel,
-    required this.technologyAdoption,
+    required this.occupation,
     this.dataConsentAcceptedAt,
   });
 
@@ -250,14 +250,14 @@ class AnalysisUserProfileData {
   factory AnalysisUserProfileData.fromProfile(UserBehaviorProfile profile) {
     return AnalysisUserProfileData(
       userId: profile.userId,
-      incomeStability: profile.incomeStability.name,
-      spendingMentality: profile.spendingMentality.name,
-      riskAppetite: profile.riskAppetite.name,
+      incomeStability: profile.incomeStability.displayName,
+      spendingMentality: profile.spendingMentality.displayName,
+      riskAppetite: profile.riskAppetite.displayName,
       financialLiteracyLevel: profile.financialLiteracyLevel,
-      financialPriority: profile.financialPriority.name,
-      savingHabit: profile.savingHabit.name,
-      financialStressLevel: profile.financialStressLevel.name,
-      technologyAdoption: profile.technologyAdoption.name,
+      financialPriority: profile.financialPriority.displayName,
+      savingHabit: profile.savingHabit.displayName,
+      financialStressLevel: profile.financialStressLevel.displayName,
+      occupation: profile.occupation.displayName,
       dataConsentAcceptedAt: profile.dataConsentAcceptedAt,
     );
   }
@@ -269,11 +269,11 @@ class AnalysisUserProfileData {
       'incomeStability': incomeStability,
       'spendingMentality': spendingMentality,
       'riskAppetite': riskAppetite,
-      'financialLiteracyLevel': financialLiteracyLevel.name,
+      'financialLiteracyLevel': financialLiteracyLevel.displayName,
       'financialPriority': financialPriority,
       'savingHabit': savingHabit,
       'financialStressLevel': financialStressLevel,
-      'technologyAdoption': technologyAdoption,
+      'occupation': occupation,
       'dataConsentAcceptedAt': dataConsentAcceptedAt?.toIso8601String(),
     };
   }

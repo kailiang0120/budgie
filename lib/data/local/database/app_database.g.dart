@@ -2336,12 +2336,12 @@ class $UserProfilesTable extends UserProfiles
   late final GeneratedColumn<String> financialStressLevel =
       GeneratedColumn<String>('financial_stress_level', aliasedName, false,
           type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _technologyAdoptionMeta =
-      const VerificationMeta('technologyAdoption');
+  static const VerificationMeta _occupationMeta =
+      const VerificationMeta('occupation');
   @override
-  late final GeneratedColumn<String> technologyAdoption =
-      GeneratedColumn<String>('technology_adoption', aliasedName, false,
-          type: DriftSqlType.string, requiredDuringInsert: true);
+  late final GeneratedColumn<String> occupation = GeneratedColumn<String>(
+      'occupation', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -2380,7 +2380,7 @@ class $UserProfilesTable extends UserProfiles
         financialPriority,
         savingHabit,
         financialStressLevel,
-        technologyAdoption,
+        occupation,
         createdAt,
         updatedAt,
         dataConsentAcceptedAt,
@@ -2463,13 +2463,13 @@ class $UserProfilesTable extends UserProfiles
     } else if (isInserting) {
       context.missing(_financialStressLevelMeta);
     }
-    if (data.containsKey('technology_adoption')) {
+    if (data.containsKey('occupation')) {
       context.handle(
-          _technologyAdoptionMeta,
-          technologyAdoption.isAcceptableOrUnknown(
-              data['technology_adoption']!, _technologyAdoptionMeta));
+          _occupationMeta,
+          occupation.isAcceptableOrUnknown(
+              data['occupation']!, _occupationMeta));
     } else if (isInserting) {
-      context.missing(_technologyAdoptionMeta);
+      context.missing(_occupationMeta);
     }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
@@ -2525,8 +2525,8 @@ class $UserProfilesTable extends UserProfiles
       financialStressLevel: attachedDatabase.typeMapping.read(
           DriftSqlType.string,
           data['${effectivePrefix}financial_stress_level'])!,
-      technologyAdoption: attachedDatabase.typeMapping.read(
-          DriftSqlType.string, data['${effectivePrefix}technology_adoption'])!,
+      occupation: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}occupation'])!,
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       updatedAt: attachedDatabase.typeMapping
@@ -2555,7 +2555,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
   final String financialPriority;
   final String savingHabit;
   final String financialStressLevel;
-  final String technologyAdoption;
+  final String occupation;
   final DateTime createdAt;
   final DateTime updatedAt;
   final DateTime? dataConsentAcceptedAt;
@@ -2570,7 +2570,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       required this.financialPriority,
       required this.savingHabit,
       required this.financialStressLevel,
-      required this.technologyAdoption,
+      required this.occupation,
       required this.createdAt,
       required this.updatedAt,
       this.dataConsentAcceptedAt,
@@ -2587,7 +2587,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
     map['financial_priority'] = Variable<String>(financialPriority);
     map['saving_habit'] = Variable<String>(savingHabit);
     map['financial_stress_level'] = Variable<String>(financialStressLevel);
-    map['technology_adoption'] = Variable<String>(technologyAdoption);
+    map['occupation'] = Variable<String>(occupation);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     if (!nullToAbsent || dataConsentAcceptedAt != null) {
@@ -2609,7 +2609,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       financialPriority: Value(financialPriority),
       savingHabit: Value(savingHabit),
       financialStressLevel: Value(financialStressLevel),
-      technologyAdoption: Value(technologyAdoption),
+      occupation: Value(occupation),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       dataConsentAcceptedAt: dataConsentAcceptedAt == null && nullToAbsent
@@ -2633,8 +2633,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       savingHabit: serializer.fromJson<String>(json['savingHabit']),
       financialStressLevel:
           serializer.fromJson<String>(json['financialStressLevel']),
-      technologyAdoption:
-          serializer.fromJson<String>(json['technologyAdoption']),
+      occupation: serializer.fromJson<String>(json['occupation']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       dataConsentAcceptedAt:
@@ -2655,7 +2654,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       'financialPriority': serializer.toJson<String>(financialPriority),
       'savingHabit': serializer.toJson<String>(savingHabit),
       'financialStressLevel': serializer.toJson<String>(financialStressLevel),
-      'technologyAdoption': serializer.toJson<String>(technologyAdoption),
+      'occupation': serializer.toJson<String>(occupation),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'dataConsentAcceptedAt':
@@ -2674,7 +2673,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
           String? financialPriority,
           String? savingHabit,
           String? financialStressLevel,
-          String? technologyAdoption,
+          String? occupation,
           DateTime? createdAt,
           DateTime? updatedAt,
           Value<DateTime?> dataConsentAcceptedAt = const Value.absent(),
@@ -2689,7 +2688,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
         financialPriority: financialPriority ?? this.financialPriority,
         savingHabit: savingHabit ?? this.savingHabit,
         financialStressLevel: financialStressLevel ?? this.financialStressLevel,
-        technologyAdoption: technologyAdoption ?? this.technologyAdoption,
+        occupation: occupation ?? this.occupation,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
         dataConsentAcceptedAt: dataConsentAcceptedAt.present
@@ -2721,9 +2720,8 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       financialStressLevel: data.financialStressLevel.present
           ? data.financialStressLevel.value
           : this.financialStressLevel,
-      technologyAdoption: data.technologyAdoption.present
-          ? data.technologyAdoption.value
-          : this.technologyAdoption,
+      occupation:
+          data.occupation.present ? data.occupation.value : this.occupation,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       dataConsentAcceptedAt: data.dataConsentAcceptedAt.present
@@ -2746,7 +2744,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
           ..write('financialPriority: $financialPriority, ')
           ..write('savingHabit: $savingHabit, ')
           ..write('financialStressLevel: $financialStressLevel, ')
-          ..write('technologyAdoption: $technologyAdoption, ')
+          ..write('occupation: $occupation, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('dataConsentAcceptedAt: $dataConsentAcceptedAt, ')
@@ -2766,7 +2764,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
       financialPriority,
       savingHabit,
       financialStressLevel,
-      technologyAdoption,
+      occupation,
       createdAt,
       updatedAt,
       dataConsentAcceptedAt,
@@ -2784,7 +2782,7 @@ class UserProfile extends DataClass implements Insertable<UserProfile> {
           other.financialPriority == this.financialPriority &&
           other.savingHabit == this.savingHabit &&
           other.financialStressLevel == this.financialStressLevel &&
-          other.technologyAdoption == this.technologyAdoption &&
+          other.occupation == this.occupation &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.dataConsentAcceptedAt == this.dataConsentAcceptedAt &&
@@ -2801,7 +2799,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
   final Value<String> financialPriority;
   final Value<String> savingHabit;
   final Value<String> financialStressLevel;
-  final Value<String> technologyAdoption;
+  final Value<String> occupation;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<DateTime?> dataConsentAcceptedAt;
@@ -2817,7 +2815,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     this.financialPriority = const Value.absent(),
     this.savingHabit = const Value.absent(),
     this.financialStressLevel = const Value.absent(),
-    this.technologyAdoption = const Value.absent(),
+    this.occupation = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.dataConsentAcceptedAt = const Value.absent(),
@@ -2834,7 +2832,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     required String financialPriority,
     required String savingHabit,
     required String financialStressLevel,
-    required String technologyAdoption,
+    required String occupation,
     required DateTime createdAt,
     required DateTime updatedAt,
     this.dataConsentAcceptedAt = const Value.absent(),
@@ -2849,7 +2847,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
         financialPriority = Value(financialPriority),
         savingHabit = Value(savingHabit),
         financialStressLevel = Value(financialStressLevel),
-        technologyAdoption = Value(technologyAdoption),
+        occupation = Value(occupation),
         createdAt = Value(createdAt),
         updatedAt = Value(updatedAt),
         isComplete = Value(isComplete);
@@ -2863,7 +2861,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
     Expression<String>? financialPriority,
     Expression<String>? savingHabit,
     Expression<String>? financialStressLevel,
-    Expression<String>? technologyAdoption,
+    Expression<String>? occupation,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? dataConsentAcceptedAt,
@@ -2881,7 +2879,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
       if (savingHabit != null) 'saving_habit': savingHabit,
       if (financialStressLevel != null)
         'financial_stress_level': financialStressLevel,
-      if (technologyAdoption != null) 'technology_adoption': technologyAdoption,
+      if (occupation != null) 'occupation': occupation,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (dataConsentAcceptedAt != null)
@@ -2901,7 +2899,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
       Value<String>? financialPriority,
       Value<String>? savingHabit,
       Value<String>? financialStressLevel,
-      Value<String>? technologyAdoption,
+      Value<String>? occupation,
       Value<DateTime>? createdAt,
       Value<DateTime>? updatedAt,
       Value<DateTime?>? dataConsentAcceptedAt,
@@ -2917,7 +2915,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
       financialPriority: financialPriority ?? this.financialPriority,
       savingHabit: savingHabit ?? this.savingHabit,
       financialStressLevel: financialStressLevel ?? this.financialStressLevel,
-      technologyAdoption: technologyAdoption ?? this.technologyAdoption,
+      occupation: occupation ?? this.occupation,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       dataConsentAcceptedAt:
@@ -2958,8 +2956,8 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
       map['financial_stress_level'] =
           Variable<String>(financialStressLevel.value);
     }
-    if (technologyAdoption.present) {
-      map['technology_adoption'] = Variable<String>(technologyAdoption.value);
+    if (occupation.present) {
+      map['occupation'] = Variable<String>(occupation.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -2992,7 +2990,7 @@ class UserProfilesCompanion extends UpdateCompanion<UserProfile> {
           ..write('financialPriority: $financialPriority, ')
           ..write('savingHabit: $savingHabit, ')
           ..write('financialStressLevel: $financialStressLevel, ')
-          ..write('technologyAdoption: $technologyAdoption, ')
+          ..write('occupation: $occupation, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('dataConsentAcceptedAt: $dataConsentAcceptedAt, ')
@@ -4447,7 +4445,7 @@ typedef $$UserProfilesTableCreateCompanionBuilder = UserProfilesCompanion
   required String financialPriority,
   required String savingHabit,
   required String financialStressLevel,
-  required String technologyAdoption,
+  required String occupation,
   required DateTime createdAt,
   required DateTime updatedAt,
   Value<DateTime?> dataConsentAcceptedAt,
@@ -4465,7 +4463,7 @@ typedef $$UserProfilesTableUpdateCompanionBuilder = UserProfilesCompanion
   Value<String> financialPriority,
   Value<String> savingHabit,
   Value<String> financialStressLevel,
-  Value<String> technologyAdoption,
+  Value<String> occupation,
   Value<DateTime> createdAt,
   Value<DateTime> updatedAt,
   Value<DateTime?> dataConsentAcceptedAt,
@@ -4514,9 +4512,8 @@ class $$UserProfilesTableFilterComposer
       column: $table.financialStressLevel,
       builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<String> get technologyAdoption => $composableBuilder(
-      column: $table.technologyAdoption,
-      builder: (column) => ColumnFilters(column));
+  ColumnFilters<String> get occupation => $composableBuilder(
+      column: $table.occupation, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnFilters(column));
@@ -4574,9 +4571,8 @@ class $$UserProfilesTableOrderingComposer
       column: $table.financialStressLevel,
       builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get technologyAdoption => $composableBuilder(
-      column: $table.technologyAdoption,
-      builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<String> get occupation => $composableBuilder(
+      column: $table.occupation, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
       column: $table.createdAt, builder: (column) => ColumnOrderings(column));
@@ -4628,8 +4624,8 @@ class $$UserProfilesTableAnnotationComposer
   GeneratedColumn<String> get financialStressLevel => $composableBuilder(
       column: $table.financialStressLevel, builder: (column) => column);
 
-  GeneratedColumn<String> get technologyAdoption => $composableBuilder(
-      column: $table.technologyAdoption, builder: (column) => column);
+  GeneratedColumn<String> get occupation => $composableBuilder(
+      column: $table.occupation, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -4679,7 +4675,7 @@ class $$UserProfilesTableTableManager extends RootTableManager<
             Value<String> financialPriority = const Value.absent(),
             Value<String> savingHabit = const Value.absent(),
             Value<String> financialStressLevel = const Value.absent(),
-            Value<String> technologyAdoption = const Value.absent(),
+            Value<String> occupation = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
             Value<DateTime> updatedAt = const Value.absent(),
             Value<DateTime?> dataConsentAcceptedAt = const Value.absent(),
@@ -4696,7 +4692,7 @@ class $$UserProfilesTableTableManager extends RootTableManager<
             financialPriority: financialPriority,
             savingHabit: savingHabit,
             financialStressLevel: financialStressLevel,
-            technologyAdoption: technologyAdoption,
+            occupation: occupation,
             createdAt: createdAt,
             updatedAt: updatedAt,
             dataConsentAcceptedAt: dataConsentAcceptedAt,
@@ -4713,7 +4709,7 @@ class $$UserProfilesTableTableManager extends RootTableManager<
             required String financialPriority,
             required String savingHabit,
             required String financialStressLevel,
-            required String technologyAdoption,
+            required String occupation,
             required DateTime createdAt,
             required DateTime updatedAt,
             Value<DateTime?> dataConsentAcceptedAt = const Value.absent(),
@@ -4730,7 +4726,7 @@ class $$UserProfilesTableTableManager extends RootTableManager<
             financialPriority: financialPriority,
             savingHabit: savingHabit,
             financialStressLevel: financialStressLevel,
-            technologyAdoption: technologyAdoption,
+            occupation: occupation,
             createdAt: createdAt,
             updatedAt: updatedAt,
             dataConsentAcceptedAt: dataConsentAcceptedAt,

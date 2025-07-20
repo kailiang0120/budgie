@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/routes.dart';
 import '../../core/router/page_transition.dart';
+import '../../core/router/navigation_helper.dart';
 import '../../presentation/viewmodels/theme_viewmodel.dart';
 import '../../presentation/viewmodels/budget_viewmodel.dart';
 
@@ -53,39 +55,57 @@ class _SettingScreenState extends State<SettingScreen> {
       // Initialize services with null checks and error handling
       try {
         _settingsService = di.sl<SettingsService>();
-        debugPrint('✅ SettingsService initialized successfully');
+        if (kDebugMode) {
+          debugPrint('✅ SettingsService initialized successfully');
+        }
       } catch (e) {
-        debugPrint('❌ Error initializing SettingsService: $e');
+        if (kDebugMode) {
+          debugPrint('❌ Error initializing SettingsService: $e');
+        }
         // Create a new instance if DI fails
         _settingsService = SettingsService();
       }
 
       try {
         _syncService = di.sl<SyncService>();
-        debugPrint('✅ SyncService initialized successfully');
+        if (kDebugMode) {
+          debugPrint('✅ SyncService initialized successfully');
+        }
       } catch (e) {
-        debugPrint('❌ Error initializing SyncService: $e');
+        if (kDebugMode) {
+          debugPrint('❌ Error initializing SyncService: $e');
+        }
         // We'll handle null _syncService in methods that use it
       }
 
       try {
         _permissionHandler = di.sl<PermissionHandlerService>();
-        debugPrint('✅ PermissionHandlerService initialized successfully');
+        if (kDebugMode) {
+          debugPrint('✅ PermissionHandlerService initialized successfully');
+        }
       } catch (e) {
-        debugPrint('❌ Error initializing PermissionHandlerService: $e');
+        if (kDebugMode) {
+          debugPrint('❌ Error initializing PermissionHandlerService: $e');
+        }
         // We'll handle null _permissionHandler in methods that use it
       }
 
       try {
         _backgroundTaskService = di.sl<BackgroundTaskService>();
-        debugPrint('✅ BackgroundTaskService initialized successfully');
+        if (kDebugMode) {
+          debugPrint('✅ BackgroundTaskService initialized successfully');
+        }
       } catch (e) {
-        debugPrint('❌ Error initializing BackgroundTaskService: $e');
+        if (kDebugMode) {
+          debugPrint('❌ Error initializing BackgroundTaskService: $e');
+        }
         // We'll handle null _backgroundTaskService in methods that use it
       }
 
       // NotificationListenerService is available through DI when needed
-      debugPrint('✅ NotificationListenerService available through DI');
+      if (kDebugMode) {
+        debugPrint('✅ NotificationListenerService available through DI');
+      }
 
       // Add listener after services are initialized
       _settingsService.addListener(_onSettingsChanged);
@@ -100,7 +120,9 @@ class _SettingScreenState extends State<SettingScreen> {
       // Check if permissions match settings
       await _checkNotificationPermissionStatus();
     } catch (e) {
-      debugPrint('❌ Error loading settings: $e');
+      if (kDebugMode) {
+        debugPrint('❌ Error loading settings: $e');
+      }
       setState(() {
         _isLoading = false;
       });
@@ -128,7 +150,9 @@ class _SettingScreenState extends State<SettingScreen> {
       try {
         _permissionHandler = di.sl<PermissionHandlerService>();
       } catch (e) {
-        debugPrint('❌ Failed to initialize PermissionHandler: $e');
+        if (kDebugMode) {
+          debugPrint('❌ Failed to initialize PermissionHandler: $e');
+        }
         return; // Exit early if we can't get the permission handler
       }
 
@@ -149,7 +173,9 @@ class _SettingScreenState extends State<SettingScreen> {
       }
       // Do NOT update the app setting here!
     } catch (e) {
-      debugPrint('❌ Error checking notification permission status: $e');
+      if (kDebugMode) {
+        debugPrint('❌ Error checking notification permission status: $e');
+      }
     }
   }
 
@@ -159,8 +185,10 @@ class _SettingScreenState extends State<SettingScreen> {
       final budgetViewModel =
           Provider.of<BudgetViewModel>(context, listen: false);
 
-      debugPrint(
-          'Currency change initiated: from ${_settingsService.currency} to $value');
+      if (kDebugMode) {
+        debugPrint(
+            'Currency change initiated: from ${_settingsService.currency} to $value');
+      }
 
       // Update local state immediately and set loading state
       setState(() {
@@ -170,11 +198,15 @@ class _SettingScreenState extends State<SettingScreen> {
 
       // Update the currency in settings
       await _settingsService.updateCurrency(value);
-      debugPrint('Settings updated with new currency: $value');
+      if (kDebugMode) {
+        debugPrint('Settings updated with new currency: $value');
+      }
 
       // Trigger budget currency conversion - this will convert all budget amounts
       // and save them to Firebase with the new currency
-      debugPrint('Triggering budget currency conversion to: $value');
+      if (kDebugMode) {
+        debugPrint('Triggering budget currency conversion to: $value');
+      }
       await budgetViewModel.onCurrencyChanged(value);
 
       // Show a success message to the user
@@ -193,7 +225,9 @@ class _SettingScreenState extends State<SettingScreen> {
         );
       }
     } catch (e) {
-      debugPrint('Error updating currency: $e');
+      if (kDebugMode) {
+        debugPrint('Error updating currency: $e');
+      }
 
       // Revert local state on error and clear loading state
       setState(() {
@@ -280,7 +314,9 @@ class _SettingScreenState extends State<SettingScreen> {
         }
       }
 
-      debugPrint('Notification setting updated to: $value');
+      if (kDebugMode) {
+        debugPrint('Notification setting updated to: $value');
+      }
 
       // Show confirmation
       if (mounted) {
@@ -295,7 +331,9 @@ class _SettingScreenState extends State<SettingScreen> {
         );
       }
     } catch (e) {
-      debugPrint('Error handling notification toggle: $e');
+      if (kDebugMode) {
+        debugPrint('Error handling notification toggle: $e');
+      }
       // Ensure the setting is off if any catastrophic error occurs.
       if (_settingsService.allowNotification) {
         await _settingsService.updateNotificationSetting(false);
@@ -331,18 +369,24 @@ class _SettingScreenState extends State<SettingScreen> {
       try {
         _backgroundTaskService = di.sl<BackgroundTaskService>();
       } catch (e) {
-        debugPrint('❌ Failed to initialize BackgroundTaskService: $e');
+        if (kDebugMode) {
+          debugPrint('❌ Failed to initialize BackgroundTaskService: $e');
+        }
         throw Exception('Background service is not available');
       }
 
       if (value) {
         // Schedule auto reallocation task
         await _backgroundTaskService.scheduleAutoReallocationTask();
-        debugPrint('✅ Auto budget reallocation task scheduled');
+        if (kDebugMode) {
+          debugPrint('✅ Auto budget reallocation task scheduled');
+        }
       } else {
         // Cancel auto reallocation task
         await _backgroundTaskService.cancelAutoReallocationTask();
-        debugPrint('❌ Auto budget reallocation task canceled');
+        if (kDebugMode) {
+          debugPrint('❌ Auto budget reallocation task canceled');
+        }
       }
 
       if (mounted) {
@@ -366,7 +410,9 @@ class _SettingScreenState extends State<SettingScreen> {
         }
       }
     } catch (e) {
-      debugPrint('❌ Error updating auto budget setting: $e');
+      if (kDebugMode) {
+        debugPrint('❌ Error updating auto budget setting: $e');
+      }
       if (mounted) {
         // Reset UI state on error
         setState(() {
@@ -400,7 +446,9 @@ class _SettingScreenState extends State<SettingScreen> {
         _syncService = di.sl<SyncService>();
         _backgroundTaskService = di.sl<BackgroundTaskService>();
       } catch (e) {
-        debugPrint('❌ Failed to initialize required services: $e');
+        if (kDebugMode) {
+          debugPrint('❌ Failed to initialize required services: $e');
+        }
         throw Exception('Required services are not available');
       }
 
@@ -444,7 +492,9 @@ class _SettingScreenState extends State<SettingScreen> {
         }
       }
     } catch (e) {
-      debugPrint('❌ Error updating sync setting: $e');
+      if (kDebugMode) {
+        debugPrint('❌ Error updating sync setting: $e');
+      }
       if (mounted) {
         // Reset UI state on error
         setState(() {
@@ -673,14 +723,7 @@ class _SettingScreenState extends State<SettingScreen> {
             title: 'Financial Profile',
             subtitle: 'Configure your financial behavior and AI preferences',
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => FinancialProfileScreen(
-                    userBehaviorRepository: di.sl<UserBehaviorRepository>(),
-                  ),
-                ),
-              );
+              NavigationHelper.navigateToFinancialProfile(context);
             },
           ),
 

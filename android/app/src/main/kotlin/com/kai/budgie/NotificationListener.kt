@@ -36,7 +36,7 @@ class NotificationListener : NotificationListenerService() {
     }
 
     private var methodChannel: MethodChannel? = null
-    private var isListening = false
+    var isListening = false
 
     override fun onCreate() {
         super.onCreate()
@@ -79,15 +79,18 @@ class NotificationListener : NotificationListenerService() {
 
     fun startListening() {
         isListening = true
-        Log.d(TAG, "Started listening for notifications")
+        Log.d(TAG, "✅ Started listening for notifications")
         
         // Process any pending notifications when listening starts
         processPendingNotifications()
+        
+        // Log current state
+        Log.d(TAG, "📊 Listener state: isListening=$isListening, methodChannel=${methodChannel != null}")
     }
 
     fun stopListening() {
         isListening = false
-        Log.d(TAG, "Stopped listening for notifications")
+        Log.d(TAG, "🛑 Stopped listening for notifications")
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
@@ -102,9 +105,9 @@ class NotificationListener : NotificationListenerService() {
         val isOwnApp = packageName == "com.kai.budgie"
         
         if (isOwnApp) {
-            Log.d(TAG, "Received notification from our own app - processing regardless of listener state")
+            Log.d(TAG, "🔔 Received notification from our own app - processing regardless of listener state")
         } else if (!isListening) {
-            Log.d(TAG, "Ignoring notification from $packageName because listener is not active")
+            Log.d(TAG, "🔇 Ignoring notification from $packageName because listener is not active (isListening=$isListening)")
             return
         }
 
@@ -128,11 +131,11 @@ class NotificationListener : NotificationListenerService() {
 
             // Skip system notifications (except for our own app)
             if (!isOwnApp && isSystemApp(packageName)) {
-                Log.d(TAG, "System notification from $packageName, ignoring")
+                Log.d(TAG, "🔇 System notification from $packageName, ignoring")
                 return
             }
 
-            Log.d(TAG, "Processing notification from $packageName: $title - $notificationContent")
+            Log.d(TAG, "🔔 Processing notification from $packageName: $title - $notificationContent")
 
             // Prepare data to send to Flutter
             val notificationData = hashMapOf<String, Any>(
@@ -146,25 +149,27 @@ class NotificationListener : NotificationListenerService() {
             if (methodChannel != null) {
                 try {
                     if (isOwnApp) {
-                        Log.d(TAG, "Sending our app's notification to Flutter via method channel")
+                        Log.d(TAG, "📤 Sending our app's notification to Flutter via method channel")
+                    } else {
+                        Log.d(TAG, "📤 Sending external notification to Flutter via method channel")
                     }
                     methodChannel?.invokeMethod("onNotificationReceived", notificationData)
-                    Log.d(TAG, "Notification sent to Flutter")
+                    Log.d(TAG, "✅ Notification sent to Flutter successfully")
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error sending notification to Flutter, adding to pending queue", e)
+                    Log.e(TAG, "❌ Error sending notification to Flutter, adding to pending queue", e)
                     addToPendingQueue(notificationData)
                 }
             } else {
-                Log.d(TAG, "Method channel is null, storing notification for later processing")
+                Log.d(TAG, "⚠️ Method channel is null, storing notification for later processing")
                 addToPendingQueue(notificationData)
                 
                 if (isOwnApp) {
-                    Log.e(TAG, "WARNING: Method channel is null when processing our own app's notification. This indicates an initialization issue.")
+                    Log.e(TAG, "🚨 WARNING: Method channel is null when processing our own app's notification. This indicates an initialization issue.")
                 }
             }
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error processing notification", e)
+            Log.e(TAG, "❌ Error processing notification", e)
         }
     }
 

@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../domain/entities/user_behavior_profile.dart';
 import '../local/database/app_database.dart';
@@ -35,16 +36,26 @@ class UserBehaviorLocalDataSourceImpl implements UserBehaviorLocalDataSource {
 
   @override
   Future<UserBehaviorProfile?> getUserBehaviorProfile(String userId) async {
+    debugPrint(
+        '🔍 UserBehaviorLocalDataSource: Getting profile for user: $userId');
+
     final profilesData = await (_database.select(_database.userProfiles)
           ..where((tbl) => tbl.userId.equals(userId)))
         .get();
 
+    debugPrint(
+        '🔍 UserBehaviorLocalDataSource: Found ${profilesData.length} profiles for user: $userId');
+
     if (profilesData.isEmpty) {
+      debugPrint(
+          '🔍 UserBehaviorLocalDataSource: No profiles found for user: $userId');
       return null;
     }
 
     // If there are multiple profiles for the same user, clean them up
     if (profilesData.length > 1) {
+      debugPrint(
+          '🔍 UserBehaviorLocalDataSource: Multiple profiles found, cleaning up duplicates...');
       await _cleanupDuplicateProfiles(userId, profilesData);
 
       // Get the remaining profile after cleanup
@@ -52,9 +63,13 @@ class UserBehaviorLocalDataSourceImpl implements UserBehaviorLocalDataSource {
             ..where((tbl) => tbl.userId.equals(userId)))
           .getSingleOrNull();
 
+      debugPrint(
+          '🔍 UserBehaviorLocalDataSource: After cleanup, found ${cleanedProfile != null ? '1' : '0'} profile(s)');
       return cleanedProfile != null ? _mapDataToEntity(cleanedProfile) : null;
     }
 
+    debugPrint(
+        '🔍 UserBehaviorLocalDataSource: Returning single profile for user: $userId');
     return _mapDataToEntity(profilesData.first);
   }
 
@@ -151,8 +166,8 @@ class UserBehaviorLocalDataSourceImpl implements UserBehaviorLocalDataSource {
       financialStressLevel: updates.containsKey('financialStressLevel')
           ? Value(updates['financialStressLevel'])
           : const Value.absent(),
-      technologyAdoption: updates.containsKey('technologyAdoption')
-          ? Value(updates['technologyAdoption'])
+      occupation: updates.containsKey('occupation')
+          ? Value(updates['occupation'])
           : const Value.absent(),
       dataConsentAcceptedAt: updates.containsKey('dataConsentAcceptedAt')
           ? Value(updates['dataConsentAcceptedAt'])
@@ -196,8 +211,7 @@ class UserBehaviorLocalDataSourceImpl implements UserBehaviorLocalDataSource {
       savingHabit: SavingHabit.values.byName(data.savingHabit),
       financialStressLevel:
           FinancialStressLevel.values.byName(data.financialStressLevel),
-      technologyAdoption:
-          TechnologyAdoption.values.byName(data.technologyAdoption),
+      occupation: Occupation.values.byName(data.occupation),
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
       dataConsentAcceptedAt: data.dataConsentAcceptedAt,
@@ -217,7 +231,7 @@ class UserBehaviorLocalDataSourceImpl implements UserBehaviorLocalDataSource {
       financialPriority: Value(entity.financialPriority.name),
       savingHabit: Value(entity.savingHabit.name),
       financialStressLevel: Value(entity.financialStressLevel.name),
-      technologyAdoption: Value(entity.technologyAdoption.name),
+      occupation: Value(entity.occupation.name),
       createdAt: Value(entity.createdAt),
       updatedAt: Value(entity.updatedAt),
       dataConsentAcceptedAt: Value(entity.dataConsentAcceptedAt),

@@ -11,6 +11,10 @@ import '../../presentation/screens/analytic_screen.dart';
 import '../../presentation/screens/add_expense_screen.dart';
 import '../../domain/entities/expense.dart';
 import '../../presentation/screens/edit_expense_screen.dart';
+import '../../presentation/screens/financial_profile_screen.dart';
+import '../../domain/entities/user_behavior_profile.dart';
+import '../../domain/repositories/user_behavior_repository.dart';
+import '../../di/injection_container.dart' as di;
 
 /// Enhanced navigation helper with smooth transitions
 class NavigationHelper {
@@ -118,6 +122,61 @@ class NavigationHelper {
       transitionType: TransitionType.slideAndFadeVertical,
       duration: const Duration(milliseconds: 400),
     );
+  }
+
+  /// Navigate to financial profile with existing data loading
+  static Future<T?> navigateToFinancialProfile<T extends Object?>(
+    BuildContext context,
+  ) async {
+    try {
+      debugPrint(
+          '🔄 NavigationHelper: Loading financial profile for guest_user...');
+
+      // Load existing profile from database
+      final userBehaviorRepository = di.sl<UserBehaviorRepository>();
+      final existingProfile =
+          await userBehaviorRepository.getUserBehaviorProfile('guest_user');
+
+      debugPrint(
+          '🔄 NavigationHelper: Profile loaded - ${existingProfile != null ? 'Found existing profile' : 'No existing profile'}');
+
+      if (existingProfile != null) {
+        debugPrint(
+            '🔄 NavigationHelper: Profile details - Income: ${existingProfile.incomeStability.displayName}, Data consent: ${existingProfile.hasDataConsent}');
+      }
+
+      return _navigate<T>(
+        context,
+        FinancialProfileScreen(
+          existingProfile: existingProfile,
+          userBehaviorRepository: userBehaviorRepository,
+        ),
+        Routes.financialProfile,
+        transitionType: TransitionType.smoothFadeSlide,
+        duration: const Duration(milliseconds: 400),
+      );
+    } catch (e) {
+      debugPrint('❌ NavigationHelper: Error loading profile: $e');
+
+      // Show error and navigate without existing profile
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading profile: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+
+      return _navigate<T>(
+        context,
+        FinancialProfileScreen(
+          existingProfile: null,
+          userBehaviorRepository: di.sl<UserBehaviorRepository>(),
+        ),
+        Routes.financialProfile,
+        transitionType: TransitionType.smoothFadeSlide,
+        duration: const Duration(milliseconds: 400),
+      );
+    }
   }
 
   /// Go back with smooth transition
