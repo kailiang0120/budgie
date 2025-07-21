@@ -8,10 +8,15 @@ class BottomNavBar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
 
+  /// The width of the space between the middle two nav items (for FAB)
+  final double middleSpacing;
+
+  /// [middleSpacing] controls the space between the middle two nav items (default: 56.w)
   const BottomNavBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.middleSpacing = 35,
   });
 
   @override
@@ -70,19 +75,50 @@ class BottomNavBar extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: List.generate(4, (idx) {
-                    final isSelected = currentIndex == idx;
-                    return _buildNavItem(
+                  children: [
+                    _buildNavItem(
                       context,
-                      idx,
-                      isSelected,
-                      icons[idx],
-                      labels[idx],
-                      routes[idx],
+                      0,
+                      currentIndex == 0,
+                      icons[0],
+                      labels[0],
+                      routes[0],
                       primaryColor,
                       textColor,
-                    );
-                  }),
+                    ),
+                    _buildNavItem(
+                      context,
+                      1,
+                      currentIndex == 1,
+                      icons[1],
+                      labels[1],
+                      routes[1],
+                      primaryColor,
+                      textColor,
+                    ),
+                    SizedBox(
+                        width: middleSpacing.w), // Adjustable space for FAB
+                    _buildNavItem(
+                      context,
+                      2,
+                      currentIndex == 2,
+                      icons[2],
+                      labels[2],
+                      routes[2],
+                      primaryColor,
+                      textColor,
+                    ),
+                    _buildNavItem(
+                      context,
+                      3,
+                      currentIndex == 3,
+                      icons[3],
+                      labels[3],
+                      routes[3],
+                      primaryColor,
+                      textColor,
+                    ),
+                  ],
                 ),
               ],
             ),

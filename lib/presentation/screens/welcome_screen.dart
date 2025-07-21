@@ -367,24 +367,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // Logo placeholder
+          // Logo
           Container(
             width: 120.w,
             height: 120.h,
-            decoration: BoxDecoration(
-              color: AppTheme.cardBackgroundDark,
-              borderRadius:
-                  BorderRadius.circular(AppConstants.borderRadiusXLarge.r),
-              border: Border.all(
-                color: AppTheme.primaryColorDark
-                    .withAlpha((255 * AppConstants.opacityMedium).toInt()),
-                width: 2,
+            child: ClipRRect(
+              child: Image.asset(
+                'assets/images/budgie_logo.png',
+                fit: BoxFit.contain,
+                semanticLabel: 'Budgie App Logo',
               ),
-            ),
-            child: Icon(
-              Icons.account_balance_wallet_outlined,
-              size: 60.sp,
-              color: AppTheme.primaryColorDark,
             ),
           ),
           SizedBox(height: AppConstants.spacingXXLarge.h),
@@ -475,7 +467,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         'icon': Icons.account_balance_outlined,
         'title': 'Budget Management',
         'description':
-            'Set budgets and get real-time alerts when you\'re overspending'
+            'Set budgets and get reallocation suggestions when you\'re overspending'
       },
     ];
 
@@ -573,35 +565,18 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Image placeholder
-          Container(
+          SizedBox(
             width: 200.w,
             height: 150.h,
-            decoration: BoxDecoration(
-              color: AppTheme.cardBackgroundDark,
-              borderRadius:
-                  BorderRadius.circular(AppConstants.borderRadiusLarge.r),
-              border: Border.all(
-                color: AppTheme.primaryColorDark
-                    .withAlpha((255 * AppConstants.opacityMedium).toInt()),
-                width: 2,
-              ),
-            ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.auto_awesome,
-                  size: 60.sp,
-                  color: AppTheme.primaryColorDark,
+                  size: 100.sp,
+                  color: AppTheme.warningColorDark,
                 ),
                 SizedBox(height: AppConstants.spacingSmall.h),
-                Text(
-                  'Image Placeholder',
-                  style: TextStyle(
-                    fontSize: AppConstants.textSizeSmall.sp,
-                    color: AppTheme.greyTextDark,
-                  ),
-                ),
               ],
             ),
           ),
