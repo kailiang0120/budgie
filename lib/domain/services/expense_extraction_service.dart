@@ -33,40 +33,6 @@ abstract class ExpenseExtractionService {
   Future<bool> isHealthy();
 }
 
-/// Domain service for hybrid expense detail extraction
-///
-/// This service handles the business logic for extracting detailed expense information
-/// from notification text using a hybrid approach:
-/// 1. Local TensorFlow model for classification (determines if notification contains expense data)
-/// 2. API backend for detailed extraction (extracts structured expense information)
-/// It defines what constitutes valid extracted data and how extraction should work.
-///
-/// Usage example:
-/// ```dart
-/// final service = ExpenseExtractionDomainService();
-/// await service.initialize();
-///
-/// // Option 1: Complete hybrid processing (recommended)
-/// final result = await service.processNotification(
-///   title: "Payment Notification",
-///   content: "You spent RM15.50 at McDonald's via card",
-///   source: "banking_app",
-///   packageName: "com.maybank.app",
-/// );
-///
-/// // Option 2: Step-by-step processing
-/// final isExpense = await service.classifyNotification(
-///   title: "Payment Notification",
-///   content: "You spent RM15.50 at McDonald's via card",
-///   source: "banking_app",
-/// );
-/// if (isExpense) {
-///   final result = await service.extractExpenseDetails(
-///     notificationText: "Payment Notification: You spent RM15.50 at McDonald's via card",
-///     source: "banking_app",
-///   );
-/// }
-/// ```
 class ExpenseExtractionDomainService {
   static final ExpenseExtractionDomainService _instance =
       ExpenseExtractionDomainService._internal();
