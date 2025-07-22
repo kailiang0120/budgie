@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart'; // Added for kDebugMode
 
 import 'permission_handler_service.dart';
 import '../../../domain/services/expense_extraction_service.dart';
@@ -267,38 +268,45 @@ class NotificationListenerService {
     return 'Initialized: $_isInitialized, Listening: $_isListening, Permissions: $_hasPermissions, Service: $_isServiceEnabled';
   }
 
-  /// Process incoming notification using hybrid expense detection
-  /// This demonstrates the proper usage of the TensorFlow + API hybrid approach
+  /// Process notification with hybrid detection (TFLite + Gemini)
   Future<void> processNotificationWithHybridDetection({
     required String title,
     required String content,
-    required String packageName,
+    String? packageName,
     required DateTime timestamp,
   }) async {
     try {
+      // Ensure DI is ready in background isolate
+      if (!di.sl.isRegistered<ExpenseExtractionDomainService>()) {
+        if (kDebugMode) {
+          debugPrint(
+              '🔧 SettingsService: DI not ready in background, re-initializing...');
+        }
+        await di.init(); // Re-run dependency injection
+      }
+
+      final extractionService = di.sl<ExpenseExtractionDomainService>();
+
+      // Ensure the service itself is initialized (loads TFLite model)
+      if (!extractionService.isInitialized) {
+        debugPrint(
+            '⚠️ NotificationListener: Expense extraction service not initialized, skipping');
+        return;
+      }
+
       debugPrint(
           '🔔 NotificationListener: Processing notification with hybrid detection');
       debugPrint('📱 Package: $packageName');
       debugPrint('📝 Title: "$title"');
       debugPrint('📄 Content: "$content"');
 
-      // Get the domain service instance
-      final expenseService = di.sl<ExpenseExtractionDomainService>();
-
-      // Ensure service is initialized
-      if (!expenseService.isInitialized) {
-        debugPrint(
-            '⚠️ NotificationListener: Expense extraction service not initialized, skipping');
-        return;
-      }
-
       final stopwatch = Stopwatch()..start();
 
       // Use the complete hybrid processing (recommended approach)
-      final extractionResult = await expenseService.processNotification(
+      final extractionResult = await extractionService.processNotification(
         title: title,
         content: content,
-        source: packageName,
+        source: packageName ?? 'unknown_source',
         packageName: packageName,
       );
 

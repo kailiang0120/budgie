@@ -218,22 +218,23 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
         final healthStatus = await _listenerService.getHealthStatus();
         _addLog('📊 Listener Health Status: $healthStatus');
 
-        // Check individual permissions
-        _hasBasicPermission =
-            await _permissionHandler.hasNotificationPermission();
-        _hasListenerPermission =
-            await _permissionHandler.hasNotificationListenerPermission();
-        _isServiceEnabled = await _checkNotificationServiceEnabled();
+        // Update state from the reliable health status map
+        _isInitialized = healthStatus['isInitialized'] ?? false;
+        _isListening = healthStatus['isActuallyListening'] ?? false;
+        _hasBasicPermission = healthStatus['hasBasicPermission'] ?? false;
+        _hasListenerPermission = healthStatus['hasListenerPermission'] ?? false;
+        _isServiceEnabled = healthStatus['isServiceEnabled'] ?? false;
 
-        _addLog(
-            '🔐 Basic Notification Permission: ${_hasBasicPermission ? '✅ Granted' : '❌ Denied'}');
-        _addLog(
-            '🔐 Notification Listener Permission: ${_hasListenerPermission ? '✅ Granted' : '❌ Denied'}');
-        _addLog(
-            '⚙️ Notification Service Enabled: ${_isServiceEnabled ? '✅ Enabled' : '❌ Disabled'}');
-
-        // Determine listener state
+        // Determine listener state based on the new, reliable data
         _determineListenerState();
+
+        setState(() {
+          _isServiceHealthy = extractionServiceHealthy;
+          _status = _getDetailedStatusMessage();
+        });
+
+        _addLog('✅ Service health check completed');
+        _addLog('📋 Final Status: $_status');
       } catch (e) {
         _addLog('❌ Listener Service failed: $e');
       }
@@ -335,6 +336,8 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // Always initialize the listener service before starting
+      await _listenerService.initialize();
       if (_isListening) {
         _addLog('🛑 Stopping notification listener...');
         await _listenerService.stopListening();

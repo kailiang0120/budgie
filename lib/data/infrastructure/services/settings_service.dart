@@ -150,17 +150,10 @@ class SettingsService extends ChangeNotifier {
   Future<void> _verifyPermissionSettings() async {
     if (_permissionHandler == null) return;
     try {
-      if (_allowNotification) {
-        final hasPermissions = await _permissionHandler!
-            .hasPermissionsForFeature(PermissionFeature.notifications);
-        if (!hasPermissions) {
-          if (kDebugMode) {
-            debugPrint(
-                '🔧 SettingsService: Notification permission mismatch, updating setting');
-          }
-          await updateNotificationSetting(false);
-        }
-      }
+      // The notification permission check has been moved to _startNotificationListener
+      // to avoid race conditions on app startup. This method will now only
+      // verify other permissions if needed in the future.
+
       if (_locationEnabled) {
         final hasPermission = await _permissionHandler!.hasLocationPermission();
         if (!hasPermission) {
@@ -454,6 +447,20 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> _startNotificationListener() async {
     try {
+      // First, verify that we have the necessary permissions before proceeding.
+      // This is the correct place to check, right before execution.
+      if (_permissionHandler != null) {
+        final hasPermissions = await _permissionHandler!
+            .hasPermissionsForFeature(PermissionFeature.notifications);
+        if (!hasPermissions) {
+          if (kDebugMode) {
+            debugPrint(
+                '❌ SettingsService: Cannot start listener, required permissions are missing. The user setting remains ON.');
+          }
+          return; // Abort starting the listener
+        }
+      }
+
       if (_notificationListenerService == null) {
         if (kDebugMode) {
           debugPrint(
@@ -461,6 +468,20 @@ class SettingsService extends ChangeNotifier {
         }
         _notificationListenerService = NotificationListenerService();
         await _notificationListenerService!.initialize();
+      }
+
+      // Proactively check for "run in background" permission
+      if (_permissionHandler != null) {
+        final hasIgnoreBatteryPermission =
+            await _permissionHandler!.hasIgnoreBatteryOptimizationsPermission();
+        if (!hasIgnoreBatteryPermission) {
+          if (kDebugMode) {
+            debugPrint(
+                '🔧 SettingsService: Missing "run in background" permission, requesting...');
+          }
+          await _permissionHandler!
+              .requestIgnoreBatteryOptimizationsPermission();
+        }
       }
 
       if (kDebugMode) {
@@ -589,6 +610,42 @@ class SettingsService extends ChangeNotifier {
       if (kDebugMode) {
         debugPrint(
             '❌ SettingsService: Error stopping notification listener: $e');
+      }
+    }
+  }
+
+  /// Synchronizes service states with stored settings on app resume.
+  /// This is crucial for handling permissions that were changed while the app
+  /// was in the background.
+  Future<void> syncServicesOnResume() async {
+    if (kDebugMode) {
+      debugPrint('🔄 SettingsService: Syncing services on app resume...');
+    }
+    try {
+      // 1. Reload the user's intended settings from storage to get the true state.
+      await _loadSettings();
+
+      // 2. Attempt to start services based on the reloaded settings.
+      // The _startNotificationListener method already contains the necessary logic
+      // to check for OS permissions before it runs.
+      if (_allowNotification) {
+        if (kDebugMode) {
+          debugPrint(
+              '🔄 SettingsService: Notification setting is ON, attempting to ensure listener is running.');
+        }
+        await _startNotificationListener();
+      } else {
+        if (kDebugMode) {
+          debugPrint(
+              '🔄 SettingsService: Notification setting is OFF, ensuring listener is stopped.');
+        }
+        await _stopNotificationListener();
+      }
+
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('❌ SettingsService: Error during on-resume sync: $e');
       }
     }
   }

@@ -231,6 +231,23 @@ class PermissionHandlerService with WidgetsBindingObserver {
     }
   }
 
+  /// Check if permission to ignore battery optimizations is granted (Android only)
+  Future<bool> hasIgnoreBatteryOptimizationsPermission() async {
+    try {
+      if (Platform.isAndroid) {
+        final status = await Permission.ignoreBatteryOptimizations.status;
+        return status.isGranted;
+      }
+      return true; // Not applicable on other platforms
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+            '🔐 PermissionHandlerService: Error checking battery optimization permission: $e');
+      }
+      return false;
+    }
+  }
+
   /// Check if all required permissions for a specific feature are granted
   Future<bool> hasPermissionsForFeature(PermissionFeature feature) async {
     switch (feature) {
@@ -360,6 +377,23 @@ class PermissionHandlerService with WidgetsBindingObserver {
       if (kDebugMode) {
         debugPrint(
             '❌ PermissionHandlerService: Failed to request notification listener permission: $e');
+      }
+      return false;
+    }
+  }
+
+  /// Request permission to ignore battery optimizations (Android only)
+  Future<bool> requestIgnoreBatteryOptimizationsPermission() async {
+    try {
+      if (Platform.isAndroid) {
+        final status = await Permission.ignoreBatteryOptimizations.request();
+        return status.isGranted;
+      }
+      return true;
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+            '❌ PermissionHandlerService: Error requesting battery optimization permission: $e');
       }
       return false;
     }
