@@ -26,6 +26,7 @@ android {
         targetSdk flutter.targetSdkVersion
         versionCode flutter.versionCode
         versionName flutter.versionName
+
     }
 
     buildTypes {
@@ -35,7 +36,10 @@ android {
             // Enable R8 code shrinking and obfuscation
             minifyEnabled true
             shrinkResources true
-
+            ndk {
+                //noinspection ChromeOsAbiSupport
+                abiFilters 'arm64-v8a'
+            }
             // Specify ProGuard rules for TensorFlow Lite
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
