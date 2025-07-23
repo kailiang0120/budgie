@@ -10,6 +10,7 @@ import 'dart:async';
 import '../../models/expense_detection_models.dart';
 import 'package:budgie/core/constants/routes.dart';
 import 'package:budgie/main.dart'; // for navigatorKey
+import 'settings_service.dart'; // For SettingsService.notificationsEnabled
 
 /// Data class for navigation events triggered by notifications
 class NotificationNavigationAction {
@@ -112,6 +113,14 @@ class NotificationService {
     NotificationPriority priority = NotificationPriority.normal,
     String? channelId,
   }) async {
+    // Check if notifications are enabled before sending
+    if (!SettingsService.notificationsEnabled) {
+      if (kDebugMode) {
+        debugPrint(
+            '📤 NotificationService: Notifications are disabled in settings. Skipping sendNotification.');
+      }
+      return false;
+    }
     if (!_isInitialized) {
       await initialize();
     }
@@ -146,6 +155,14 @@ class NotificationService {
     required String detectionId,
     required ExpenseExtractionResult extractionResult,
   }) async {
+    // Check if notifications are enabled before sending
+    if (!SettingsService.notificationsEnabled) {
+      if (kDebugMode) {
+        debugPrint(
+            '📤 NotificationService: Notifications are disabled in settings. Skipping sendExpenseDetectedNotification.');
+      }
+      return false;
+    }
     if (!_isInitialized) {
       await initialize();
     }
@@ -249,6 +266,14 @@ class NotificationService {
     String? title,
     String? payload,
   }) async {
+    // Check if notifications are enabled before sending
+    if (!SettingsService.notificationsEnabled) {
+      if (kDebugMode) {
+        debugPrint(
+            '📤 NotificationService: Notifications are disabled in settings. Skipping sendReminderNotification.');
+      }
+      return false;
+    }
     return await sendNotification(
       title: title ?? 'Budgie Reminder',
       content: message,
@@ -267,6 +292,14 @@ class NotificationService {
     NotificationPriority priority = NotificationPriority.normal,
     String? channelId,
   }) async {
+    // Check if notifications are enabled before scheduling
+    if (!SettingsService.notificationsEnabled) {
+      if (kDebugMode) {
+        debugPrint(
+            '📤 NotificationService: Notifications are disabled in settings. Skipping scheduleNotification.');
+      }
+      return false;
+    }
     if (!_isInitialized) {
       await initialize();
     }

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart'; // Added for kDebugMode
 import 'permission_handler_service.dart';
 import '../../../domain/services/expense_extraction_service.dart';
 import '../../../di/injection_container.dart' as di;
+import 'settings_service.dart'; // Added for SettingsService
 
 /// Service responsible for listening to system notifications
 /// Handles notification capture and processing workflow
@@ -69,7 +70,15 @@ class NotificationListenerService {
   /// Set callback for notification events
   void setNotificationCallback(
       Function(String title, String content, String packageName) callback) {
-    _onNotificationReceived = callback;
+    _onNotificationReceived = (title, content, packageName) {
+      // Check if notifications are enabled before processing
+      if (!SettingsService.notificationsEnabled) {
+        debugPrint(
+            '🔔 NotificationListenerService: Notifications are disabled in settings. Skipping processing.');
+        return;
+      }
+      callback(title, content, packageName);
+    };
     debugPrint('🔔 NotificationListenerService: Callback set');
   }
 
@@ -275,6 +284,12 @@ class NotificationListenerService {
     String? packageName,
     required DateTime timestamp,
   }) async {
+    // Check if notifications are enabled before processing
+    if (!SettingsService.notificationsEnabled) {
+      debugPrint(
+          '🔔 NotificationListenerService: Notifications are disabled in settings. Skipping hybrid detection.');
+      return;
+    }
     try {
       // Ensure DI is ready in background isolate
       if (!di.sl.isRegistered<ExpenseExtractionDomainService>()) {

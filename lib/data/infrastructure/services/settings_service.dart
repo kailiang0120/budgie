@@ -55,6 +55,10 @@ class SettingsService extends ChangeNotifier {
 
   static SettingsService? get instance => _instance;
 
+  /// Static getter for allowNotification for global access
+  static bool get notificationsEnabled =>
+      _instance?._allowNotification ?? false;
+
   Map<String, dynamic> get currentSettings => {
         'currency': _currency,
         'theme': _theme,
