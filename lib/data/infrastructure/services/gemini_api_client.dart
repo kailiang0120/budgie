@@ -224,7 +224,7 @@ class GeminiApiClient {
         '/budget-reallocation/analyze',
         'POST',
         body: request.toJson(),
-        timeout: const Duration(seconds: 60),
+        timeout: const Duration(seconds: 120),
       );
 
       debugPrint(
