@@ -11,7 +11,6 @@ import '../../presentation/screens/goals_screen.dart';
 import '../../presentation/screens/notification_test_screen.dart';
 import '../../presentation/screens/financial_profile_screen.dart';
 import '../../domain/entities/expense.dart';
-import '../../domain/entities/user_behavior_profile.dart';
 import '../../domain/repositories/user_behavior_repository.dart';
 import '../constants/routes.dart';
 import 'page_transition.dart';
@@ -139,7 +138,7 @@ class AppRouter {
                 );
               }
 
-              final existingProfile = snapshot.data as UserBehaviorProfile?;
+              final existingProfile = snapshot.data;
               return FinancialProfileScreen(
                 existingProfile: existingProfile,
                 userBehaviorRepository: di.sl<UserBehaviorRepository>(),

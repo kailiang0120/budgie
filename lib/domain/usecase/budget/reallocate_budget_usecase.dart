@@ -315,14 +315,11 @@ class ReallocateBudgetUseCase {
 /// Exception for budget reallocation errors
 class ReallocationException extends AppError {
   ReallocationException(
-    String message, {
+    super.message, {
     String? code,
-    dynamic originalError,
-    StackTrace? stackTrace,
+    super.originalError,
+    super.stackTrace,
   }) : super(
-          message,
           code: code ?? 'REALLOCATION_ERROR',
-          originalError: originalError,
-          stackTrace: stackTrace,
         );
 }

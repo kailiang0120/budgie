@@ -503,14 +503,11 @@ class BudgetReallocationService {
 /// Exception thrown when budget reallocation fails
 class ReallocationException extends AppError {
   ReallocationException(
-    String message, {
+    super.message, {
     String? code,
-    dynamic originalError,
-    StackTrace? stackTrace,
+    super.originalError,
+    super.stackTrace,
   }) : super(
-          message,
           code: code ?? 'REALLOCATION_ERROR',
-          originalError: originalError,
-          stackTrace: stackTrace,
         );
 }

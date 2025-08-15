@@ -754,7 +754,7 @@ class _FinancialProfileScreenState extends State<FinancialProfileScreen> {
                 style: OutlinedButton.styleFrom(
                   padding: EdgeInsets.symmetric(
                       vertical: AppConstants.spacingLarge.h),
-                  side: BorderSide(color: AppTheme.primaryColor),
+                  side: const BorderSide(color: AppTheme.primaryColor),
                 ),
                 child: Text(
                   'Previous',

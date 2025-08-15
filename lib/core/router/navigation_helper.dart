@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'page_transition.dart';
-import 'app_router.dart' show navigatorKey;
 import '../constants/routes.dart';
 
 import '../../presentation/screens/home_screen.dart';
@@ -12,7 +11,6 @@ import '../../presentation/screens/add_expense_screen.dart';
 import '../../domain/entities/expense.dart';
 import '../../presentation/screens/edit_expense_screen.dart';
 import '../../presentation/screens/financial_profile_screen.dart';
-import '../../domain/entities/user_behavior_profile.dart';
 import '../../domain/repositories/user_behavior_repository.dart';
 import '../../di/injection_container.dart' as di;
 

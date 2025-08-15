@@ -743,7 +743,7 @@ class PermissionHandlerService with WidgetsBindingObserver {
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Permission Required'),
+        title: const Text('Permission Required'),
         content: Text(message),
         actions: [
           TextButton(
@@ -773,7 +773,7 @@ class PermissionHandlerService with WidgetsBindingObserver {
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Permission Denied'),
+        title: const Text('Permission Denied'),
         content: Text(message),
         actions: [
           TextButton(

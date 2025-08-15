@@ -400,7 +400,7 @@ class AppDatabase extends _$AppDatabase {
                 'ALTER TABLE user_profiles_new RENAME TO user_profiles');
           } catch (e) {
             debugPrint(
-                'Error migrating user profiles schema to v17: ' + e.toString());
+                'Error migrating user profiles schema to v17: $e');
           }
         }
         if (from < 18) {
@@ -450,7 +450,7 @@ class AppDatabase extends _$AppDatabase {
                 'ALTER TABLE user_profiles_new RENAME TO user_profiles');
           } catch (e) {
             debugPrint(
-                'Error migrating user profiles schema to v18: ' + e.toString());
+                'Error migrating user profiles schema to v18: $e');
           }
         }
         if (from < 12) {

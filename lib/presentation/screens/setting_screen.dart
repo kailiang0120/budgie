@@ -22,8 +22,6 @@ import '../utils/app_constants.dart';
 import '../utils/currency_formatter.dart';
 import 'add_expense_screen.dart';
 import 'notification_test_screen.dart';
-import 'financial_profile_screen.dart';
-import '../../domain/repositories/user_behavior_repository.dart';
 
 class SettingScreen extends StatefulWidget {
   const SettingScreen({super.key});

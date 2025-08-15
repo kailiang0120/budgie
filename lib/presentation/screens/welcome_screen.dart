@@ -368,7 +368,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Logo
-          Container(
+          SizedBox(
             width: 120.w,
             height: 120.h,
             child: ClipRRect(

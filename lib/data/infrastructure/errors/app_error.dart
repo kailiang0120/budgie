@@ -75,15 +75,12 @@ class NetworkError extends AppError {
 /// authentication error
 class AuthError extends AppError {
   AuthError(
-    String message, {
+    super.message, {
     String? code,
-    dynamic originalError,
-    StackTrace? stackTrace,
+    super.originalError,
+    super.stackTrace,
   }) : super(
-          message,
           code: code ?? 'AUTH_ERROR',
-          originalError: originalError,
-          stackTrace: stackTrace,
         );
 
   static AuthError unauthenticated() {
@@ -98,15 +95,12 @@ class AuthError extends AppError {
 /// data error
 class DataError extends AppError {
   DataError(
-    String message, {
+    super.message, {
     String? code,
-    dynamic originalError,
-    StackTrace? stackTrace,
+    super.originalError,
+    super.stackTrace,
   }) : super(
-          message,
           code: code ?? 'DATA_ERROR',
-          originalError: originalError,
-          stackTrace: stackTrace,
         );
 
   static DataError notFound() {

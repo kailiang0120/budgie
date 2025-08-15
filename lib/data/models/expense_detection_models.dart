@@ -2,6 +2,7 @@
 ///
 /// These models handle binary classification of notifications and structured
 /// expense data extraction using TFLite services following BudgieAI Mobile Model Integration v2 specifications.
+library;
 
 /// Simple response model for binary notification classification
 /// Used by TFLite classification model to determine if a notification contains expense data
