@@ -221,6 +221,9 @@ extension NavigatorExtensions on BuildContext {
       case Routes.expenses:
         return AddExpenseScreen(
             prefilledData: arguments as Map<String, dynamic>?);
+      case Routes.addExpense:
+        return AddExpenseScreen(
+            prefilledData: arguments as Map<String, dynamic>?);
       case Routes.editExpense:
         return EditExpenseScreen(expense: arguments as Expense);
       default:

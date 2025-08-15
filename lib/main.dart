@@ -29,15 +29,13 @@ import 'presentation/screens/home_screen.dart';
 import 'presentation/screens/analytic_screen.dart';
 import 'presentation/screens/setting_screen.dart';
 
-import 'presentation/widgets/animated_float_button.dart';
+import 'core/router/route_observers.dart';
+import 'core/router/navigation_keys.dart';
 import 'data/infrastructure/services/background_task_service.dart';
 import 'data/infrastructure/services/notification_service.dart';
 import 'domain/services/expense_extraction_service.dart';
 
-// Global keys for app-wide access
-final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
-    GlobalKey<ScaffoldMessengerState>();
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+// Global keys moved to core/router/navigation_keys.dart
 
 /// Main entry point for the Budgie app
 Future<void> main() async {

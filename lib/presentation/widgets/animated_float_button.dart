@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../utils/app_constants.dart';
 
-// 全局路由观察者，用于监听路由变化
-final fabRouteObserver = RouteObserver<PageRoute>();
+// 使用全局路由观察者（迁移到核心路由模块）
+import 'package:budgie/core/router/route_observers.dart';
 
 /// 具有高级动画效果的浮动操作按钮
 class AnimatedFloatButton extends StatefulWidget {

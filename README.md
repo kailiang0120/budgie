@@ -21,6 +21,8 @@ Budgie is built using a clean, scalable, and maintainable architecture that sepa
 
 The application follows the "Repository" pattern to abstract the data sources from the domain layer, making it easy to switch between different data providers without affecting the business logic.
 
+See also: `docs/Architecture_Audit.md` for current audit notes, misplacements, and non-breaking structural actions applied.
+
 ### Architectural Diagram
 ```mermaid
 graph TD
@@ -124,9 +126,11 @@ erDiagram
 
 ## AI and Machine Learning
 
-Budgie leverages the power of on-device machine learning to provide intelligent expense categorization. The application uses a pre-trained TensorFlow Lite model to analyze the text of transaction notifications and automatically assign the correct category to each expense.
+Budgie currently supports a hybrid detection approach:
+- Local TFLite classifier to detect if a notification contains an expense
+- Backend (FastAPI) extraction for structured details
 
-The model and its vocabulary are stored in the `assets/models/classifier` directory. The `ExpenseExtractionService` is responsible for loading the model and performing the inference.
+If you choose to move to API-only, remove TFLite dependencies and assets as described in `docs/Architecture_Audit.md`.
 
 ## Getting Started
 

@@ -8,7 +8,7 @@ import 'dart:async';
 
 import '../../models/expense_detection_models.dart';
 import 'package:budgie/core/constants/routes.dart';
-import 'package:budgie/main.dart'; // for navigatorKey
+import 'package:budgie/core/router/navigation_keys.dart'; // for navigatorKey
 import 'settings_service.dart'; // For SettingsService.notificationsEnabled
 
 /// Data class for navigation events triggered by notifications
@@ -685,7 +685,7 @@ class NotificationService {
       );
       // Then push the add expense screen
       navigatorKey.currentState?.pushNamed(
-        '/add_expense',
+        Routes.addExpense,
         arguments: arguments,
       );
     } catch (e) {

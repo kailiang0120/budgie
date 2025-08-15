@@ -15,11 +15,12 @@ import '../../domain/repositories/user_behavior_repository.dart';
 import '../constants/routes.dart';
 import 'page_transition.dart';
 import '../../di/injection_container.dart' as di;
+import 'navigation_keys.dart';
 
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     // Special handling for expense screen (modal behavior)
-    if (settings.name == Routes.expenses || settings.name == '/add_expense') {
+    if (settings.name == Routes.expenses || settings.name == Routes.addExpense) {
       // Handle prefilled data if provided
       final prefilledData = settings.arguments as Map<String, dynamic>?;
       return PageTransition(
@@ -192,6 +193,3 @@ class AppRouter {
     }
   }
 }
-
-/// Global navigation key for accessing Navigator without context
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();

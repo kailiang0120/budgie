@@ -4,6 +4,8 @@ class Routes {
   static const String welcome = '/welcome';
   static const String home = '/home';
   static const String expenses = '/expenses';
+  // Consistent add-expense route constant
+  static const String addExpense = '/add-expense';
   static const String editExpense = '/edit-expense';
   static const String goals = '/goals';
   static const String settings = '/settings';

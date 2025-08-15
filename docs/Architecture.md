@@ -32,7 +32,7 @@ lib/
 - **Expense Extraction**: FastAPI backend for notification processing
 - **Spending Analysis**: Backend-powered behavioral insights
 - **Budget Optimization**: Server-side budget reallocation analysis
-- **TFLite Removal**: Replaced local ML models with backend AI
+- **TFLite (Hybrid)**: Current codebase includes a hybrid path (local TFLite classifier + backend extraction). If moving to API-only, remove TFLite code and assets; otherwise keep hybrid.
 
 ### **4. Deprecated Services Cleaned** ✅
 - **Removed**: `AIExpensePredictionService` (deprecated)
@@ -146,7 +146,7 @@ presentation/
 │   ├── expenses_viewmodel.dart   # Expenses state
 │   └── theme_viewmodel.dart      # Theme state
 └── widgets/            # Reusable UI components
-    ├── animated_float_button.dart
+    ├── animated_float_button.dart (uses global observer from core/router)
     ├── auth_button.dart
     ├── bottom_nav_bar.dart
     ├── budget_card.dart
@@ -223,12 +223,10 @@ class AddExpenseUseCase {
 - ✅ Enterprise-level error handling
 - ✅ Consistent naming conventions
 
-### **Service Optimization: ✅ COMPLETED**
-- ✅ No duplicate services
-- ✅ Single prediction service (GoogleAI)
-- ✅ Simplified notification detection
-- ✅ Amount-only extraction
-- ✅ API-first approach (no fallbacks)
+### **Service Optimization: ✅ CURRENT**
+- ✅ Centralized API client for backend
+- ⚠️ Hybrid detection active (TFLite classifier + API extraction)
+- ⚠️ Consider consolidating to API-only to reduce app size and complexity, or document hybrid explicitly
 
 ### **Code Quality: ✅ HIGH**
 - ✅ Consistent error handling
