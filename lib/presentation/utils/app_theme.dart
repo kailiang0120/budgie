@@ -200,7 +200,7 @@ class AppTheme {
             color: greyTextLight.withAlpha((255 * 0.7).toInt()),
             fontSize: AppConstants.textSizeSmall.sp),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: cardBackgroundLight,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge.r),
@@ -378,7 +378,7 @@ class AppTheme {
             color: greyTextDark.withAlpha((255 * 0.7).toInt()),
             fontSize: AppConstants.textSizeSmall.sp),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: cardBackgroundDark,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge.r),
@@ -478,7 +478,7 @@ class AppTheme {
         hintStyle:
             TextStyle(color: greyTextLight.withAlpha((255 * 0.7).toInt())),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: cardBackgroundLight,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(15.0),
@@ -571,7 +571,7 @@ class AppTheme {
         hintStyle:
             TextStyle(color: greyTextDark.withAlpha((255 * 0.7).toInt())),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: cardBackgroundDark,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(15.0),

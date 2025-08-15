@@ -331,7 +331,7 @@ class AllocateSavingsToGoalsUseCase {
       }
 
       // Get or create "others" category budget
-      final othersCategory = domain_category.Category.others;
+      const othersCategory = domain_category.Category.others;
       final currentOthersAmount =
           budget.categories[othersCategory.id]?.budget ?? 0.0;
       final newOthersAmount = currentOthersAmount + amount;
