@@ -309,13 +309,19 @@ class NotificationListenerService {
         return;
       }
 
-      debugPrint(
-          '🔔 NotificationListener: Processing notification with hybrid detection');
-      debugPrint('📱 Package: $packageName');
-      debugPrint('📝 Title: "$title"');
-      debugPrint('📄 Content: "$content"');
+      if (kDebugMode) {
+        debugPrint(
+            '🔔 NotificationListener: Processing notification with hybrid detection');
+        debugPrint('📱 Package: $packageName');
+        debugPrint('📝 Title: "$title"');
+        debugPrint('📄 Content: "$content"');
+      }
 
-      final stopwatch = Stopwatch()..start();
+      // Only track performance in debug mode
+      Stopwatch? stopwatch;
+      if (kDebugMode) {
+        stopwatch = Stopwatch()..start();
+      }
 
       // Use the complete hybrid processing (recommended approach)
       final extractionResult = await extractionService.processNotification(
@@ -325,7 +331,9 @@ class NotificationListenerService {
         packageName: packageName,
       );
 
-      stopwatch.stop();
+      if (kDebugMode) {
+        stopwatch?.stop();
+      }
 
       if (extractionResult != null) {
         debugPrint('✅ NotificationListener: Expense detected and extracted!');
@@ -337,7 +345,9 @@ class NotificationListenerService {
             '🏷️ Suggested Category: ${extractionResult.suggestedCategory}');
         debugPrint(
             '🎯 Confidence: ${(extractionResult.confidence * 100).toStringAsFixed(1)}%');
-        debugPrint('⏱️ Processing Time: ${stopwatch.elapsedMilliseconds}ms');
+        if (kDebugMode && stopwatch != null) {
+          debugPrint('⏱️ Processing Time: ${stopwatch.elapsedMilliseconds}ms');
+        }
 
         // The service automatically:
         // 1. Records the detection for analytics
@@ -349,8 +359,10 @@ class NotificationListenerService {
       } else {
         debugPrint(
             '📱 NotificationListener: Notification classified as non-expense or extraction failed');
-        debugPrint(
-            '⏱️ Classification Time: ${stopwatch.elapsedMilliseconds}ms');
+        if (kDebugMode && stopwatch != null) {
+          debugPrint(
+              '⏱️ Classification Time: ${stopwatch.elapsedMilliseconds}ms');
+        }
       }
     } catch (e) {
       debugPrint('❌ NotificationListener: Hybrid processing failed: $e');
@@ -371,21 +383,30 @@ class NotificationListenerService {
       debugPrint('🔔 NotificationListener: Step-by-step processing');
 
       // Step 1: Classify using TensorFlow model
-      final classificationStopwatch = Stopwatch()..start();
+      Stopwatch? classificationStopwatch;
+      if (kDebugMode) {
+        classificationStopwatch = Stopwatch()..start();
+      }
+      
       final isExpense = await expenseService.classifyNotification(
         title: title,
         content: content,
         source: packageName,
         packageName: packageName,
       );
-      classificationStopwatch.stop();
-
-      debugPrint(
-          '🤖 Classification: ${isExpense ? "EXPENSE" : "NOT EXPENSE"} (${classificationStopwatch.elapsedMilliseconds}ms)');
+      
+      if (kDebugMode) {
+        classificationStopwatch?.stop();
+        debugPrint(
+            '🤖 Classification: ${isExpense ? "EXPENSE" : "NOT EXPENSE"} (${classificationStopwatch?.elapsedMilliseconds ?? 0}ms)');
+      }
 
       if (isExpense) {
         // Step 2: Extract details using API
-        final extractionStopwatch = Stopwatch()..start();
+        Stopwatch? extractionStopwatch;
+        if (kDebugMode) {
+          extractionStopwatch = Stopwatch()..start();
+        }
 
         final extractionResult = await expenseService.extractExpenseDetails(
           title: title,
@@ -393,16 +414,23 @@ class NotificationListenerService {
           source: packageName,
           packageName: packageName,
         );
-        extractionStopwatch.stop();
+        
+        if (kDebugMode) {
+          extractionStopwatch?.stop();
+        }
 
         if (extractionResult != null) {
-          debugPrint(
-              '✅ Extraction: SUCCESS (${extractionStopwatch.elapsedMilliseconds}ms)');
-          debugPrint(
-              '💰 Details: ${extractionResult.amount} at ${extractionResult.merchantName}');
+          if (kDebugMode) {
+            debugPrint(
+                '✅ Extraction: SUCCESS (${extractionStopwatch?.elapsedMilliseconds ?? 0}ms)');
+            debugPrint(
+                '💰 Details: ${extractionResult.amount} at ${extractionResult.merchantName}');
+          }
         } else {
-          debugPrint(
-              '❌ Extraction: FAILED (${extractionStopwatch.elapsedMilliseconds}ms)');
+          if (kDebugMode) {
+            debugPrint(
+                '❌ Extraction: FAILED (${extractionStopwatch?.elapsedMilliseconds ?? 0}ms)');
+          }
         }
       }
     } catch (e) {

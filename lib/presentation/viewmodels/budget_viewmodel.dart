@@ -42,6 +42,9 @@ class BudgetViewModel extends ChangeNotifier {
 
   /// Load budget for a specific month and check if currency conversion is needed
   Future<void> loadBudget(String monthId, {bool checkCurrency = false}) async {
+    // Avoid redundant loading if already in progress
+    if (isLoading) return;
+    
     // Set loading state without notifying
     isLoading = true;
     errorMessage = null;

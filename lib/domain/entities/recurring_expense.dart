@@ -30,12 +30,17 @@ class RecurringDetails {
 
   /// Optional end date for the recurring expense
   final DateTime? endDate;
+  
+  /// Last processed date - tracks when this recurring expense was last processed
+  /// This prevents duplicate expense creation
+  final DateTime? lastProcessedDate;
 
   RecurringDetails({
     required this.frequency,
     this.dayOfMonth,
     this.dayOfWeek,
     this.endDate,
+    this.lastProcessedDate,
   }) : assert(
             (frequency == RecurringFrequency.weekly && dayOfWeek != null) ||
                 (frequency == RecurringFrequency.monthly && dayOfMonth != null),
@@ -47,12 +52,14 @@ class RecurringDetails {
     int? dayOfMonth,
     DayOfWeek? dayOfWeek,
     DateTime? endDate,
+    DateTime? lastProcessedDate,
   }) {
     return RecurringDetails(
       frequency: frequency ?? this.frequency,
       dayOfMonth: dayOfMonth ?? this.dayOfMonth,
       dayOfWeek: dayOfWeek ?? this.dayOfWeek,
       endDate: endDate ?? this.endDate,
+      lastProcessedDate: lastProcessedDate ?? this.lastProcessedDate,
     );
   }
 
@@ -63,6 +70,7 @@ class RecurringDetails {
       'dayOfMonth': dayOfMonth,
       'dayOfWeek': dayOfWeek?.displayName,
       'endDate': endDate?.toIso8601String(),
+      'lastProcessedDate': lastProcessedDate?.toIso8601String(),
     };
   }
 
@@ -81,6 +89,9 @@ class RecurringDetails {
       endDate: json['endDate'] != null
           ? DateTime.parse(json['endDate'] as String)
           : null,
+      lastProcessedDate: json['lastProcessedDate'] != null
+          ? DateTime.parse(json['lastProcessedDate'] as String)
+          : null,
     );
   }
 
@@ -92,18 +103,20 @@ class RecurringDetails {
           frequency == other.frequency &&
           dayOfMonth == other.dayOfMonth &&
           dayOfWeek == other.dayOfWeek &&
-          endDate == other.endDate;
+          endDate == other.endDate &&
+          lastProcessedDate == other.lastProcessedDate;
 
   @override
   int get hashCode =>
       frequency.hashCode ^
       dayOfMonth.hashCode ^
       dayOfWeek.hashCode ^
-      endDate.hashCode;
+      endDate.hashCode ^
+      lastProcessedDate.hashCode;
 
   @override
   String toString() {
-    return 'RecurringDetails{frequency: $frequency, dayOfMonth: $dayOfMonth, dayOfWeek: $dayOfWeek, endDate: $endDate}';
+    return 'RecurringDetails{frequency: $frequency, dayOfMonth: $dayOfMonth, dayOfWeek: $dayOfWeek, endDate: $endDate, lastProcessedDate: $lastProcessedDate}';
   }
 }
 

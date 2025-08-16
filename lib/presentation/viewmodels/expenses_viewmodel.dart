@@ -86,15 +86,14 @@ class ExpensesViewModel extends ChangeNotifier
       final wasOffline = _isOffline;
       _isOffline = !isConnected;
 
-      // Reload data when going from offline to online
+      // Only reload data when going from offline to online to avoid redundant operations
       if (wasOffline && isConnected && _settingsService.syncEnabled) {
         if (kDebugMode) {
           debugPrint(
               '🔄 ExpensesViewModel: Network connection restored, triggering sync and reload');
         }
-        // Trigger sync first
+        // Trigger sync first, then reload data
         _loadExpensesUseCase.execute();
-        // Then reload data
         _loadExpensesFromLocalDatabase();
       } else if (!wasOffline && !isConnected) {
         // Load local data when going from online to offline
@@ -113,6 +112,9 @@ class ExpensesViewModel extends ChangeNotifier
 
   // Load expenses from local database
   Future<void> _loadExpensesFromLocalDatabase() async {
+    // Avoid redundant loading if already in progress
+    if (_isLoading) return;
+    
     _isLoading = true;
     _error = null;
     notifyListeners();

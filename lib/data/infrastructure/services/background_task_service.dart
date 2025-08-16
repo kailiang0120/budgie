@@ -25,19 +25,25 @@ void callbackDispatcher() {
 
       // For auto budget task
       if (task == autoReallocationTask && !settingsService.autoBudget) {
-        debugPrint(
-            'Background task skipped: User has disabled automatic budget features.');
+        if (kDebugMode) {
+          debugPrint(
+              'Background task skipped: User has disabled automatic budget features.');
+        }
         return Future.value(true);
       }
 
       // For data sync task
       if (task == dataSyncTask && !settingsService.syncEnabled) {
-        debugPrint(
-            'Background sync task skipped: User has disabled sync feature.');
+        if (kDebugMode) {
+          debugPrint(
+              'Background sync task skipped: User has disabled sync feature.');
+        }
         return Future.value(true);
       }
 
-      debugPrint('Background task started: $task');
+      if (kDebugMode) {
+        debugPrint('Background task started: $task');
+      }
 
       switch (task) {
         case autoReallocationTask:
@@ -51,31 +57,43 @@ void callbackDispatcher() {
             final monthId =
                 '${now.year}-${now.month.toString().padLeft(2, '0')}';
             for (final user in allUsers) {
-              debugPrint(
-                  '🔄 Background: Starting auto budget reallocation for ${user.userId} in $monthId');
+              if (kDebugMode) {
+                debugPrint(
+                    '🔄 Background: Starting auto budget reallocation for ${user.userId} in $monthId');
+              }
               await reallocationService.reallocateBudget(user.userId, monthId);
-              debugPrint(
-                  '✅ Background: Auto budget reallocation for ${user.userId} completed successfully');
+              if (kDebugMode) {
+                debugPrint(
+                    '✅ Background: Auto budget reallocation for ${user.userId} completed successfully');
+              }
             }
           } catch (e) {
-            debugPrint('❌ Background: Auto budget reallocation failed: $e');
+            if (kDebugMode) {
+              debugPrint('❌ Background: Auto budget reallocation failed: $e');
+            }
           }
           break;
         case dataSyncTask:
           // Execute data sync
           final syncService = di.sl<SyncService>();
           await syncService.syncData(fullSync: true);
-          debugPrint('Background data sync completed.');
+          if (kDebugMode) {
+            debugPrint('Background data sync completed.');
+          }
           break;
         case recurringExpenseTask:
           // Execute recurring expense processing
           await di.sl<ProcessRecurringExpensesUseCase>().execute();
-          debugPrint('Background recurring expense processing completed.');
+          if (kDebugMode) {
+            debugPrint('Background recurring expense processing completed.');
+          }
           break;
       }
       return Future.value(true);
     } catch (err) {
-      debugPrint('Error in background task: $err');
+      if (kDebugMode) {
+        debugPrint('Error in background task: $err');
+      }
       return Future.value(false);
     }
   });

@@ -47,8 +47,8 @@ class PerformanceUtils {
 
   /// Check if device has sufficient memory for heavy operations
   static bool isLowMemoryDevice() {
-    // Simplified check - in real app, you might use device_info_plus
-    return false; // TODO: Implement proper memory check
+    // Simplified check - in production, implement proper memory check using device_info_plus
+    return false;
   }
 
   /// Dispose utility for cleaning up resources

@@ -55,12 +55,12 @@ Future<void> main() async {
     // Initialize remaining services (non-blocking)
     _initializeRemainingServices();
 
-    // Print performance report after app is fully loaded
-    Future.delayed(const Duration(seconds: 5), () {
-      if (kDebugMode) {
+    // Print performance report after app is fully loaded (only in debug mode)
+    if (kDebugMode) {
+      Future.delayed(const Duration(seconds: 5), () {
         PerformanceTracker.printPerformanceReport();
-      }
-    });
+      });
+    }
   } catch (e, stackTrace) {
     if (kDebugMode) {
       debugPrint('❌ App initialization failed: $e');
@@ -98,9 +98,6 @@ Future<void> _initializeCoreServices() async {
     // Add a small delay to ensure Android method channels are properly initialized
     if (Platform.isAndroid) {
       await Future.delayed(const Duration(milliseconds: 200));
-      if (kDebugMode) {
-        debugPrint('⏱️ Added delay for Android method channel initialization');
-      }
     }
 
     // Initialize settings with permission handler to enable automatic notification listener management
@@ -165,8 +162,6 @@ void _initializeRemainingServices() {
     try {
       // Start recurring expense service
       await _startRecurringExpenseService();
-
-      // Background service permissions no longer needed for notification listener
 
       if (kDebugMode) {
         debugPrint('✅ Optional services initialized');

@@ -39,7 +39,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     // Initialize with current date as default
     _selectedDate = DateTime.now();
-    // Removed: _setupNavigationListener();
 
     // Initialize filters in post-frame callback to avoid build phase issues
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -102,7 +101,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // Removed: _navigationSubscription?.cancel();
     super.dispose();
   }
 
@@ -256,29 +254,26 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       debugPrint(
           '🏠 HomeScreen: Found ${currentExpenses.length} expenses for the selected period');
 
-      // Step 4: Refresh budget data for the selected month
+      // Step 4: Refresh budget data for the selected month (optimize by combining operations)
       if (mounted) {
         debugPrint('🏠 HomeScreen: Refreshing budget for month: $monthId');
 
-        // First load the current budget
-        await budgetVM.loadBudget(monthId);
-        debugPrint(
-            '🏠 HomeScreen: Current budget exists: ${budgetVM.budget != null}');
-
-        // Then refresh the budget to recalculate with expenses
+        // Optimize: Use refreshBudget which internally loads and calculates
         await budgetVM.refreshBudget(monthId);
         debugPrint(
             '🏠 HomeScreen: Budget after refresh exists: ${budgetVM.budget != null}');
 
-        // Also recalculate budget with current expenses to ensure real-time updates
-        await budgetVM.calculateBudgetRemaining(currentExpenses, monthId);
-        debugPrint(
-            '🏠 HomeScreen: Budget after recalculation exists: ${budgetVM.budget != null}');
+        // Only calculate budget remaining if needed (avoid redundant calculation)
+        if (budgetVM.budget != null && currentExpenses.isNotEmpty) {
+          await budgetVM.calculateBudgetRemaining(currentExpenses, monthId);
+          debugPrint(
+              '🏠 HomeScreen: Budget after recalculation exists: ${budgetVM.budget != null}');
+        }
 
         debugPrint(
             '🏠 HomeScreen: Refresh completed successfully - expenses count: ${expensesVM.expenses.length}');
 
-        // Force UI update
+        // Force UI update only if still mounted
         if (mounted) {
           setState(() {
             // Update UI with fresh data
