@@ -8,7 +8,6 @@ import '../../data/infrastructure/services/settings_service.dart';
 import '../../di/injection_container.dart' as di;
 import '../utils/app_theme.dart';
 import '../utils/app_constants.dart';
-import '../utils/dialog_utils.dart';
 import '../widgets/submit_button.dart';
 
 class WelcomeScreen extends StatefulWidget {

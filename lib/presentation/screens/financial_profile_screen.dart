@@ -5,11 +5,9 @@ import '../../domain/entities/user_behavior_profile.dart';
 import '../../domain/repositories/user_behavior_repository.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/custom_dropdown_field.dart';
-import '../widgets/custom_text_field.dart';
 import '../widgets/submit_button.dart';
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
-import '../utils/currency_formatter.dart';
 
 class FinancialProfileScreen extends StatefulWidget {
   final UserBehaviorProfile? existingProfile;

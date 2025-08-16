@@ -19,12 +19,9 @@ class GeminiApiClient {
   factory GeminiApiClient() => _instance;
   GeminiApiClient._internal();
 
-  // API Configuration
-  // static final String _baseUrl = kDebugMode
-  //     ? Platform.isAndroid
   //         ? 'http://10.0.2.2:8000'
   //         : 'http://localhost:8000'
-  //     : 'https://budgiefastapi.onrender.com'; // Replace with your production URL\
+
   static const String _baseUrl = 'https://budgiefastapi.onrender.com';
   static const String _apiVersion = 'v1';
   static const String _apiBaseUrl = '$_baseUrl/$_apiVersion';
