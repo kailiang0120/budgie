@@ -28,7 +28,7 @@ class LoadExpensesUseCase {
   }
 
   /// Load expenses from Firestore with pagination (deprecated - use local database instead)
-  @deprecated
+  @Deprecated('Load from local database instead; Firestore path retained for legacy compatibility.')
   Future<List<Expense>> loadFromFirestore({int pageSize = 50}) async {
     try {
       // This method is deprecated - use local database instead

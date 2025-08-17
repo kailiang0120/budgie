@@ -446,6 +446,7 @@ class BudgetReallocationService {
   }
 
   /// Calculate category utilization rates
+  // ignore: unused_element
   Map<String, double> _calculateCategoryUtilization(
     Budget budget,
     List<Expense> monthExpenses,

@@ -80,6 +80,7 @@ class ExpenseExtractionDomainService {
 
   // Business rules and configuration
   static const double _minimumConfidenceThreshold = 0.5;
+  // ignore: unused_field
   static const double _highConfidenceThreshold = 0.8;
   static const Duration _maxProcessingTime = Duration(seconds: 10);
 
@@ -198,9 +199,10 @@ class ExpenseExtractionDomainService {
       }
 
       // Step 2: Extract expense details using API
-      final notificationText = title.isNotEmpty && content.isNotEmpty
-          ? '$title: $content'
-          : (title.isNotEmpty ? title : content);
+    // ignore: unused_local_variable
+    final notificationText = title.isNotEmpty && content.isNotEmpty
+      ? '$title: $content'
+      : (title.isNotEmpty ? title : content);
 
       return await extractExpenseDetails(
         title: title,
@@ -352,6 +354,7 @@ class ExpenseExtractionDomainService {
   }
 
   /// Extract title from notification text (simple heuristic)
+  // ignore: unused_element
   String _extractTitleFromText(String notificationText) {
     // If text contains a colon, assume everything before it is the title
     if (notificationText.contains(':')) {

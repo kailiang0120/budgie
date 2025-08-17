@@ -911,14 +911,17 @@ class _GoalsScreenState extends State<GoalsScreen>
 
   Future<void> _allocateCustomAmount(BuildContext context,
       GoalsViewModel goalsViewModel, double amount) async {
+    // Capture context locally and guard with both State and BuildContext mounted
+    final ctx = context;
+
     final distribution =
         await goalsViewModel.previewCustomFundingDistribution(amount);
 
-    if (!mounted) return;
+    if (!mounted || !ctx.mounted) return;
 
     if (distribution.isEmpty) {
       DialogUtils.showInfoDialog(
-        context,
+        ctx,
         title: 'No Allocation Possible',
         message: 'Unable to allocate the specified amount to your goals.',
       );
@@ -926,28 +929,28 @@ class _GoalsScreenState extends State<GoalsScreen>
     }
 
     // Show enhanced funding preview dialog
-    if (!mounted) return;
+    if (!mounted || !ctx.mounted) return;
     showFundingPreviewDialog(
-      context: context,
+      context: ctx,
       availableSavings: amount,
       distribution: distribution,
       goals: goalsViewModel.goals,
       onConfirm: () async {
         final success =
             await goalsViewModel.allocateCustomSavingsToGoals(amount);
-        if (mounted) {
-          _showFundingResult(
-              context, success, amount, goalsViewModel.errorMessage);
-        }
+        if (!mounted || !ctx.mounted) return;
+        _showFundingResult(
+            ctx, success, amount, goalsViewModel.errorMessage);
       },
     );
   }
 
   void _showFundingResult(
       BuildContext context, bool success, double amount, String? errorMessage) {
-    if (!mounted) return;
+    final ctx = context;
+    if (!mounted || !ctx.mounted) return;
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
           content: Text(
               'Successfully allocated ${CurrencyFormatter.formatAmount(amount, 'MYR')} to your goals!'),
@@ -959,7 +962,7 @@ class _GoalsScreenState extends State<GoalsScreen>
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(ctx).showSnackBar(
         SnackBar(
           content: Text(errorMessage ?? 'Failed to allocate savings'),
           backgroundColor: AppTheme.errorColor,

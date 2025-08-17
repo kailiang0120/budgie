@@ -13,6 +13,7 @@ class RefreshBudgetUseCase {
   final BudgetRepository _budgetRepository;
   final ExpensesRepository _expensesRepository;
   final BudgetCalculationService _budgetCalculationService;
+  // ignore: unused_field
   final SettingsService _settingsService;
   final LoadBudgetUseCase _loadBudgetUseCase;
 

@@ -9,15 +9,13 @@ import '../local/database/app_database.dart';
 
 /// Implementation of GoalsRepository with local storage
 class GoalsRepositoryImpl implements GoalsRepository {
-  final LocalDataSource _localDataSource;
   final AppDatabase _database;
   final _uuid = const Uuid();
 
   GoalsRepositoryImpl({
     required LocalDataSource localDataSource,
     required AppDatabase database,
-  })  : _localDataSource = localDataSource,
-        _database = database;
+  })  : _database = database;
 
   @override
   Future<List<domain.FinancialGoal>> getActiveGoals() async {
@@ -66,7 +64,7 @@ class GoalsRepositoryImpl implements GoalsRepository {
         currentAmount: Value(goal.currentAmount),
         deadline: Value(goal.deadline),
         iconName: Value(goal.icon.name),
-        colorValue: Value(goal.icon.color.value.toString()),
+  colorValue: Value(goal.icon.color.toARGB32().toRadixString(16)),
         isCompleted: Value(goal.isCompleted),
         createdAt: Value(goal.createdAt),
         updatedAt: Value(DateTime.now()),
@@ -93,7 +91,7 @@ class GoalsRepositoryImpl implements GoalsRepository {
         currentAmount: Value(goal.currentAmount),
         deadline: Value(goal.deadline),
         iconName: Value(goal.icon.name),
-        colorValue: Value(goal.icon.color.value.toString()),
+  colorValue: Value(goal.icon.color.toARGB32().toRadixString(16)),
         isCompleted: Value(goal.isCompleted),
         createdAt: Value(goal.createdAt),
         updatedAt: Value(DateTime.now()),
@@ -138,7 +136,7 @@ class GoalsRepositoryImpl implements GoalsRepository {
         createdDate: Value(goal.createdAt),
         completedDate: Value(DateTime.now()),
         iconName: Value(goal.icon.name),
-        colorValue: Value(goal.icon.color.value.toString()),
+  colorValue: Value(goal.icon.color.toARGB32().toRadixString(16)),
         notes: Value(notes),
         updatedAt: Value(DateTime.now()),
       );

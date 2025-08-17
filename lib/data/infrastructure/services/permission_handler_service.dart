@@ -27,6 +27,7 @@ class PermissionHandlerService with WidgetsBindingObserver {
   bool _isMethodChannelReady = false;
 
   // Settings service reference
+  // ignore: unused_field
   late final SettingsService _settingsService;
 
   // Permission request tracking
@@ -487,6 +488,15 @@ class PermissionHandlerService with WidgetsBindingObserver {
           }
 
           if (Platform.isAndroid) {
+            // Ensure BuildContext is still valid before using it after async work
+            if (context == null || !context.mounted) {
+              return PermissionStatus(
+                isGranted: false,
+                feature: feature,
+                message:
+                    'Notification listener step skipped due to invalid context',
+              );
+            }
             final listenerGranted =
                 await requestNotificationListenerPermission(context);
             if (!listenerGranted) {
@@ -534,15 +544,22 @@ class PermissionHandlerService with WidgetsBindingObserver {
                 : 'Location permission denied',
           );
 
-        case PermissionFeature.all:
-          final notifications = await requestPermissionsForFeature(
-              PermissionFeature.notifications, context);
-          final storage = await requestPermissionsForFeature(
-              PermissionFeature.storage, context);
-          final camera = await requestPermissionsForFeature(
-              PermissionFeature.camera, context);
-          final location = await requestPermissionsForFeature(
-              PermissionFeature.location, context);
+    case PermissionFeature.all:
+      // Build all permission requests before any await to avoid using context across async gaps
+      final ctx = context; // capture locally
+      final notificationsFuture = requestPermissionsForFeature(
+        PermissionFeature.notifications, ctx);
+      final storageFuture =
+        requestPermissionsForFeature(PermissionFeature.storage, ctx);
+      final cameraFuture =
+        requestPermissionsForFeature(PermissionFeature.camera, ctx);
+      final locationFuture =
+        requestPermissionsForFeature(PermissionFeature.location, ctx);
+
+      final notifications = await notificationsFuture;
+      final storage = await storageFuture;
+      final camera = await cameraFuture;
+      final location = await locationFuture;
 
           final allGranted = notifications.isGranted &&
               storage.isGranted &&
@@ -786,6 +803,7 @@ class PermissionHandlerService with WidgetsBindingObserver {
   }
 
   /// Request a single permission and handle the UI flow
+  // ignore: unused_element
   Future<bool> _requestPermission(
       BuildContext context, Permission permission) async {
     try {
@@ -820,6 +838,7 @@ class PermissionHandlerService with WidgetsBindingObserver {
   }
 
   /// Check if notification listener service is enabled at OS level
+  // ignore: unused_element
   Future<bool> _checkNotificationListenerServiceEnabled() async {
     try {
       if (Platform.isAndroid) {

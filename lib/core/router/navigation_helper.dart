@@ -143,6 +143,7 @@ class NavigationHelper {
             '🔄 NavigationHelper: Profile details - Income: ${existingProfile.incomeStability.displayName}, Data consent: ${existingProfile.hasDataConsent}');
       }
 
+      if (!context.mounted) return null;
       return _navigate<T>(
         context,
         FinancialProfileScreen(
@@ -157,13 +158,16 @@ class NavigationHelper {
       debugPrint('❌ NavigationHelper: Error loading profile: $e');
 
       // Show error and navigate without existing profile
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading profile: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading profile: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
 
+      if (!context.mounted) return null;
       return _navigate<T>(
         context,
         FinancialProfileScreen(
@@ -219,13 +223,17 @@ extension NavigatorExtensions on BuildContext {
       case Routes.analytic:
         return const AnalyticScreen();
       case Routes.expenses:
-        return AddExpenseScreen(
-            prefilledData: arguments as Map<String, dynamic>?);
+    return AddExpenseScreen(
+      prefilledData:
+        arguments is Map<String, dynamic> ? arguments : null);
       case Routes.addExpense:
-        return AddExpenseScreen(
-            prefilledData: arguments as Map<String, dynamic>?);
+    return AddExpenseScreen(
+      prefilledData:
+        arguments is Map<String, dynamic> ? arguments : null);
       case Routes.editExpense:
-        return EditExpenseScreen(expense: arguments as Expense);
+    return EditExpenseScreen(
+      expense: arguments is Expense ? arguments :
+        (throw ArgumentError('EditExpense requires an Expense')));
       default:
         return Scaffold(
           body: Center(child: Text('No route defined for $routeName')),

@@ -14,7 +14,17 @@ class GoalIcon {
 
   /// Convert icon name and color value to a GoalIcon
   static GoalIcon fromNameAndColor(String iconName, String colorValue) {
-    final color = Color(int.parse(colorValue));
+    // Accept hex (e.g., ff2196f3 or 0xff2196f3) and decimal strings
+    final s = colorValue.trim().toLowerCase();
+    int? argb;
+    if (s.startsWith('0x')) {
+      argb = int.tryParse(s);
+    } else if (RegExp(r'^[0-9a-f]+$').hasMatch(s)) {
+      argb = int.tryParse(s, radix: 16);
+    } else {
+      argb = int.tryParse(s);
+    }
+  final color = Color(argb ?? Colors.blue.toARGB32());
     final icon = _getIconFromName(iconName);
     return GoalIcon(icon: icon, name: iconName, color: color);
   }
@@ -133,8 +143,8 @@ class GoalIcon {
   /// Convert to string representation for storage
   String get iconName => name;
 
-  /// Convert color to string representation for storage
-  String get colorValue => color.value.toString();
+  /// Convert color to hex string (ARGB) for storage (e.g., ff2196f3)
+  String get colorValue => color.toARGB32().toRadixString(16);
 }
 
 /// Financial goal entity

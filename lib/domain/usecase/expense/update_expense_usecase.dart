@@ -11,7 +11,9 @@ import '../../../data/infrastructure/services/settings_service.dart';
 class UpdateExpenseUseCase {
   final ExpensesRepository _expensesRepository;
   final RefreshBudgetUseCase _refreshBudgetUseCase;
+  // ignore: unused_field
   final ConnectivityService _connectivityService;
+  // ignore: unused_field
   final SettingsService _settingsService;
 
   UpdateExpenseUseCase({

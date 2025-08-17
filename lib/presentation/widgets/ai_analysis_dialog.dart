@@ -128,8 +128,10 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
           maxHeight: MediaQuery.of(context).size.height * 0.9,
           minHeight: MediaQuery.of(context).size.height * 0.6,
         ),
-        decoration: BoxDecoration(
-          color: Theme.of(context).dialogBackgroundColor.withValues(alpha: 1),
+  decoration: BoxDecoration(
+    color: (DialogTheme.of(context).backgroundColor ??
+      Theme.of(context).colorScheme.surface)
+        .withValues(alpha: 1),
           borderRadius: BorderRadius.circular(AppConstants.borderRadiusLarge.r),
         ),
         child: Column(
@@ -605,7 +607,10 @@ class _AIAnalysisDialogState extends State<AIAnalysisDialog>
                   BorderRadius.circular(AppConstants.borderRadiusMedium.r),
               boxShadow: [
                 BoxShadow(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.3),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),

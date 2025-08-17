@@ -35,8 +35,7 @@ class GoalFundingService {
     }
 
     // Distribute savings proportionally based on urgency scores
-    final distribution = <String, double>{};
-    double allocatedAmount = 0;
+  final distribution = <String, double>{};
 
     for (final goal in incompleteGoals) {
       final score = goalScores[goal.id]!;
@@ -47,8 +46,7 @@ class GoalFundingService {
       final maxNeeded = goal.amountRemaining;
       final finalAllocation = allocation > maxNeeded ? maxNeeded : allocation;
 
-      distribution[goal.id] = finalAllocation;
-      allocatedAmount += finalAllocation;
+  distribution[goal.id] = finalAllocation;
     }
 
     return distribution;

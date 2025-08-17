@@ -465,11 +465,12 @@ class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
   /// Build the list of providers
   List<SingleChildWidget> _buildProviders() {
     return [
-      ChangeNotifierProvider(create: (_) => di.sl<ThemeViewModel>()),
-      ChangeNotifierProvider(create: (_) => di.sl<ExpensesViewModel>()),
-      ChangeNotifierProvider(create: (_) => di.sl<BudgetViewModel>()),
-      ChangeNotifierProvider(create: (_) => di.sl<AnalysisViewModel>()),
-      ChangeNotifierProvider(create: (_) => di.sl<GoalsViewModel>()),
+      // Use .value to avoid Provider disposing GetIt-managed singletons
+      ChangeNotifierProvider.value(value: di.sl<ThemeViewModel>()),
+      ChangeNotifierProvider.value(value: di.sl<ExpensesViewModel>()),
+      ChangeNotifierProvider.value(value: di.sl<BudgetViewModel>()),
+      ChangeNotifierProvider.value(value: di.sl<AnalysisViewModel>()),
+      ChangeNotifierProvider.value(value: di.sl<GoalsViewModel>()),
     ];
   }
 
@@ -501,7 +502,7 @@ class _BudgieAppState extends State<BudgieApp> with WidgetsBindingObserver {
     return {
       Routes.home: (context) => MultiProvider(
             providers: [
-              ChangeNotifierProvider(create: (_) => di.sl<SettingsService>()),
+              ChangeNotifierProvider.value(value: di.sl<SettingsService>()),
             ],
             child: const HomeScreen(),
           ),

@@ -27,8 +27,10 @@ class GeminiApiClient {
   static const String _apiBaseUrl = '$_baseUrl/$_apiVersion';
 
   // Timeouts
+  // ignore: unused_field
   static const Duration _connectTimeout = Duration(seconds: 30);
   static const Duration _receiveTimeout = Duration(seconds: 180);
+  // ignore: unused_field
   static const Duration _sendTimeout = Duration(seconds: 60);
 
   // HTTP Client

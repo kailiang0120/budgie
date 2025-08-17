@@ -112,7 +112,6 @@ class CurrencyConversionService {
 
         // Notify user they're using cached data if offline
         if (!isConnected) {
-          final lastUpdate = await getLastUpdateTime();
           // UI should handle offline notification
           return {};
         }

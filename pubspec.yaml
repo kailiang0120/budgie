@@ -49,6 +49,7 @@ dependencies:
 
   # API and Network
   http: ^1.2.1
+  equatable: ^2.0.5
 
   # TensorFlow Lite for machine learning inference
   tflite_flutter: ^0.11.0

@@ -21,8 +21,10 @@ class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     // Special handling for expense screen (modal behavior)
     if (settings.name == Routes.expenses || settings.name == Routes.addExpense) {
-      // Handle prefilled data if provided
-      final prefilledData = settings.arguments as Map<String, dynamic>?;
+      // Handle prefilled data if provided (defensive)
+      final Object? args = settings.arguments;
+      final Map<String, dynamic>? prefilledData =
+          (args is Map) ? args.cast<String, dynamic>() : null;
       return PageTransition(
         child: AddExpenseScreen(prefilledData: prefilledData),
         type: TransitionType.slideAndFadeVertical,
@@ -34,7 +36,11 @@ class AppRouter {
 
     // Special handling for edit expense screen (modal behavior)
     if (settings.name == Routes.editExpense) {
-      final expense = settings.arguments as Expense;
+      final Object? args = settings.arguments;
+      if (args is! Expense) {
+        return _errorRoute(settings, 'Invalid or missing expense argument');
+      }
+      final expense = args;
       return PageTransition(
         child: EditExpenseScreen(expense: expense),
         type: TransitionType.slideAndFadeVertical,
@@ -153,43 +159,47 @@ class AppRouter {
         );
 
       default:
-        return PageTransition(
-          child: Scaffold(
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline,
-                    size: 64,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Page Not Found',
-                    style: navigatorKey.currentContext != null
-                        ? Theme.of(navigatorKey.currentContext!)
-                            .textTheme
-                            .headlineSmall
-                        : const TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'No route defined for ${settings.name}',
-                    style: navigatorKey.currentContext != null
-                        ? Theme.of(navigatorKey.currentContext!)
-                            .textTheme
-                            .bodyMedium
-                        : const TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          type: TransitionType.smoothFadeSlide,
-          settings: settings,
-        );
+        return _errorRoute(settings, 'No route defined for ${settings.name}');
     }
+  }
+
+  static Route<dynamic> _errorRoute(RouteSettings settings, String message) {
+    return PageTransition(
+      child: Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 64,
+                color: Colors.grey,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Page Not Found',
+                style: navigatorKey.currentContext != null
+                    ? Theme.of(navigatorKey.currentContext!)
+                        .textTheme
+                        .headlineSmall
+                    : const TextStyle(
+                        fontSize: 24, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                style: navigatorKey.currentContext != null
+                    ? Theme.of(navigatorKey.currentContext!)
+                        .textTheme
+                        .bodyMedium
+                    : const TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+        ),
+      ),
+      type: TransitionType.smoothFadeSlide,
+      settings: settings,
+    );
   }
 }
