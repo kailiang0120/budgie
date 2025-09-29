@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:budgie/domain/entities/category.dart';
 import 'package:flutter/foundation.dart';
 
@@ -8,87 +10,134 @@ import '../../../data/infrastructure/services/settings_service.dart';
 class CalculateExpenseTotalsUseCase {
   final SettingsService _settingsService;
 
+  String? _lastCacheKey;
+  Map<String, double> _cachedCategoryTotals = const <String, double>{};
+  UnmodifiableMapView<String, double> _cachedCategoryTotalsView =
+      _emptyUnmodifiableMap;
+  double _cachedTotal = 0.0;
+
+  static const Map<String, Map<String, double>> _fallbackRates = {
+    'MYR': {'USD': 0.21, 'EUR': 0.19, 'GBP': 0.17},
+    'USD': {'MYR': 4.73, 'EUR': 0.92, 'GBP': 0.79},
+    'EUR': {'MYR': 5.26, 'USD': 1.09, 'GBP': 0.86},
+    'GBP': {'MYR': 6.12, 'USD': 1.26, 'EUR': 1.16},
+  };
+
+  static final UnmodifiableMapView<String, double> _emptyUnmodifiableMap =
+      UnmodifiableMapView(const <String, double>{});
+
   CalculateExpenseTotalsUseCase({
     required SettingsService settingsService,
   }) : _settingsService = settingsService;
 
-  /// Get total expenses for the selected month by category with currency conversion
-  Future<Map<String, double>> getCategoryTotals(List<Expense> expenses) async {
+  Future<Map<String, double>> getCategoryTotals(List<Expense> expenses) {
     if (expenses.isEmpty) {
-      return {};
+      _resetCache(currency: _settingsService.currency, keySuffix: 'empty');
+      return SynchronousFuture(_emptyUnmodifiableMap);
     }
 
-    return await Future.microtask(() async {
-      final Map<String, double> result = {};
-      final String targetCurrency =
-          _settingsService.currency; // Use user's preferred currency
+    final String targetCurrency = _settingsService.currency;
+    final cacheKey = _buildCacheKey(expenses, targetCurrency);
 
-      // Use a converter to handle currency conversion
-      for (var expense in expenses) {
-        final String categoryId = expense.category.id;
-        double convertedAmount = expense.amount;
-
-        // If expense currency doesn't match target currency, convert it
-        if (expense.currency != targetCurrency) {
-          // Since currency conversion is async, we use cached rates or defaults
-          final conversionRate =
-              _getApproximateConversionRate(expense.currency, targetCurrency);
-          convertedAmount = expense.amount * conversionRate;
-        }
-
-        result[categoryId] = (result[categoryId] ?? 0) + convertedAmount;
-      }
-
-      return result;
-    });
-  }
-
-  /// Get total expenses for the selected month with currency conversion
-  Future<double> getTotalExpenses(List<Expense> expenses) async {
-    if (expenses.isEmpty) {
-      return 0.0;
+    if (_lastCacheKey != cacheKey) {
+      _refreshCache(expenses, cacheKey, targetCurrency);
     }
 
-    return await Future.microtask(() async {
-      final String targetCurrency = _settingsService.currency;
-      double total = 0.0;
-
-      for (var expense in expenses) {
-        if (expense.currency == targetCurrency) {
-          // No conversion needed
-          total += expense.amount;
-        } else {
-          // Convert currency
-          final conversionRate =
-              _getApproximateConversionRate(expense.currency, targetCurrency);
-          total += expense.amount * conversionRate;
-        }
-      }
-
-      return total;
-    });
+    return SynchronousFuture(_cachedCategoryTotalsView);
   }
 
-  /// Get approximate conversion rate for synchronous operations
+  Future<double> getTotalExpenses(List<Expense> expenses) {
+    if (expenses.isEmpty) {
+      _resetCache(currency: _settingsService.currency, keySuffix: 'empty');
+      return SynchronousFuture(0.0);
+    }
+
+    final String targetCurrency = _settingsService.currency;
+    final cacheKey = _buildCacheKey(expenses, targetCurrency);
+
+    if (_lastCacheKey != cacheKey) {
+      _refreshCache(expenses, cacheKey, targetCurrency);
+    }
+
+    return SynchronousFuture(_cachedTotal);
+  }
+
+  void _refreshCache(
+    List<Expense> expenses,
+    String cacheKey,
+    String targetCurrency,
+  ) {
+    final Map<String, double> categoryTotals = <String, double>{};
+    double total = 0.0;
+
+    for (final expense in expenses) {
+      final double convertedAmount = _convertAmount(expense, targetCurrency);
+      final String categoryId = expense.category.id;
+
+      categoryTotals[categoryId] =
+          (categoryTotals[categoryId] ?? 0.0) + convertedAmount;
+      total += convertedAmount;
+    }
+
+    _lastCacheKey = cacheKey;
+    _cachedCategoryTotals = categoryTotals;
+    _cachedCategoryTotalsView = UnmodifiableMapView(_cachedCategoryTotals);
+    _cachedTotal = total;
+  }
+
+  void _resetCache({
+    required String currency,
+    required String keySuffix,
+  }) {
+    _lastCacheKey = '$currency|$keySuffix';
+    _cachedCategoryTotals = const <String, double>{};
+    _cachedCategoryTotalsView = _emptyUnmodifiableMap;
+    _cachedTotal = 0.0;
+  }
+
+  double _convertAmount(Expense expense, String targetCurrency) {
+    if (expense.currency == targetCurrency) {
+      return expense.amount;
+    }
+
+    final rate = _getApproximateConversionRate(
+      expense.currency,
+      targetCurrency,
+    );
+    return expense.amount * rate;
+  }
+
   double _getApproximateConversionRate(String from, String to) {
-    // If currencies are the same, no conversion needed
     if (from == to) return 1.0;
 
-    // Simple hardcoded conversion rates for common currencies
-    final Map<String, Map<String, double>> rates = {
-      'MYR': {'USD': 0.21, 'EUR': 0.19, 'GBP': 0.17},
-      'USD': {'MYR': 4.73, 'EUR': 0.92, 'GBP': 0.79},
-      'EUR': {'MYR': 5.26, 'USD': 1.09, 'GBP': 0.86},
-      'GBP': {'MYR': 6.12, 'USD': 1.26, 'EUR': 1.16},
-    };
-
-    // Check if we have the conversion rate
-    if (rates.containsKey(from) && rates[from]!.containsKey(to)) {
-      return rates[from]![to]!;
+    final rate = _fallbackRates[from]?[to];
+    if (rate != null) {
+      return rate;
     }
 
-    // Fallback to default rate of 1.0
-    debugPrint('No conversion rate found for $from to $to, using 1.0');
+    if (kDebugMode) {
+      debugPrint('No conversion rate found for $from to $to, using 1.0');
+    }
     return 1.0;
+  }
+
+  String _buildCacheKey(List<Expense> expenses, String targetCurrency) {
+    final buffer = StringBuffer(targetCurrency)
+      ..write('|')
+      ..write(expenses.length);
+
+    for (final expense in expenses) {
+      buffer
+        ..write('|')
+        ..write(expense.id)
+        ..write('@')
+        ..write(expense.amount.toStringAsFixed(4))
+        ..write('#')
+        ..write(expense.date.microsecondsSinceEpoch)
+        ..write('%')
+        ..write(expense.currency);
+    }
+
+    return buffer.toString();
   }
 }

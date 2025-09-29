@@ -37,6 +37,7 @@ class SettingsService extends ChangeNotifier {
   // Services
   PermissionHandlerService? _permissionHandler;
   NotificationListenerService? _notificationListenerService;
+  SharedPreferences? _prefs;
 
   // Getters
   String get theme => _theme;
@@ -72,6 +73,17 @@ class SettingsService extends ChangeNotifier {
           'biometricEnabled': _biometricEnabled,
         },
       };
+
+  Future<SharedPreferences> _getPrefs() async {
+    final cached = _prefs;
+    if (cached != null) {
+      return cached;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    _prefs = prefs;
+    return prefs;
+  }
 
   Future<void> initialize({PermissionHandlerService? permissionHandler}) async {
     try {
@@ -129,7 +141,7 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> _loadSettings() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       _theme = prefs.getString(_themeKey) ?? 'light';
       _allowNotification = prefs.getBool(_allowNotificationKey) ?? false;
       _autoBudget = prefs.getBool(_autoBudgetKey) ?? false;
@@ -198,7 +210,7 @@ class SettingsService extends ChangeNotifier {
 
   Future<void> resetToDefaults() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       await prefs.clear();
       await _loadSettings();
       notifyListeners();
@@ -216,7 +228,7 @@ class SettingsService extends ChangeNotifier {
     try {
       final oldCurrency = _currency;
       _currency = newCurrency;
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       await prefs.setString(_currencyKey, newCurrency);
       if (kDebugMode) {
         debugPrint(
@@ -234,7 +246,7 @@ class SettingsService extends ChangeNotifier {
   Future<void> updateTheme(String newTheme) async {
     try {
       _theme = newTheme;
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       await prefs.setString(_themeKey, newTheme);
       notifyListeners();
       if (kDebugMode) {
@@ -271,7 +283,7 @@ class SettingsService extends ChangeNotifier {
 
       // Update the setting
       _allowNotification = enabled;
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       await prefs.setBool(_allowNotificationKey, enabled);
 
       // Manage notification listener based on setting
@@ -317,7 +329,7 @@ class SettingsService extends ChangeNotifier {
   Future<void> updateAutoBudgetSetting(bool enabled) async {
     try {
       _autoBudget = enabled;
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       await prefs.setBool(_autoBudgetKey, enabled);
       notifyListeners();
       if (kDebugMode) {
@@ -335,7 +347,7 @@ class SettingsService extends ChangeNotifier {
   Future<void> updateSyncSetting(bool enabled) async {
     try {
       _syncEnabled = enabled;
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       await prefs.setBool(_syncEnabledKey, enabled);
       notifyListeners();
       if (kDebugMode) {
@@ -361,7 +373,7 @@ class SettingsService extends ChangeNotifier {
         }
       }
       _locationEnabled = enabled;
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       await prefs.setBool(_locationEnabledKey, enabled);
       notifyListeners();
       if (kDebugMode) {
@@ -389,7 +401,7 @@ class SettingsService extends ChangeNotifier {
         }
       }
       _cameraEnabled = enabled;
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       await prefs.setBool(_cameraEnabledKey, enabled);
       notifyListeners();
       if (kDebugMode) {
@@ -417,7 +429,7 @@ class SettingsService extends ChangeNotifier {
         }
       }
       _storageEnabled = enabled;
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       await prefs.setBool(_storageEnabledKey, enabled);
       notifyListeners();
       if (kDebugMode) {
@@ -435,7 +447,7 @@ class SettingsService extends ChangeNotifier {
   Future<void> updateBiometricSetting(bool enabled) async {
     try {
       _biometricEnabled = enabled;
-      final prefs = await SharedPreferences.getInstance();
+      final prefs = await _getPrefs();
       await prefs.setBool(_biometricEnabledKey, enabled);
       notifyListeners();
       if (kDebugMode) {

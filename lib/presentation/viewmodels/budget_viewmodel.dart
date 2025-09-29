@@ -24,6 +24,9 @@ class BudgetViewModel extends ChangeNotifier {
   bool isLoading = false;
   String? errorMessage;
 
+  Future<void>? _activeLoad;
+  String? _activeLoadMonthId;
+
   BudgetViewModel({
     required BudgetRepository budgetRepository,
     required LoadBudgetUseCase loadBudgetUseCase,
@@ -42,25 +45,44 @@ class BudgetViewModel extends ChangeNotifier {
 
   /// Load budget for a specific month and check if currency conversion is needed
   Future<void> loadBudget(String monthId, {bool checkCurrency = false}) async {
-    // Avoid redundant loading if already in progress
-    if (isLoading) return;
-    
-    // Set loading state without notifying
+    if (_activeLoad != null) {
+      final pendingLoad = _activeLoad!;
+      final pendingMonth = _activeLoadMonthId;
+      await pendingLoad;
+      if (pendingMonth == monthId) {
+        return;
+      }
+    }
+
     isLoading = true;
     errorMessage = null;
+    notifyListeners();
 
+    final loadFuture =
+        _performBudgetLoad(monthId, checkCurrency: checkCurrency);
+    _activeLoad = loadFuture;
+    _activeLoadMonthId = monthId;
+
+    try {
+      await loadFuture;
+    } finally {
+      _activeLoad = null;
+      _activeLoadMonthId = null;
+    }
+  }
+
+  Future<void> _performBudgetLoad(String monthId,
+      {required bool checkCurrency}) async {
     try {
       final loadedBudget = await _loadBudgetUseCase.execute(monthId,
           checkCurrency: checkCurrency);
 
       if (budget != loadedBudget) {
         budget = loadedBudget;
-        isLoading = false;
-        notifyListeners();
-      } else {
-        // Just update loading state without notifying if budget didn't change
-        isLoading = false;
       }
+
+      isLoading = false;
+      notifyListeners();
     } catch (e, stackTrace) {
       final error = AppError.from(e, stackTrace);
       error.log();

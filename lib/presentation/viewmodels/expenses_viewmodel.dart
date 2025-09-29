@@ -32,16 +32,17 @@ class ExpensesViewModel extends ChangeNotifier
 
   List<Expense> _expenses = [];
   List<Expense> _filteredExpenses = [];
-  bool _isLoading = true;
+  bool _isLoading = false;
   String? _error;
   bool _isOffline = false;
+  Future<void>? _ongoingLoad;
 
   // Flag to prevent auto-reset of month filter when navigating between screens
   bool _persistFilter = true;
 
   // For date filtering
   DateTime _selectedMonth = DateTime.now();
-  bool _isFiltering = false;
+  bool _isFiltering = true;
   bool _isDayFiltering = false; // New flag for day-level filtering
 
   // Screen-specific filters
@@ -56,6 +57,13 @@ class ExpensesViewModel extends ChangeNotifier
 
   // Current filter mode (day, month, or year)
   FilterMode _filterMode = DateFilterMode.month;
+
+  static const Map<String, Map<String, double>> _fallbackConversionRates = {
+    'MYR': {'USD': 0.21, 'EUR': 0.19, 'GBP': 0.17},
+    'USD': {'MYR': 4.73, 'EUR': 0.92, 'GBP': 0.79},
+    'EUR': {'MYR': 5.26, 'USD': 1.09, 'GBP': 0.86},
+    'GBP': {'MYR': 6.12, 'USD': 1.26, 'EUR': 1.16},
+  };
 
   ExpensesViewModel({
     required ExpensesRepository expensesRepository,
@@ -111,15 +119,26 @@ class ExpensesViewModel extends ChangeNotifier
   }
 
   // Load expenses from local database
-  Future<void> _loadExpensesFromLocalDatabase() async {
-    // Avoid redundant loading if already in progress
-    if (_isLoading) return;
-    
+  Future<void> _loadExpensesFromLocalDatabase({bool force = false}) async {
+    if (_ongoingLoad != null) {
+      if (!force) {
+        return await _ongoingLoad!;
+      }
+      await _ongoingLoad;
+    }
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
-    await _loadExpensesWithRetry();
+    final loadFuture = _loadExpensesWithRetry();
+    _ongoingLoad = loadFuture;
+
+    try {
+      await loadFuture;
+    } finally {
+      _ongoingLoad = null;
+    }
   }
 
   /// Load expenses with retry mechanism
@@ -134,14 +153,13 @@ class ExpensesViewModel extends ChangeNotifier
         final localExpenses = await _expensesRepository.getExpenses();
 
         _expenses = localExpenses;
+        _filterExpensesUseCase.clearCache();
 
-        // Apply default filtering for current month
-        _isFiltering = true;
-        // Use the current _selectedMonth instead of forcing to 'home' screen filter
-        if (_selectedMonth == DateTime.now() || !_isFiltering) {
-          _selectedMonth = DateTime.now();
+        if (_isFiltering) {
+          _filterExpensesByMonth();
+        } else {
+          _filteredExpenses = _expenses;
         }
-        _filterExpensesByMonth();
 
         _isLoading = false;
         notifyListenersThrottled('expenses_loaded');
@@ -150,19 +168,17 @@ class ExpensesViewModel extends ChangeNotifier
           debugPrint(
               '✅ ExpensesViewModel: Successfully loaded ${_expenses.length} expenses');
         }
-        return; // Success, exit retry loop
+        return;
       } catch (e, stackTrace) {
         if (kDebugMode) {
           debugPrint('⚠️ ExpensesViewModel: Attempt ${attempt + 1} failed: $e');
         }
 
-        // Check if this is the last attempt
         if (attempt >= maxRetries - 1) {
           _handleError(e, stackTrace);
           return;
         }
 
-        // Wait before retrying, with exponential backoff
         final delay = Duration(milliseconds: 500 * (attempt + 1));
         if (kDebugMode) {
           debugPrint(
@@ -291,7 +307,7 @@ class ExpensesViewModel extends ChangeNotifier
       await _addExpenseUseCase.execute(expense);
 
       // Refresh the expenses list
-      await _loadExpensesFromLocalDatabase();
+      await _loadExpensesFromLocalDatabase(force: true);
     } catch (e, stackTrace) {
       _handleError(e, stackTrace);
     }
@@ -306,7 +322,7 @@ class ExpensesViewModel extends ChangeNotifier
       await _updateExpenseUseCase.execute(expense);
 
       // Refresh the expenses list
-      await _loadExpensesFromLocalDatabase();
+      await _loadExpensesFromLocalDatabase(force: true);
     } catch (e, stackTrace) {
       _handleError(e, stackTrace);
     }
@@ -321,7 +337,7 @@ class ExpensesViewModel extends ChangeNotifier
       await _deleteExpenseUseCase.execute(expenseId, expenseDate);
 
       // Refresh the expenses list
-      await _loadExpensesFromLocalDatabase();
+      await _loadExpensesFromLocalDatabase(force: true);
     } catch (e, stackTrace) {
       _handleError(e, stackTrace);
     }
@@ -399,7 +415,7 @@ class ExpensesViewModel extends ChangeNotifier
         double convertedAmount = expense.amount;
         if (expense.currency != currentCurrency) {
           // Use approximate conversion for display purposes
-          convertedAmount = await _convertCurrency(
+          convertedAmount = _convertCurrency(
               expense.amount, expense.currency, currentCurrency);
         }
 
@@ -414,19 +430,22 @@ class ExpensesViewModel extends ChangeNotifier
   }
 
   /// Simple currency conversion helper (can be enhanced with real-time rates)
-  Future<double> _convertCurrency(
-      double amount, String fromCurrency, String toCurrency) async {
-    if (fromCurrency == toCurrency) return amount;
+  double _convertCurrency(
+      double amount, String fromCurrency, String toCurrency) {
+    if (fromCurrency == toCurrency) {
+      return amount;
+    }
 
-    // Simple conversion rates for demonstration
-    const Map<String, Map<String, double>> rates = {
-      'MYR': {'USD': 0.21, 'EUR': 0.19, 'GBP': 0.17},
-      'USD': {'MYR': 4.73, 'EUR': 0.92, 'GBP': 0.79},
-      'EUR': {'MYR': 5.26, 'USD': 1.09, 'GBP': 0.86},
-      'GBP': {'MYR': 6.12, 'USD': 1.26, 'EUR': 1.16},
-    };
+    final rate = _fallbackConversionRates[fromCurrency]?[toCurrency];
 
-    final rate = rates[fromCurrency]?[toCurrency] ?? 1.0;
+    if (rate == null) {
+      if (kDebugMode) {
+        debugPrint(
+            '⚠️ ExpensesViewModel: Missing conversion rate for $fromCurrency -> $toCurrency, returning original amount');
+      }
+      return amount;
+    }
+
     return amount * rate;
   }
 
@@ -451,7 +470,7 @@ class ExpensesViewModel extends ChangeNotifier
         // Convert currency if needed
         double convertedAmount = expense.amount;
         if (expense.currency != currentCurrency) {
-          convertedAmount = await _convertCurrency(
+          convertedAmount = _convertCurrency(
               expense.amount, expense.currency, currentCurrency);
         }
 
@@ -563,7 +582,7 @@ class ExpensesViewModel extends ChangeNotifier
       _filterExpensesUseCase.clearCache();
 
       // Load fresh data from database
-      await _loadExpensesFromLocalDatabase();
+      await _loadExpensesFromLocalDatabase(force: true);
 
       // Reapply current filter if active
       if (_isFiltering) {
@@ -583,5 +602,4 @@ class ExpensesViewModel extends ChangeNotifier
       notifyListeners();
     }
   }
-
 }

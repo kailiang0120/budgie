@@ -3,8 +3,6 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/constants/routes.dart';
-import '../../core/router/page_transition.dart';
 import '../../domain/entities/financial_goal.dart';
 import '../../presentation/viewmodels/goals_viewmodel.dart';
 import '../../di/injection_container.dart' as di;
@@ -19,7 +17,6 @@ import '../utils/dialog_utils.dart';
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
 import '../utils/currency_formatter.dart';
-import 'add_expense_screen.dart';
 
 class GoalsScreen extends StatefulWidget {
   const GoalsScreen({super.key});
@@ -30,6 +27,8 @@ class GoalsScreen extends StatefulWidget {
 
 class _GoalsScreenState extends State<GoalsScreen>
     with SingleTickerProviderStateMixin {
+  static const int _maxActiveGoals = 3;
+
   bool _loading = false;
   late TabController _tabController;
   late GoalsViewModel _goalsViewModel;
@@ -74,7 +73,7 @@ class _GoalsScreenState extends State<GoalsScreen>
         context,
         title: 'Goal Limit Reached',
         message:
-            'You can only have 3 active goals at a time. Please complete or delete an existing goal before adding a new one.',
+            "You can only have $_maxActiveGoals active goals at a time. Please complete or delete an existing goal before adding a new one.",
       );
       return;
     }
@@ -93,39 +92,44 @@ class _GoalsScreenState extends State<GoalsScreen>
       value: _goalsViewModel,
       child: Consumer<GoalsViewModel>(
         builder: (context, goalsViewModel, _) {
+          final isBusy = _loading || goalsViewModel.isLoading;
+          final canShowFab =
+              !isBusy && goalsViewModel.goals.length < _maxActiveGoals;
+
           return Scaffold(
             backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             appBar: _buildAppBar(context),
-            body: _loading || goalsViewModel.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _buildActiveGoalsTab(goalsViewModel),
-                      _buildHistoryTab(goalsViewModel),
-                    ],
-                  ),
-            extendBody: true,
-            floatingActionButton: AnimatedFloatButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  PageTransition(
-                    child: const AddExpenseScreen(),
-                    type: TransitionType.fadeAndSlideUp,
-                    settings: const RouteSettings(name: Routes.expenses),
-                  ),
-                );
-              },
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              shape: const CircleBorder(),
-              enableFeedback: true,
-              reactToRouteChange: true,
-              child: Icon(Icons.add,
-                  color: Theme.of(context).colorScheme.onPrimary),
+            body: SafeArea(
+              child: isBusy
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    )
+                  : TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildActiveGoalsTab(goalsViewModel),
+                        _buildHistoryTab(goalsViewModel),
+                      ],
+                    ),
             ),
+            extendBody: true,
+            floatingActionButton: canShowFab
+                ? AnimatedFloatButton(
+                    onPressed: _showAddGoalDialog,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    shape: const CircleBorder(),
+                    enableFeedback: true,
+                    reactToRouteChange: true,
+                    child: Icon(
+                      Icons.flag_rounded,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                  )
+                : null,
             floatingActionButtonLocation:
-                FloatingActionButtonLocation.centerDocked,
+                canShowFab ? FloatingActionButtonLocation.centerDocked : null,
             bottomNavigationBar: BottomNavBar(
               currentIndex: 2, // Goals tab
               onTap: (idx) {
@@ -215,7 +219,8 @@ class _GoalsScreenState extends State<GoalsScreen>
             _buildFinancialGoalsList(context, goalsViewModel),
 
             // Add Goal Button (if under limit)
-            if (goalsViewModel.goals.length < 3) _buildAddGoalSection(),
+            if (goalsViewModel.goals.length < _maxActiveGoals)
+              _buildAddGoalSection(),
 
             SizedBox(height: AppConstants.bottomPaddingWithNavBar),
           ],
@@ -401,7 +406,7 @@ class _GoalsScreenState extends State<GoalsScreen>
                               AppConstants.borderRadiusLarge),
                         ),
                         child: Text(
-                          '${goalsViewModel.goals.length}/3 Goals',
+                          '${goalsViewModel.goals.length}/$_maxActiveGoals Goals',
                           style: TextStyle(
                             fontSize: AppConstants.textSizeSmall,
                             fontWeight: FontWeight.w600,
@@ -939,8 +944,7 @@ class _GoalsScreenState extends State<GoalsScreen>
         final success =
             await goalsViewModel.allocateCustomSavingsToGoals(amount);
         if (!mounted || !ctx.mounted) return;
-        _showFundingResult(
-            ctx, success, amount, goalsViewModel.errorMessage);
+        _showFundingResult(ctx, success, amount, goalsViewModel.errorMessage);
       },
     );
   }
