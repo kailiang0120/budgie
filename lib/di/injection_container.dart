@@ -267,6 +267,8 @@ Future<void> init() async {
         completeGoalUseCase: sl(),
         canAddGoalUseCase: sl(),
         allocateSavingsUseCase: sl(),
+        userBehaviorRepository: sl(),
+        notificationService: sl(),
       ));
   sl.registerLazySingleton(() => ThemeViewModel(settingsService: sl()));
   sl.registerLazySingleton(() => AnalysisViewModel(

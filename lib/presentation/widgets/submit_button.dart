@@ -21,6 +21,8 @@ class SubmitButton extends StatelessWidget {
   final double? width;
 
   final double height;
+  
+  final bool enabled;
 
   const SubmitButton({
     super.key,
@@ -33,17 +35,19 @@ class SubmitButton extends StatelessWidget {
     this.icon,
     this.width,
     this.height = 45.0,
+    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final effectiveColor = color ?? AppTheme.primaryColor;
+    final isButtonEnabled = enabled && !isLoading;
 
     return SizedBox(
       width: width?.w,
       height: height.h,
       child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
+        onPressed: isButtonEnabled ? onPressed : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: effectiveColor,
           disabledBackgroundColor: effectiveColor

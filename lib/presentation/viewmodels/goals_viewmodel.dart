@@ -1,10 +1,14 @@
 import 'package:uuid/uuid.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../../domain/entities/financial_goal.dart';
+import '../../domain/entities/user_behavior_profile.dart';
+import '../../domain/repositories/user_behavior_repository.dart';
 import '../../domain/usecase/goals/get_goals_usecase.dart';
 import '../../domain/usecase/goals/manage_goals_usecase.dart';
 import '../../domain/usecase/goals/allocate_savings_to_goals_usecase.dart';
+import '../../data/infrastructure/services/notification_service.dart';
 
 /// ViewModel for financial goals
 class GoalsViewModel extends ChangeNotifier {
@@ -17,6 +21,10 @@ class GoalsViewModel extends ChangeNotifier {
   final CompleteGoalUseCase _completeGoalUseCase;
   final CanAddGoalUseCase _canAddGoalUseCase;
   final AllocateSavingsToGoalsUseCase _allocateSavingsUseCase;
+  final UserBehaviorRepository _userBehaviorRepository;
+  final NotificationService _notificationService;
+
+  static const String _defaultUserId = 'guest_user';
 
   final _uuid = const Uuid();
 
@@ -26,6 +34,10 @@ class GoalsViewModel extends ChangeNotifier {
   String? _errorMessage;
   double _availableSavings = 0.0;
   bool _isFundingGoals = false;
+  UserBehaviorProfile? _behaviorProfile;
+  List<GoalRecommendation> _goalRecommendations = [];
+  final Set<String> _notifiedGoalIds = <String>{};
+  bool _initialized = false;
 
   GoalsViewModel({
     required GetGoalsUseCase getGoalsUseCase,
@@ -37,6 +49,8 @@ class GoalsViewModel extends ChangeNotifier {
     required CompleteGoalUseCase completeGoalUseCase,
     required CanAddGoalUseCase canAddGoalUseCase,
     required AllocateSavingsToGoalsUseCase allocateSavingsUseCase,
+    required UserBehaviorRepository userBehaviorRepository,
+    required NotificationService notificationService,
   })  : _getGoalsUseCase = getGoalsUseCase,
         _getGoalHistoryUseCase = getGoalHistoryUseCase,
         _getGoalByIdUseCase = getGoalByIdUseCase,
@@ -45,7 +59,9 @@ class GoalsViewModel extends ChangeNotifier {
         _deleteGoalUseCase = deleteGoalUseCase,
         _completeGoalUseCase = completeGoalUseCase,
         _canAddGoalUseCase = canAddGoalUseCase,
-        _allocateSavingsUseCase = allocateSavingsUseCase;
+        _allocateSavingsUseCase = allocateSavingsUseCase,
+        _userBehaviorRepository = userBehaviorRepository,
+        _notificationService = notificationService;
 
   // Getters
   List<FinancialGoal> get goals => _goals;
@@ -57,19 +73,40 @@ class GoalsViewModel extends ChangeNotifier {
   double get availableSavings => _availableSavings;
   bool get isFundingGoals => _isFundingGoals;
   bool get hasSavingsToAllocate => _availableSavings > 0;
+  UserBehaviorProfile? get behaviorProfile => _behaviorProfile;
+  List<GoalRecommendation> get goalRecommendations =>
+      List.unmodifiable(_goalRecommendations);
 
   // Initialize the view model
-  Future<void> init() async {
+  Future<void> init({bool force = false}) async {
+    if (_isLoading) {
+      return;
+    }
+
+    if (!force && _initialized) {
+      await _loadBehaviorProfile();
+      await loadAvailableSavings(notify: false);
+      _refreshGoalRecommendations(notify: true);
+      await _scheduleGoalReminders();
+      return;
+    }
+
+    await _loadBehaviorProfile();
     await loadGoals();
     await loadGoalHistory();
-    await loadAvailableSavings();
+    _refreshGoalRecommendations(notify: true);
+    await _scheduleGoalReminders();
+    _initialized = true;
   }
 
   // Load available savings
-  Future<void> loadAvailableSavings() async {
+  Future<void> loadAvailableSavings({bool notify = true}) async {
     try {
       _availableSavings = await _allocateSavingsUseCase.getAvailableSavings();
-      notifyListeners();
+      if (notify) {
+        _refreshGoalRecommendations();
+        notifyListeners();
+      }
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Error loading available savings: $e');
@@ -165,6 +202,9 @@ class GoalsViewModel extends ChangeNotifier {
 
     try {
       _goals = await _getGoalsUseCase.execute();
+      await loadAvailableSavings(notify: false);
+      _refreshGoalRecommendations();
+      await _scheduleGoalReminders();
       notifyListeners();
     } catch (e) {
       _setError('Failed to load goals: $e');
@@ -186,6 +226,251 @@ class GoalsViewModel extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  Future<void> _loadBehaviorProfile() async {
+    try {
+      _behaviorProfile =
+          await _userBehaviorRepository.getUserBehaviorProfile(_defaultUserId);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Failed to load behavior profile: $e');
+      }
+    }
+  }
+
+  void _refreshGoalRecommendations({bool notify = false}) {
+    final profile = _behaviorProfile;
+    final List<GoalRecommendation> recommendations = [];
+
+    if (profile != null) {
+      final emergency = _buildEmergencyFundRecommendation(profile);
+      if (emergency != null) {
+        recommendations.add(emergency);
+      }
+
+      final investment = _buildInvestmentRecommendation(profile);
+      if (investment != null) {
+        recommendations.add(investment);
+      }
+
+      final debt = _buildDebtReductionRecommendation(profile);
+      if (debt != null) {
+        recommendations.add(debt);
+      }
+
+      if (recommendations.isEmpty) {
+        final savingsBoost = _buildSavingsHabitRecommendation(profile);
+        if (savingsBoost != null) {
+          recommendations.add(savingsBoost);
+        }
+      }
+    } else if (_goals.isEmpty) {
+      recommendations.add(GoalRecommendation(
+        id: 'starter-savings',
+        title: 'Starter Savings Goal',
+        description:
+            'Set aside a small starter fund to build momentum for your savings journey.',
+        suggestedAmount: 1000,
+        suggestedDuration: const Duration(days: 90),
+        icon: GoalIcon(
+          icon: Icons.savings,
+          name: 'savings',
+          color: Colors.blueAccent,
+        ),
+        rationale:
+            'Create your first goal so Budgie can help you stay accountable.',
+      ));
+    }
+
+    _goalRecommendations = recommendations.take(3).toList();
+
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  Future<void> _scheduleGoalReminders() async {
+    if (_goals.isEmpty) {
+      return;
+    }
+
+    for (final goal in _goals) {
+      if (goal.isCompleted) {
+        continue;
+      }
+
+      final daysRemaining = goal.daysRemaining;
+      if (daysRemaining < 0 || daysRemaining > 7) {
+        continue;
+      }
+
+      if (_notifiedGoalIds.contains(goal.id)) {
+        continue;
+      }
+
+      final success = await _notificationService.sendReminderNotification(
+        title: 'Goal reminder',
+        message: daysRemaining == 0
+            ? '"${goal.title}" is due today. You are ${goal.progressPercentage}% of the way there!'
+            : '"${goal.title}" is due in $daysRemaining day${daysRemaining == 1 ? '' : 's'}. You are ${goal.progressPercentage}% complete.',
+        payload: 'goal:${goal.id}',
+      );
+
+      if (success) {
+        _notifiedGoalIds.add(goal.id);
+      }
+    }
+  }
+
+  GoalRecommendation? _buildEmergencyFundRecommendation(
+      UserBehaviorProfile profile) {
+    if (_hasGoalWithKeyword('emergency')) {
+      return null;
+    }
+
+    int baseMonths;
+    switch (profile.incomeStability) {
+      case IncomeStability.irregular:
+        baseMonths = 6;
+        break;
+      case IncomeStability.variable:
+        baseMonths = 4;
+        break;
+      case IncomeStability.stable:
+        baseMonths = 3;
+        break;
+    }
+
+    if (profile.financialStressLevel == FinancialStressLevel.high) {
+      baseMonths += 1;
+    }
+
+    if (profile.savingHabit == SavingHabit.never) {
+      baseMonths = (baseMonths / 2).ceil();
+    }
+
+    final months = baseMonths.clamp(2, 6);
+    final amount = (months * 1200).toDouble();
+
+    return GoalRecommendation(
+      id: 'emergency-fund',
+      title: 'Emergency Fund Boost',
+      description:
+          'Build a reserve covering $months months of essential expenses to steady your ${profile.incomeStability.displayName.toLowerCase()} income.',
+      suggestedAmount: amount,
+      suggestedDuration: Duration(days: months * 30),
+      icon: GoalIcon(
+        icon: Icons.emergency,
+        name: 'emergency',
+        color: Colors.deepOrangeAccent,
+      ),
+      rationale:
+          'Recommended because your financial stress level is ${profile.financialStressLevel.displayName.toLowerCase()} and your saving habit is ${profile.savingHabit.displayName.toLowerCase()}.',
+    );
+  }
+
+  GoalRecommendation? _buildInvestmentRecommendation(
+      UserBehaviorProfile profile) {
+    final isInvestmentFocused =
+        profile.financialPriority == FinancialPriority.investing ||
+            profile.riskAppetite == RiskAppetite.high;
+    if (!isInvestmentFocused) {
+      return null;
+    }
+
+    if (_hasGoalWithKeyword('invest')) {
+      return null;
+    }
+
+    final target = profile.riskAppetite == RiskAppetite.high ? 8000 : 5000;
+    final months = profile.financialLiteracyLevel.index >=
+            FinancialLiteracyLevel.intermediate.index
+        ? 6
+        : 9;
+
+    return GoalRecommendation(
+      id: 'investment-boost',
+      title: 'Investment Booster',
+      description:
+          'Set aside capital for future investments that match your ${profile.riskAppetite.displayName.toLowerCase()} risk appetite.',
+      suggestedAmount: target.toDouble(),
+      suggestedDuration: Duration(days: months * 30),
+      icon: GoalIcon(
+        icon: Icons.trending_up,
+        name: 'investment',
+        color: Colors.teal,
+      ),
+      rationale:
+          'Suggested because you prioritise investing and are comfortable with ${profile.riskAppetite.displayName.toLowerCase()} risk.',
+    );
+  }
+
+  GoalRecommendation? _buildDebtReductionRecommendation(
+      UserBehaviorProfile profile) {
+    if (profile.financialPriority != FinancialPriority.debtRepayment &&
+        profile.financialStressLevel == FinancialStressLevel.low) {
+      return null;
+    }
+
+    if (_hasGoalWithKeyword('debt') || _hasGoalWithKeyword('loan')) {
+      return null;
+    }
+
+    final amount = profile.financialStressLevel == FinancialStressLevel.high
+        ? 4000.0
+        : 2500.0;
+    final months =
+        profile.financialStressLevel == FinancialStressLevel.high ? 4 : 6;
+
+    return GoalRecommendation(
+      id: 'debt-relief',
+      title: 'Debt Fast-Track',
+      description:
+          'Allocate a focused lump sum to knock out high-interest debt and reduce stress.',
+      suggestedAmount: amount,
+      suggestedDuration: Duration(days: months * 30),
+      icon: GoalIcon(
+        icon: Icons.credit_score,
+        name: 'debt',
+        color: Colors.redAccent,
+      ),
+      rationale:
+          'Recommended because your priority leans toward debt repayment or you reported elevated financial stress.',
+    );
+  }
+
+  GoalRecommendation? _buildSavingsHabitRecommendation(
+      UserBehaviorProfile profile) {
+    if (profile.savingHabit == SavingHabit.regular &&
+        profile.financialStressLevel == FinancialStressLevel.low) {
+      return null;
+    }
+
+    if (_hasGoalWithKeyword('savings') || _hasGoalWithKeyword('buffer')) {
+      return null;
+    }
+
+    return GoalRecommendation(
+      id: 'habit-builder',
+      title: 'Monthly Savings Habit',
+      description:
+          'Automate small monthly contributions to reinforce consistent saving behaviour.',
+      suggestedAmount: 1200.0,
+      suggestedDuration: const Duration(days: 120),
+      icon: GoalIcon(
+        icon: Icons.auto_graph,
+        name: 'habit',
+        color: Colors.indigoAccent,
+      ),
+      rationale:
+          'Designed to strengthen your savings habit based on your current responses.',
+    );
+  }
+
+  bool _hasGoalWithKeyword(String keyword) {
+    final lower = keyword.toLowerCase();
+    return _goals.any((goal) => goal.title.toLowerCase().contains(lower));
   }
 
   // Get a goal by ID
@@ -351,4 +636,26 @@ class GoalsViewModel extends ChangeNotifier {
   void _clearError() {
     _errorMessage = null;
   }
+}
+
+class GoalRecommendation {
+  final String id;
+  final String title;
+  final String description;
+  final double suggestedAmount;
+  final Duration suggestedDuration;
+  final GoalIcon icon;
+  final String rationale;
+
+  const GoalRecommendation({
+    required this.id,
+    required this.title,
+    required this.description,
+    required this.suggestedAmount,
+    required this.suggestedDuration,
+    required this.icon,
+    required this.rationale,
+  });
+
+  DateTime get suggestedDeadline => DateTime.now().add(suggestedDuration);
 }

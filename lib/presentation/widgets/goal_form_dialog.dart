@@ -12,6 +12,18 @@ class GoalFormDialog extends StatefulWidget {
   /// Goal to edit (null for new goal)
   final FinancialGoal? goal;
 
+  /// Prefill title when using a recommendation template
+  final String? initialTitle;
+
+  /// Prefill target amount when using a recommendation template
+  final double? initialTargetAmount;
+
+  /// Prefill deadline when using a recommendation template
+  final DateTime? initialDeadline;
+
+  /// Prefill icon when using a recommendation template
+  final GoalIcon? initialIcon;
+
   /// Callback when goal is saved
   final Function(FinancialGoal) onSave;
 
@@ -19,6 +31,10 @@ class GoalFormDialog extends StatefulWidget {
   const GoalFormDialog({
     super.key,
     this.goal,
+    this.initialTitle,
+    this.initialTargetAmount,
+    this.initialDeadline,
+    this.initialIcon,
     required this.onSave,
   });
 
@@ -47,13 +63,24 @@ class _GoalFormDialogState extends State<GoalFormDialog> {
       _deadline = widget.goal!.deadline;
       _selectedIcon = widget.goal!.icon;
     } else {
+      if (widget.initialTitle != null) {
+        _titleController.text = widget.initialTitle!;
+      }
+      if (widget.initialTargetAmount != null) {
+        final amount = widget.initialTargetAmount!;
+        _amountController.text = amount % 1 == 0
+            ? amount.toStringAsFixed(0)
+            : amount.toStringAsFixed(2);
+      }
       // Default values for new goal
-      _deadline = DateTime.now().add(const Duration(days: 90));
-      _selectedIcon = GoalIcon(
-        icon: Icons.savings,
-        name: 'savings',
-        color: Colors.blue,
-      );
+      _deadline = widget.initialDeadline ??
+          DateTime.now().add(const Duration(days: 90));
+      _selectedIcon = widget.initialIcon ??
+          GoalIcon(
+            icon: Icons.savings,
+            name: 'savings',
+            color: Colors.blue,
+          );
     }
   }
 
@@ -257,6 +284,10 @@ class _GoalFormDialogState extends State<GoalFormDialog> {
 Future<void> showGoalFormDialog({
   required BuildContext context,
   FinancialGoal? goal,
+  String? initialTitle,
+  double? initialTargetAmount,
+  DateTime? initialDeadline,
+  GoalIcon? initialIcon,
   required Function(FinancialGoal) onSave,
 }) async {
   return showDialog<void>(
@@ -264,6 +295,10 @@ Future<void> showGoalFormDialog({
     builder: (BuildContext context) {
       return GoalFormDialog(
         goal: goal,
+        initialTitle: initialTitle,
+        initialTargetAmount: initialTargetAmount,
+        initialDeadline: initialDeadline,
+        initialIcon: initialIcon,
         onSave: onSave,
       );
     },

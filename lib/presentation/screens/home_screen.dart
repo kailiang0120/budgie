@@ -7,17 +7,26 @@ import 'package:provider/provider.dart';
 
 import '../viewmodels/expenses_viewmodel.dart';
 import '../viewmodels/budget_viewmodel.dart';
+import '../viewmodels/goals_viewmodel.dart';
 import '../widgets/expense_card.dart';
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/date_picker_button.dart';
 import '../widgets/animated_float_button.dart';
 import '../widgets/home_budget_card.dart';
+import '../widgets/custom_card.dart';
+import '../widgets/funding_preview_dialog.dart';
+import '../widgets/submit_button.dart';
 import '../utils/app_constants.dart';
+import '../utils/currency_formatter.dart';
+import '../utils/dialog_utils.dart';
+import '../utils/app_theme.dart';
 // Using theme from MaterialApp
 import 'add_expense_screen.dart';
 import 'add_budget_screen.dart';
 
 import '../../core/constants/routes.dart';
+import '../../domain/entities/financial_goal.dart';
+import '../../data/infrastructure/services/settings_service.dart';
 import '../../core/router/page_transition.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -47,6 +56,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
         // Auto refresh both expenses and budget when the home screen loads
         _refreshData();
+
+        Provider.of<GoalsViewModel>(context, listen: false).init();
 
         // Force budget refresh to ensure it's loaded
         final monthId = _getBudgetMonthId();
@@ -191,6 +202,266 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
   }
 
+  Widget _buildGoalsQuickAccessCard() {
+  return Consumer<GoalsViewModel>(
+    builder: (context, goalsVM, _) {
+      final hasGoals = goalsVM.goals.any((goal) => !goal.isCompleted);
+      final availableSavings = goalsVM.availableSavings;
+      final hasSavings = availableSavings > 0.0;
+
+      if (!hasGoals && !hasSavings) {
+        return const SizedBox.shrink();
+      }
+
+      final settings = Provider.of<SettingsService>(context, listen: false);
+      final currency = settings.currency;
+
+      final activeGoals = goalsVM.goals
+          .where((goal) => !goal.isCompleted)
+          .toList()
+        ..sort((a, b) => a.deadline.compareTo(b.deadline));
+
+      final FinancialGoal? upcomingGoal =
+          activeGoals.isNotEmpty ? activeGoals.first : null;
+      final GoalRecommendation? highlightedRecommendation =
+          goalsVM.goalRecommendations.isNotEmpty
+              ? goalsVM.goalRecommendations.first
+              : null;
+
+      final theme = Theme.of(context);
+      final accentColor = theme.colorScheme.primary;
+      final canAllocate = hasGoals && hasSavings;
+
+      return Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: AppConstants.spacingLarge.w,
+          vertical: AppConstants.spacingSmall.h,
+        ),
+        child: CustomCard(
+          child: Padding(
+            padding: AppConstants.containerPaddingLarge,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Goals Snapshot',
+                      style: TextStyle(
+                        fontSize: AppConstants.textSizeXLarge,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (hasGoals)
+                      Chip(
+                        label: Text(
+                          '${activeGoals.length} active',
+                          style: TextStyle(
+                            fontSize: AppConstants.textSizeXSmall,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        backgroundColor: theme.colorScheme.surfaceContainerHighest
+                            .withValues(alpha: AppConstants.opacityLow),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: AppConstants.spacingSmall.w,
+                        ),
+                      ),
+                  ],
+                ),
+                SizedBox(height: AppConstants.spacingMedium),
+                if (hasSavings && hasGoals)
+                  Text(
+                    'Available to allocate: ${CurrencyFormatter.formatAmount(availableSavings, currency)}',
+                    style: TextStyle(
+                      fontSize: AppConstants.textSizeMedium,
+                      fontWeight: FontWeight.w600,
+                      color: accentColor,
+                    ),
+                  )
+                else if (hasSavings)
+                  Text(
+                    'You have ${CurrencyFormatter.formatAmount(availableSavings, currency)} saved. Create a goal to put it to work.',
+                    style: TextStyle(
+                      fontSize: AppConstants.textSizeSmall,
+                      color: Colors.grey[600],
+                    ),
+                  )
+                else
+                  Text(
+                    'No surplus savings awaiting allocation. Keep tracking your budget to free up funds.',
+                    style: TextStyle(
+                      fontSize: AppConstants.textSizeSmall,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                if (upcomingGoal != null) ...[
+                  SizedBox(height: AppConstants.spacingMedium),
+                  Text(
+                    'Next focus: ${upcomingGoal.title}',
+                    style: TextStyle(
+                      fontSize: AppConstants.textSizeMedium,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: AppConstants.spacingXSmall),
+                  LinearProgressIndicator(
+                    value: upcomingGoal.progress,
+                    backgroundColor: Colors.grey[300],
+                    color: accentColor,
+                  ),
+                  SizedBox(height: AppConstants.spacingXSmall),
+                  Text(
+                    upcomingGoal.daysRemaining <= 0
+                        ? 'Deadline today - ${upcomingGoal.progressPercentage}% complete'
+                        : '${upcomingGoal.daysRemaining} day${upcomingGoal.daysRemaining == 1 ? '' : 's'} left - ${upcomingGoal.progressPercentage}% complete',
+                    style: TextStyle(
+                      fontSize: AppConstants.textSizeSmall,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+                if (highlightedRecommendation != null) ...[
+                  SizedBox(height: AppConstants.spacingMedium),
+                  Text(
+                    'Suggested next step: ${highlightedRecommendation.title}',
+                    style: TextStyle(
+                      fontSize: AppConstants.textSizeMedium,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  SizedBox(height: AppConstants.spacingXSmall),
+                  Text(
+                    highlightedRecommendation.description,
+                    style: TextStyle(
+                      fontSize: AppConstants.textSizeSmall,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+                SizedBox(height: AppConstants.spacingLarge),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isCompactLayout = constraints.maxWidth < 360.w;
+
+                    final allocateSavingsButton = SubmitButton(
+                      text: 'Allocate Savings',
+                      loadingText: 'Allocating...',
+                      isLoading: goalsVM.isFundingGoals,
+                      enabled: canAllocate,
+                      icon: Icons.auto_awesome,
+                      color: canAllocate
+                          ? AppTheme.successColor
+                          : theme.colorScheme.surfaceContainerHighest,
+                      height: 48,
+                      onPressed: () => _handleAllocateSavings(goalsVM),
+                    );
+
+                    final manageGoalsButton = SubmitButton(
+                      text: 'Manage Goals',
+                      isLoading: false,
+                      icon: Icons.flag_circle,
+                      color: theme.colorScheme.primary,
+                      height: 48,
+                      onPressed: () {
+                        Navigator.pushNamed(context, Routes.goals);
+                      },
+                    );
+
+                    if (isCompactLayout) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          allocateSavingsButton,
+                          SizedBox(height: AppConstants.spacingSmall.h),
+                          manageGoalsButton,
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        Expanded(child: allocateSavingsButton),
+                        SizedBox(width: AppConstants.spacingSmall.w),
+                        Expanded(child: manageGoalsButton),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      },
+    );
+  }
+
+  Future<void> _handleAllocateSavings(GoalsViewModel goalsVM) async {
+    if (!mounted || goalsVM.isFundingGoals) {
+      return;
+    }
+
+    if (goalsVM.availableSavings <= 0) {
+      DialogUtils.showInfoDialog(
+        context,
+        title: 'No Savings Available',
+        message:
+            'There are no surplus savings to allocate right now. Try refreshing after tracking new expenses or closing the month.',
+      );
+      return;
+    }
+
+    final distribution = await goalsVM.previewFundingDistribution();
+    if (!mounted) {
+      return;
+    }
+
+    if (distribution.isEmpty) {
+      DialogUtils.showInfoDialog(
+        context,
+        title: 'Allocation Not Required',
+        message:
+            'Great news! Your active goals are already fully funded with the current savings.',
+      );
+      return;
+    }
+
+    await showFundingPreviewDialog(
+      context: context,
+      availableSavings: goalsVM.availableSavings,
+      distribution: distribution,
+      goals: goalsVM.goals,
+      onConfirm: () async {
+        final success = await goalsVM.allocateSavingsToGoals();
+        if (!mounted) {
+          return;
+        }
+
+        final messenger = ScaffoldMessenger.of(context);
+        if (success) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: const Text('Savings allocated to your goals.'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+            ),
+          );
+          await goalsVM.init(force: true);
+          setState(() {});
+        } else {
+          messenger.showSnackBar(
+            SnackBar(
+              content:
+                  Text(goalsVM.errorMessage ?? 'Unable to allocate savings'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      },
+    );
+  }
+
   Widget _buildBudgetCard() {
     return Consumer<BudgetViewModel>(
       builder: (context, budgetVM, _) {
@@ -269,6 +540,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           debugPrint(
               '🏠 HomeScreen: Budget after recalculation exists: ${budgetVM.budget != null}');
         }
+
+        final goalsVM = Provider.of<GoalsViewModel>(context, listen: false);
+        await goalsVM.init(force: true);
 
         debugPrint(
             '🏠 HomeScreen: Refresh completed successfully - expenses count: ${expensesVM.expenses.length}');
@@ -366,6 +640,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     sliver: SliverToBoxAdapter(
                       child: _buildFilterSection(),
                     ),
+                  ),
+
+                  // Goals & savings quick access
+                  SliverToBoxAdapter(
+                    child: _buildGoalsQuickAccessCard(),
                   ),
 
                   // Budget Card
@@ -477,3 +756,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 }
+
+
+
+
+
+

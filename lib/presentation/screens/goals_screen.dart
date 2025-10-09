@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../domain/entities/financial_goal.dart';
 import '../../presentation/viewmodels/goals_viewmodel.dart';
+import '../../data/infrastructure/services/settings_service.dart';
 import '../../di/injection_container.dart' as di;
 import '../widgets/bottom_nav_bar.dart';
 import '../widgets/animated_float_button.dart';
@@ -53,7 +54,7 @@ class _GoalsScreenState extends State<GoalsScreen>
     });
 
     try {
-      await _goalsViewModel.init();
+      await _goalsViewModel.init(force: true);
     } catch (e) {
       debugPrint('Error loading goals data: $e');
     } finally {
@@ -73,7 +74,7 @@ class _GoalsScreenState extends State<GoalsScreen>
         context,
         title: 'Goal Limit Reached',
         message:
-            "You can only have $_maxActiveGoals active goals at a time. Please complete or delete an existing goal before adding a new one.",
+            'You can only have $_maxActiveGoals active goals at a time. Please complete or delete an existing goal before adding a new one.',
       );
       return;
     }
@@ -195,7 +196,7 @@ class _GoalsScreenState extends State<GoalsScreen>
 
     return RefreshIndicator(
       onRefresh: () async {
-        await goalsViewModel.init();
+        await goalsViewModel.init(force: true);
       },
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -206,6 +207,11 @@ class _GoalsScreenState extends State<GoalsScreen>
 
             // Statistics Overview Section
             _buildStatisticsSection(context, goalsViewModel),
+
+            SizedBox(height: AppConstants.spacingMedium),
+
+            // Tailored recommendations
+            _buildRecommendationsSection(context, goalsViewModel),
 
             SizedBox(height: AppConstants.spacingMedium),
 
@@ -653,6 +659,188 @@ class _GoalsScreenState extends State<GoalsScreen>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildRecommendationsSection(
+      BuildContext context, GoalsViewModel goalsViewModel) {
+    final recommendations = goalsViewModel.goalRecommendations;
+    if (recommendations.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final currency = di.sl<SettingsService>().currency;
+
+    return Padding(
+      padding: AppConstants.screenPaddingHorizontal,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Recommended For You',
+            style: TextStyle(
+              fontSize: AppConstants.textSizeXLarge,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: AppConstants.spacingMedium),
+          ...recommendations.map((recommendation) {
+            final deadline =
+                DateTime.now().add(recommendation.suggestedDuration);
+            final months =
+                (recommendation.suggestedDuration.inDays / 30).round();
+            return Padding(
+              padding: AppConstants.cardMarginStandard,
+              child: CustomCard(
+                child: Padding(
+                  padding: AppConstants.containerPaddingLarge,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(AppConstants.spacingMedium),
+                            decoration: BoxDecoration(
+                              color: recommendation.icon.color.withValues(
+                                  alpha: AppConstants.opacityOverlay),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              recommendation.icon.icon,
+                              color: recommendation.icon.color,
+                              size: AppConstants.iconSizeLarge,
+                            ),
+                          ),
+                          SizedBox(width: AppConstants.spacingMedium),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  recommendation.title,
+                                  style: TextStyle(
+                                    fontSize: AppConstants.textSizeLarge,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                SizedBox(height: AppConstants.spacingXSmall),
+                                Text(
+                                  recommendation.description,
+                                  style: TextStyle(
+                                    fontSize: AppConstants.textSizeSmall,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: AppConstants.spacingMedium),
+                      Wrap(
+                        spacing: AppConstants.spacingSmall,
+                        runSpacing: AppConstants.spacingSmall,
+                        children: [
+                          Chip(
+                            label: Text(
+                              'Target: ${CurrencyFormatter.formatAmount(recommendation.suggestedAmount, currency)}',
+                              style: TextStyle(
+                                fontSize: AppConstants.textSizeXSmall,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Chip(
+                            label: Text(
+                              'Timeline: ${months <= 1 ? '1 month' : '$months months'}',
+                              style: TextStyle(
+                                fontSize: AppConstants.textSizeXSmall,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Chip(
+                            label: Text(
+                              'Suggested deadline: ${DateFormat('MMM yyyy').format(deadline)}',
+                              style: TextStyle(
+                                fontSize: AppConstants.textSizeXSmall,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: AppConstants.spacingMedium),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => _showRecommendationDetails(
+                                context,
+                                recommendation,
+                              ),
+                              child: const Text('Why this suggestion?'),
+                            ),
+                          ),
+                          SizedBox(width: AppConstants.spacingSmall),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () =>
+                                  _applyRecommendationTemplate(recommendation),
+                              child: const Text('Use Template'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  void _showRecommendationDetails(
+      BuildContext context, GoalRecommendation recommendation) {
+    DialogUtils.showInfoDialog(
+      context,
+      title: recommendation.title,
+      message: recommendation.rationale,
+    );
+  }
+
+  Future<void> _applyRecommendationTemplate(
+      GoalRecommendation recommendation) async {
+    final suggestedDeadline =
+        DateTime.now().add(recommendation.suggestedDuration);
+
+    await showGoalFormDialog(
+      context: context,
+      initialTitle: recommendation.title,
+      initialTargetAmount: recommendation.suggestedAmount,
+      initialDeadline: suggestedDeadline,
+      initialIcon: recommendation.icon,
+      onSave: (goal) async {
+        final success = await _goalsViewModel.saveGoal(goal);
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              success
+                  ? 'Goal "${goal.title}" created from template.'
+                  : 'Unable to create goal from template.',
+            ),
+            backgroundColor: success
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.error,
+          ),
+        );
+      },
     );
   }
 
