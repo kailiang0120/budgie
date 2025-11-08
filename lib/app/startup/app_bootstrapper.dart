@@ -30,9 +30,6 @@ class AppBootstrapper {
 
     await di.init();
 
-    // Don't wait for database here - it will open lazily when needed
-    // This reduces startup time significantly
-    
     await _primeSettings();
 
     if (kDebugMode) {
@@ -68,21 +65,6 @@ class AppBootstrapper {
 
   /// Schedules background initialization once the first frame has rendered.
   void startPostLaunchServices() {
-    // Ensure database is ready immediately after app renders
-    unawaited(Future.microtask(() async {
-      try {
-        // Use dynamic type to avoid import issues
-        await di.sl.isReady();
-        if (kDebugMode) {
-          debugPrint('✅ Database ready');
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          debugPrint('⚠️ Database initialization error: $e');
-        }
-      }
-    }));
-    
     unawaited(Future.microtask(_completeSettingsInitialization));
     unawaited(Future.microtask(_initializeFirebaseIfNeeded));
 
