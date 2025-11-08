@@ -14,6 +14,8 @@ import '../widgets/goal_history_card.dart';
 import '../widgets/goal_form_dialog.dart';
 import '../widgets/custom_card.dart';
 import '../widgets/funding_preview_dialog.dart';
+import '../widgets/goal_snapshot_card.dart';
+import '../widgets/submit_button.dart';
 import '../utils/dialog_utils.dart';
 import '../utils/app_constants.dart';
 import '../utils/app_theme.dart';
@@ -190,47 +192,104 @@ class _GoalsScreenState extends State<GoalsScreen>
   }
 
   Widget _buildActiveGoalsTab(GoalsViewModel goalsViewModel) {
-    if (goalsViewModel.goals.isEmpty) {
+    final activeGoals = goalsViewModel.goals
+        .where((goal) => !goal.isCompleted)
+        .toList()
+      ..sort((a, b) => a.deadline.compareTo(b.deadline));
+
+    if (activeGoals.isEmpty) {
       return _buildEmptyGoalsState();
     }
+
+    final currency = di.sl<SettingsService>().currency;
+    final availableSavings = goalsViewModel.availableSavings;
+    final canAllocate = availableSavings > 0 && activeGoals.isNotEmpty;
+    final summary = canAllocate
+        ? 'You have ${CurrencyFormatter.formatAmount(availableSavings, currency)} ready to allocate.'
+        : 'No surplus savings awaiting allocation. Keep tracking your budget to free up funds.';
+    final recommendation = goalsViewModel.goalRecommendations.isNotEmpty
+        ? goalsViewModel.goalRecommendations.first
+        : null;
 
     return RefreshIndicator(
       onRefresh: () async {
         await goalsViewModel.init(force: true);
       },
-      child: SingleChildScrollView(
+      child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(height: AppConstants.spacingMedium),
-
-            // Statistics Overview Section
-            _buildStatisticsSection(context, goalsViewModel),
-
-            SizedBox(height: AppConstants.spacingMedium),
-
-            // Tailored recommendations
-            _buildRecommendationsSection(context, goalsViewModel),
-
-            SizedBox(height: AppConstants.spacingMedium),
-
-            // Fund Goals Section (if savings available)
-            if (goalsViewModel.hasSavingsToAllocate)
-              _buildFundingSection(context, goalsViewModel),
-
-            SizedBox(height: AppConstants.spacingMedium),
-
-            // Financial Goals List
-            _buildFinancialGoalsList(context, goalsViewModel),
-
-            // Add Goal Button (if under limit)
-            if (goalsViewModel.goals.length < _maxActiveGoals)
-              _buildAddGoalSection(),
-
-            SizedBox(height: AppConstants.bottomPaddingWithNavBar),
-          ],
-        ),
+        slivers: [
+          SliverPadding(
+            padding: AppConstants.screenPaddingHorizontal.copyWith(
+              top: AppConstants.spacingLarge,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: GoalSnapshotCard(
+                activeGoals: activeGoals.length,
+                summary: summary,
+                focusGoal: activeGoals.first,
+                availableSavings: availableSavings,
+                currency: currency,
+                recommendation: recommendation,
+                canAllocate: canAllocate,
+                isAllocating: goalsViewModel.isFundingGoals,
+                onAllocate: () => _handleAllocateSavings(goalsViewModel),
+                onManage: _showAddGoalDialog,
+                manageLabel: goalsViewModel.goals.length < _maxActiveGoals
+                    ? 'Add Goal'
+                    : 'Manage Goals',
+                manageIcon: goalsViewModel.goals.length < _maxActiveGoals
+                    ? Icons.add_circle
+                    : Icons.flag_circle,
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: AppConstants.screenPaddingHorizontal.copyWith(
+              top: AppConstants.spacingLarge,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: _buildStatisticsSection(context, goalsViewModel),
+            ),
+          ),
+          if (goalsViewModel.hasSavingsToAllocate)
+            SliverPadding(
+              padding: AppConstants.screenPaddingHorizontal.copyWith(
+                top: AppConstants.spacingLarge,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: _buildFundingSection(context, goalsViewModel),
+              ),
+            ),
+          if (goalsViewModel.goalRecommendations.isNotEmpty)
+            SliverPadding(
+              padding: AppConstants.screenPaddingHorizontal.copyWith(
+                top: AppConstants.spacingLarge,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: _buildRecommendationsSection(context, goalsViewModel),
+              ),
+            ),
+          SliverPadding(
+            padding: AppConstants.screenPaddingHorizontal.copyWith(
+              top: AppConstants.spacingLarge,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: _buildFinancialGoalsList(context, goalsViewModel),
+            ),
+          ),
+          if (goalsViewModel.goals.length < _maxActiveGoals)
+            SliverPadding(
+              padding: AppConstants.screenPaddingHorizontal.copyWith(
+                top: AppConstants.spacingLarge,
+              ),
+              sliver: SliverToBoxAdapter(
+                child: _buildAddGoalSection(),
+              ),
+            ),
+          SliverToBoxAdapter(
+            child: SizedBox(height: AppConstants.bottomPaddingWithNavBar),
+          ),
+        ],
       ),
     );
   }
@@ -298,6 +357,14 @@ class _GoalsScreenState extends State<GoalsScreen>
   }
 
   Widget _buildHistoryTab(GoalsViewModel goalsViewModel) {
+    if (goalsViewModel.isHistoryLoading && goalsViewModel.goalHistory.isEmpty) {
+      return Center(
+        child: CircularProgressIndicator(
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      );
+    }
+
     if (goalsViewModel.goalHistory.isEmpty) {
       return Center(
         child: Padding(
@@ -882,37 +949,82 @@ class _GoalsScreenState extends State<GoalsScreen>
       child: Column(
         children: [
           SizedBox(height: AppConstants.spacingMedium),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _showAddGoalDialog,
-              icon: Icon(Icons.add_rounded, size: AppConstants.iconSizeMedium),
-              label: Text(
-                'Add New Goal',
-                style: TextStyle(
-                  fontSize: AppConstants.textSizeLarge,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                padding: EdgeInsets.symmetric(
-                  vertical: AppConstants.spacingLarge,
-                ),
-                side: BorderSide(
-                  color: Theme.of(context).colorScheme.primary,
-                  width: 2,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(AppConstants.borderRadiusLarge),
-                ),
-              ),
-            ),
+          SubmitButton(
+            text: 'Add New Goal',
+            isLoading: false,
+            icon: Icons.add_circle,
+            color: Theme.of(context).colorScheme.primary,
+            height: 50,
+            onPressed: _showAddGoalDialog,
           ),
           // Add extra spacing to prevent FAB overlap
           SizedBox(height: AppConstants.spacingXXLarge),
         ],
       ),
+    );
+  }
+
+  Future<void> _handleAllocateSavings(GoalsViewModel goalsVM) async {
+    if (!mounted || goalsVM.isFundingGoals) {
+      return;
+    }
+
+    if (goalsVM.availableSavings <= 0) {
+      DialogUtils.showInfoDialog(
+        context,
+        title: 'No Savings Available',
+        message:
+            'There are no surplus savings to allocate right now. Try refreshing after tracking new expenses or closing the month.',
+      );
+      return;
+    }
+
+    final distribution = await goalsVM.previewFundingDistribution();
+    if (!mounted) {
+      return;
+    }
+
+    if (distribution.isEmpty) {
+      DialogUtils.showInfoDialog(
+        context,
+        title: 'Allocation Not Required',
+        message:
+            'Great news! Your active goals are already fully funded with the current savings.',
+      );
+      return;
+    }
+
+    await showFundingPreviewDialog(
+      context: context,
+      availableSavings: goalsVM.availableSavings,
+      distribution: distribution,
+      goals: goalsVM.goals,
+      onConfirm: () async {
+        final success = await goalsVM.allocateSavingsToGoals();
+        if (!mounted) {
+          return;
+        }
+
+        final messenger = ScaffoldMessenger.of(context);
+        if (success) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: const Text('Savings allocated to your goals.'),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+            ),
+          );
+          await goalsVM.init(force: true);
+          setState(() {});
+        } else {
+          messenger.showSnackBar(
+            SnackBar(
+              content:
+                  Text(goalsVM.errorMessage ?? 'Unable to allocate savings'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+        }
+      },
     );
   }
 

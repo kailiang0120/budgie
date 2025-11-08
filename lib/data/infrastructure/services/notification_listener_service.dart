@@ -291,13 +291,12 @@ class NotificationListenerService {
       return;
     }
     try {
-      // Ensure DI is ready in background isolate
       if (!di.sl.isRegistered<ExpenseExtractionDomainService>()) {
         if (kDebugMode) {
           debugPrint(
-              '🔧 SettingsService: DI not ready in background, re-initializing...');
+              '� NotificationListener: Expense extraction service not registered, skipping processing');
         }
-        await di.init(); // Re-run dependency injection
+        return;
       }
 
       final extractionService = di.sl<ExpenseExtractionDomainService>();

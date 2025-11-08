@@ -30,7 +30,9 @@ class GoalsViewModel extends ChangeNotifier {
 
   List<FinancialGoal> _goals = [];
   List<GoalHistory> _goalHistory = [];
-  bool _isLoading = false;
+  bool _isGoalsLoading = false;
+  bool _isHistoryLoading = false;
+  bool _isMutating = false;
   String? _errorMessage;
   double _availableSavings = 0.0;
   bool _isFundingGoals = false;
@@ -66,7 +68,10 @@ class GoalsViewModel extends ChangeNotifier {
   // Getters
   List<FinancialGoal> get goals => _goals;
   List<GoalHistory> get goalHistory => _goalHistory;
-  bool get isLoading => _isLoading;
+  bool get isLoading => _isGoalsLoading || _isMutating;
+  bool get isGoalsLoading => _isGoalsLoading;
+  bool get isHistoryLoading => _isHistoryLoading;
+  bool get isMutating => _isMutating;
   String? get errorMessage => _errorMessage;
   bool get hasGoals => _goals.isNotEmpty;
   bool get hasHistory => _goalHistory.isNotEmpty;
@@ -79,7 +84,7 @@ class GoalsViewModel extends ChangeNotifier {
 
   // Initialize the view model
   Future<void> init({bool force = false}) async {
-    if (_isLoading) {
+  if (_isGoalsLoading || _isMutating) {
       return;
     }
 
@@ -197,7 +202,7 @@ class GoalsViewModel extends ChangeNotifier {
 
   // Load active goals
   Future<void> loadGoals() async {
-    _setLoading(true);
+    _setGoalsLoading(true);
     _clearError();
 
     try {
@@ -209,13 +214,13 @@ class GoalsViewModel extends ChangeNotifier {
     } catch (e) {
       _setError('Failed to load goals: $e');
     } finally {
-      _setLoading(false);
+      _setGoalsLoading(false);
     }
   }
 
   // Load goal history
   Future<void> loadGoalHistory() async {
-    _setLoading(true);
+    _setHistoryLoading(true);
     _clearError();
 
     try {
@@ -224,7 +229,7 @@ class GoalsViewModel extends ChangeNotifier {
     } catch (e) {
       _setError('Failed to load goal history: $e');
     } finally {
-      _setLoading(false);
+      _setHistoryLoading(false);
     }
   }
 
@@ -485,7 +490,7 @@ class GoalsViewModel extends ChangeNotifier {
 
   // Save a new goal
   Future<bool> saveGoal(FinancialGoal goal) async {
-    _setLoading(true);
+    _setMutating(true);
     _clearError();
 
     try {
@@ -502,7 +507,7 @@ class GoalsViewModel extends ChangeNotifier {
       _setError('Failed to save goal: $e');
       return false;
     } finally {
-      _setLoading(false);
+      _setMutating(false);
     }
   }
 
@@ -514,9 +519,6 @@ class GoalsViewModel extends ChangeNotifier {
     required GoalIcon icon,
     double currentAmount = 0.0,
   }) async {
-    _setLoading(true);
-    _clearError();
-
     try {
       final goal = FinancialGoal(
         id: _uuid.v4(),
@@ -531,14 +533,12 @@ class GoalsViewModel extends ChangeNotifier {
     } catch (e) {
       _setError('Failed to create goal: $e');
       return false;
-    } finally {
-      _setLoading(false);
     }
   }
 
   // Update an existing goal
   Future<void> updateGoal(FinancialGoal goal) async {
-    _setLoading(true);
+    _setMutating(true);
     _clearError();
 
     try {
@@ -547,13 +547,13 @@ class GoalsViewModel extends ChangeNotifier {
     } catch (e) {
       _setError('Failed to update goal: $e');
     } finally {
-      _setLoading(false);
+      _setMutating(false);
     }
   }
 
   // Update the current amount of a goal
   Future<void> updateGoalAmount(String goalId, double newAmount) async {
-    _setLoading(true);
+    _setMutating(true);
     _clearError();
 
     try {
@@ -569,13 +569,13 @@ class GoalsViewModel extends ChangeNotifier {
     } catch (e) {
       _setError('Failed to update goal amount: $e');
     } finally {
-      _setLoading(false);
+      _setMutating(false);
     }
   }
 
   // Delete a goal
   Future<void> deleteGoal(String id) async {
-    _setLoading(true);
+    _setMutating(true);
     _clearError();
 
     try {
@@ -584,13 +584,13 @@ class GoalsViewModel extends ChangeNotifier {
     } catch (e) {
       _setError('Failed to delete goal: $e');
     } finally {
-      _setLoading(false);
+      _setMutating(false);
     }
   }
 
   // Complete a goal
   Future<void> completeGoal(String id, {String? notes}) async {
-    _setLoading(true);
+    _setMutating(true);
     _clearError();
 
     try {
@@ -600,7 +600,7 @@ class GoalsViewModel extends ChangeNotifier {
     } catch (e) {
       _setError('Failed to complete goal: $e');
     } finally {
-      _setLoading(false);
+      _setMutating(false);
     }
   }
 
@@ -615,8 +615,27 @@ class GoalsViewModel extends ChangeNotifier {
   }
 
   // Helper methods
-  void _setLoading(bool loading) {
-    _isLoading = loading;
+  void _setGoalsLoading(bool loading) {
+    if (_isGoalsLoading == loading) {
+      return;
+    }
+    _isGoalsLoading = loading;
+    notifyListeners();
+  }
+
+  void _setHistoryLoading(bool loading) {
+    if (_isHistoryLoading == loading) {
+      return;
+    }
+    _isHistoryLoading = loading;
+    notifyListeners();
+  }
+
+  void _setMutating(bool loading) {
+    if (_isMutating == loading) {
+      return;
+    }
+    _isMutating = loading;
     notifyListeners();
   }
 

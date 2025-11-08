@@ -10,6 +10,8 @@ import '../../../di/injection_container.dart' as di;
 /// Acts as the single source of truth for user settings
 class SettingsService extends ChangeNotifier {
   static SettingsService? _instance;
+  bool _hasLoadedPersistedSettings = false;
+  bool _hasCompletedInitialization = false;
 
   // Keys for shared preferences
   final String _themeKey = 'app_theme';
@@ -52,6 +54,15 @@ class SettingsService extends ChangeNotifier {
 
   SettingsService() {
     _instance = this;
+    _theme = 'light';
+    _allowNotification = false;
+    _autoBudget = false;
+    _syncEnabled = false;
+    _currency = 'MYR';
+    _locationEnabled = false;
+    _cameraEnabled = false;
+    _storageEnabled = false;
+    _biometricEnabled = false;
   }
 
   static SettingsService? get instance => _instance;
@@ -85,12 +96,36 @@ class SettingsService extends ChangeNotifier {
     return prefs;
   }
 
+  Future<void> loadPersistedSettings() async {
+    if (_hasLoadedPersistedSettings) {
+      return;
+    }
+
+    try {
+      await _loadSettings();
+      _hasLoadedPersistedSettings = true;
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('🔧 SettingsService: Error loading persisted settings: $e');
+      }
+    }
+  }
+
   Future<void> initialize({PermissionHandlerService? permissionHandler}) async {
+    if (_hasCompletedInitialization) {
+      if (permissionHandler != null && _permissionHandler == null) {
+        _permissionHandler = permissionHandler;
+      }
+      return;
+    }
+
+    await loadPersistedSettings();
+
     try {
       if (kDebugMode) {
         debugPrint('🔧 SettingsService: Initializing settings');
       }
-      await _loadSettings();
 
       if (permissionHandler != null) {
         _permissionHandler = permissionHandler;
@@ -131,6 +166,7 @@ class SettingsService extends ChangeNotifier {
       if (kDebugMode) {
         debugPrint('🔧 SettingsService: Initialization completed');
       }
+      _hasCompletedInitialization = true;
     } catch (e) {
       if (kDebugMode) {
         debugPrint('🔧 SettingsService: Error initializing settings: $e');
@@ -156,6 +192,7 @@ class SettingsService extends ChangeNotifier {
         debugPrint(
             '🔧 SettingsService: Loaded settings - theme=$_theme, currency=$_currency, allowNotification=$_allowNotification, autoBudget=$_autoBudget, syncEnabled=$_syncEnabled, locationEnabled=$_locationEnabled, cameraEnabled=$_cameraEnabled, storageEnabled=$_storageEnabled, biometricEnabled=$_biometricEnabled');
       }
+      _hasLoadedPersistedSettings = true;
     } catch (e) {
       if (kDebugMode) {
         debugPrint('🔧 SettingsService: Error loading settings: $e');
@@ -212,7 +249,8 @@ class SettingsService extends ChangeNotifier {
     try {
       final prefs = await _getPrefs();
       await prefs.clear();
-      await _loadSettings();
+      _hasLoadedPersistedSettings = false;
+      await loadPersistedSettings();
       notifyListeners();
       if (kDebugMode) {
         debugPrint('🔧 SettingsService: Settings reset to defaults');

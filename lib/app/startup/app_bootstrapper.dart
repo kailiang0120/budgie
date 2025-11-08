@@ -20,55 +20,54 @@ import '../../presentation/viewmodels/theme_viewmodel.dart';
 
 /// Coordinates all synchronous and deferred application start-up work.
 class AppBootstrapper {
+  bool _firebaseInitialized = false;
+
   /// Initializes the critical services that must be ready before the UI renders.
   Future<void> ensureCoreServices() async {
     if (kDebugMode) {
       debugPrint('?? Initializing core services...');
     }
 
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-
     await di.init();
 
-    await _initializeSettings();
+    await _primeSettings();
 
     if (kDebugMode) {
       debugPrint('? Core services initialized');
     }
   }
 
-  Future<void> _initializeSettings() async {
+  Future<void> _primeSettings() async {
     try {
       final settingsService = di.sl<SettingsService>();
-      final permissionHandler = di.sl<PermissionHandlerService>();
+      await settingsService.loadPersistedSettings();
 
-      if (Platform.isAndroid) {
-        await Future.delayed(const Duration(milliseconds: 200));
+  _refreshThemeFromSettings();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('?? SettingsService warmup error: $e');
       }
+    }
+  }
 
-      await settingsService.initialize(permissionHandler: permissionHandler);
-
-      try {
-        di.sl<ThemeViewModel>().refreshFromSettings();
-        if (kDebugMode) {
-          debugPrint('? ThemeViewModel refreshed from loaded settings');
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          debugPrint('?? ThemeViewModel refresh error: $e');
-        }
+  void _refreshThemeFromSettings() {
+    try {
+      di.sl<ThemeViewModel>().refreshFromSettings();
+      if (kDebugMode) {
+        debugPrint('? ThemeViewModel refreshed from settings');
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('?? SettingsService initialization error: $e');
+        debugPrint('?? ThemeViewModel refresh error: $e');
       }
     }
   }
 
   /// Schedules background initialization once the first frame has rendered.
   void startPostLaunchServices() {
+    unawaited(Future.microtask(_completeSettingsInitialization));
+    unawaited(Future.microtask(_initializeFirebaseIfNeeded));
+
     unawaited(Future.delayed(const Duration(milliseconds: 500), () async {
       if (kDebugMode) {
         debugPrint('?? Initializing essential services...');
@@ -111,6 +110,49 @@ class AppBootstrapper {
     unawaited(Future.delayed(const Duration(seconds: 3), _checkWelcomeStatus));
   }
 
+  Future<void> _completeSettingsInitialization() async {
+    try {
+      if (kDebugMode) {
+        debugPrint('?? Completing settings initialization...');
+      }
+
+      final settingsService = di.sl<SettingsService>();
+      final permissionHandler = di.sl<PermissionHandlerService>();
+
+      if (Platform.isAndroid) {
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+
+      await settingsService.initialize(permissionHandler: permissionHandler);
+
+      _refreshThemeFromSettings();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('?? SettingsService deferred initialization error: $e');
+      }
+    }
+  }
+
+  Future<void> _initializeFirebaseIfNeeded() async {
+    if (_firebaseInitialized) {
+      return;
+    }
+
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      _firebaseInitialized = true;
+      if (kDebugMode) {
+        debugPrint('? Firebase initialized');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('?? Firebase initialization error: $e');
+      }
+    }
+  }
+
   Future<void> _initializeNotificationServices() async {
     try {
       final notificationService = di.sl<NotificationService>();
@@ -125,23 +167,30 @@ class AppBootstrapper {
         debugPrint('? Main: Expense refresh callback registered');
       }
 
-      try {
-        final extractionService = di.sl<ExpenseExtractionDomainService>();
-        if (!extractionService.isInitialized) {
-          if (kDebugMode) {
-            debugPrint('?? Main: Initializing expense extraction service...');
+      final settingsService = di.sl<SettingsService>();
+      if (settingsService.allowNotification) {
+        try {
+          final extractionService = di.sl<ExpenseExtractionDomainService>();
+          if (!extractionService.isInitialized) {
+            if (kDebugMode) {
+              debugPrint('?? Main: Initializing expense extraction service...');
+            }
+            await extractionService.initialize();
+            if (kDebugMode) {
+              debugPrint('? Main: Expense extraction service initialized');
+            }
           }
-          await extractionService.initialize();
+        } catch (e) {
           if (kDebugMode) {
-            debugPrint('? Main: Expense extraction service initialized');
+            debugPrint(
+              '?? Main: Failed to initialize expense extraction service: $e',
+            );
           }
         }
-      } catch (e) {
-        if (kDebugMode) {
-          debugPrint(
-            '?? Main: Failed to initialize expense extraction service: $e',
-          );
-        }
+      } else if (kDebugMode) {
+        debugPrint(
+          '?? Main: Expense extraction service skipped (notifications disabled)',
+        );
       }
     } catch (e) {
       if (kDebugMode) {
