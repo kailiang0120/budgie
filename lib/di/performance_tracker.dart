@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'dart:async';
+import 'dart:developer' as developer;
 
 /// Performance tracking utility for dependency injection and service initialization
+/// Integrates with Flutter's Timeline for actionable traces in DevTools
 class PerformanceTracker {
   static final Map<String, int> _initializationTimes = {};
   static final Map<String, Stopwatch> _activeTimers = {};
@@ -12,37 +14,62 @@ class PerformanceTracker {
   /// Start tracking app startup
   static void startAppTracking() {
     _appStartTime = DateTime.now().millisecondsSinceEpoch;
-    debugPrint('📱 PerformanceTracker: App startup tracking started');
+    developer.Timeline.startSync('App Startup');
+    if (kDebugMode) {
+      developer.log('App startup tracking started', name: 'PerformanceTracker');
+    }
   }
 
   /// Start timing a service initialization
   static void startServiceInit(String serviceName) {
     if (_activeTimers.containsKey(serviceName)) {
-      debugPrint(
-          '⚠️ PerformanceTracker: Timer already running for $serviceName');
+      if (kDebugMode) {
+        developer.log('Timer already running for $serviceName', 
+          name: 'PerformanceTracker',
+          level: 900,
+        );
+      }
       return;
     }
 
     _activeTimers[serviceName] = Stopwatch()..start();
-    debugPrint('⏱️ PerformanceTracker: Started timing $serviceName');
+    developer.Timeline.startSync('Init: $serviceName');
+    if (kDebugMode) {
+      developer.log('Started timing $serviceName', name: 'PerformanceTracker');
+    }
   }
 
   /// Stop timing a service initialization
   static void stopServiceInit(String serviceName) {
     final timer = _activeTimers.remove(serviceName);
     if (timer == null) {
-      debugPrint('⚠️ PerformanceTracker: No timer found for $serviceName');
+      if (kDebugMode) {
+        developer.log('No timer found for $serviceName', 
+          name: 'PerformanceTracker',
+          level: 900,
+        );
+      }
       return;
     }
 
     timer.stop();
+    developer.Timeline.finishSync();
+    
     final elapsedMs = timer.elapsedMilliseconds;
     _initializationTimes[serviceName] = elapsedMs;
     _initializationOrder.add(serviceName);
     _totalInitializationTime += elapsedMs;
 
-    debugPrint(
-        '✅ PerformanceTracker: $serviceName initialized in ${elapsedMs}ms');
+    if (kDebugMode) {
+      developer.log(
+        '$serviceName initialized in ${elapsedMs}ms',
+        name: 'PerformanceTracker',
+        time: DateTime.now(),
+      );
+    }
+    
+    // Add instant event to timeline for easier visualization
+    developer.Timeline.instantSync('$serviceName: ${elapsedMs}ms');
   }
 
   /// Get performance report
@@ -97,43 +124,68 @@ class PerformanceTracker {
   static void printPerformanceReport() {
     final report = getPerformanceReport();
 
-    debugPrint('📊 ===== DEPENDENCY INJECTION PERFORMANCE REPORT =====');
-    debugPrint('📱 Total app startup time: ${report['totalAppStartupTime']}ms');
-    debugPrint(
-        '🔧 Total service init time: ${report['totalServiceInitTime']}ms');
-    debugPrint('📈 Services initialized: ${report['servicesInitialized']}');
-    final avgTime = report['averageServiceTime'];
-    if (avgTime != null && avgTime > 0) {
-      debugPrint(
-          '⚡ Average service time: ${avgTime.toDouble().toStringAsFixed(1)}ms');
-    }
-
-    debugPrint('\n🐌 Slowest services:');
-    for (final service in report['slowestServices'] as List) {
-      debugPrint('   - ${service['name']}: ${service['time']}ms');
-    }
-
-    debugPrint('\n⚡ Fastest services:');
-    for (final service in report['fastestServices'] as List) {
-      debugPrint('   - ${service['name']}: ${service['time']}ms');
-    }
-
-    debugPrint('\n🔄 Initialization order:');
-    for (int i = 0; i < _initializationOrder.length; i++) {
-      final serviceName = _initializationOrder[i];
-      final time = _initializationTimes[serviceName] ?? 0;
-      debugPrint('   ${i + 1}. $serviceName (${time}ms)');
-    }
-
-    if (_activeTimers.isNotEmpty) {
-      debugPrint('\n⏳ Still initializing:');
-      for (final serviceName in _activeTimers.keys) {
-        final elapsed = _activeTimers[serviceName]?.elapsedMilliseconds ?? 0;
-        debugPrint('   - $serviceName (${elapsed}ms so far)');
+    developer.Timeline.finishSync(); // Finish app startup tracking
+    
+    if (kDebugMode) {
+      developer.log(
+        '===== DEPENDENCY INJECTION PERFORMANCE REPORT =====',
+        name: 'PerformanceTracker',
+      );
+      developer.log(
+        'Total app startup time: ${report['totalAppStartupTime']}ms',
+        name: 'PerformanceTracker',
+      );
+      developer.log(
+        'Total service init time: ${report['totalServiceInitTime']}ms',
+        name: 'PerformanceTracker',
+      );
+      developer.log(
+        'Services initialized: ${report['servicesInitialized']}',
+        name: 'PerformanceTracker',
+      );
+      
+      final avgTime = report['averageServiceTime'];
+      if (avgTime != null && avgTime > 0) {
+        developer.log(
+          'Average service time: ${avgTime.toDouble().toStringAsFixed(1)}ms',
+          name: 'PerformanceTracker',
+        );
       }
-    }
 
-    debugPrint('===== END PERFORMANCE REPORT =====\n');
+      developer.log('Slowest services:', name: 'PerformanceTracker');
+      for (final service in report['slowestServices'] as List) {
+        developer.log('  - ${service['name']}: ${service['time']}ms', 
+          name: 'PerformanceTracker');
+      }
+
+      developer.log('Fastest services:', name: 'PerformanceTracker');
+      for (final service in report['fastestServices'] as List) {
+        developer.log('  - ${service['name']}: ${service['time']}ms', 
+          name: 'PerformanceTracker');
+      }
+
+      developer.log('Initialization order:', name: 'PerformanceTracker');
+      for (int i = 0; i < _initializationOrder.length; i++) {
+        final serviceName = _initializationOrder[i];
+        final time = _initializationTimes[serviceName] ?? 0;
+        developer.log('  ${i + 1}. $serviceName (${time}ms)', 
+          name: 'PerformanceTracker');
+      }
+
+      if (_activeTimers.isNotEmpty) {
+        developer.log('Still initializing:', name: 'PerformanceTracker', level: 900);
+        for (final serviceName in _activeTimers.keys) {
+          final elapsed = _activeTimers[serviceName]?.elapsedMilliseconds ?? 0;
+          developer.log('  - $serviceName (${elapsed}ms so far)', 
+            name: 'PerformanceTracker', level: 900);
+        }
+      }
+
+      developer.log(
+        '===== END PERFORMANCE REPORT =====',
+        name: 'PerformanceTracker',
+      );
+    }
   }
 
   /// Check for potential performance issues
@@ -171,12 +223,15 @@ class PerformanceTracker {
     _initializationOrder.clear();
     _totalInitializationTime = 0;
     _appStartTime = 0;
-    debugPrint('🔄 PerformanceTracker: Reset all tracking data');
+    if (kDebugMode) {
+      developer.log('Reset all tracking data', name: 'PerformanceTracker');
+    }
   }
 
   /// Benchmark a function execution
   static Future<T> benchmark<T>(
       String name, Future<T> Function() function) async {
+    developer.Timeline.startSync(name);
     startServiceInit(name);
     try {
       final result = await function();
@@ -185,11 +240,14 @@ class PerformanceTracker {
     } catch (e) {
       stopServiceInit(name);
       rethrow;
+    } finally {
+      developer.Timeline.finishSync();
     }
   }
 
   /// Benchmark a synchronous function execution
   static T benchmarkSync<T>(String name, T Function() function) {
+    developer.Timeline.startSync(name);
     startServiceInit(name);
     try {
       final result = function();
@@ -198,6 +256,8 @@ class PerformanceTracker {
     } catch (e) {
       stopServiceInit(name);
       rethrow;
+    } finally {
+      developer.Timeline.finishSync();
     }
   }
 }

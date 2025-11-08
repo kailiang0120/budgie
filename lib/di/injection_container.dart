@@ -76,10 +76,14 @@ Future<void> init() async {
   // Performance Tracker
   sl.registerLazySingleton(() => PerformanceTracker());
 
-  // App Database
-  sl.registerLazySingleton(() => AppDatabase());
+  // App Database - Registered as async singleton to defer opening until after runApp
+  sl.registerSingletonAsync<AppDatabase>(() async {
+    final db = AppDatabase();
+    // Database will open lazily on first access thanks to LazyDatabase
+    return db;
+  });
 
-  // Register DAOs
+  // Register DAOs - they will be available once database is ready
   sl.registerLazySingleton(() => sl<AppDatabase>().exchangeRatesDao);
   sl.registerLazySingleton(() => sl<AppDatabase>().userProfilesDao);
   sl.registerLazySingleton(() => sl<AppDatabase>().analysisResultDao);
